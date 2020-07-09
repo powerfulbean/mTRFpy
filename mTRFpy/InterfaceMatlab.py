@@ -16,7 +16,7 @@ def saveMatFile(matFilePath,mdict,**kwargs):
 
 if __name__ == '__main__':
     
-    oDir = CDirectoryConfig(['TestData'],'mTRFpy.conf')
+    oDir = CDirectoryConfig(['TestData'],'..\mTRFpy.conf')
     temp = loadMatFile(oDir.TestData + 'speech_data.mat')
     temp1 = saveMatFile( oDir.TestData+ 'speech_data_out.mat',temp)
     

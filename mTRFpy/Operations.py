@@ -22,10 +22,11 @@ def calCovariance(x,y):
     return np.matmul(x.T,y)
 
 
-def genLagMatrix(x,lags,zeropad = True,bias =True): #
+def genLagMat(x,lags,zeropad = True,bias =True): #
     '''
-    build the lag matrix based on input
-    lags should be a list (or list like supporting len() method) of integers, 
+    build the lag matrix based on input.
+    x: input matrix
+    lags: a list (or list like supporting len() method) of integers, 
          each of them should indicate the time lag in samples.
     
     see also 'lagGen' in mTRF-Toolbox https://github.com/mickcrosse/mTRF-Toolbox
@@ -52,3 +53,36 @@ def genLagMatrix(x,lags,zeropad = True,bias =True): #
             lagMatrix[:,colSlice] = x
     
     return lagMatrix
+
+def genSmplIdxSeqByMsecRg(msecRange,fs):
+    '''
+    convert a millisecond range to a list of sample indexes
+    
+    the left and right ranges will both be included
+    '''
+    assert len(msecRange) == 2
+    
+    tmin = msecRange[0]/1e3
+    tmax = msecRange[1]/1e3
+    return list(range(int(np.floor(tmin*fs)),int(np.ceil(tmax*fs)) + 1))
+
+def genRegMat(n, method = 'ridge'):
+    '''
+    generates a sparse regularization matrix of size (n,n) for the specified method.
+    see also regmat.m in mTRF-Toolbox https://github.com/mickcrosse/mTRF-Toolbox
+    '''
+    regMatrix = None
+    if method == 'ridge':
+        regMatrix = np.identity(n)
+        regMatrix[0,0] = 0
+    elif method == 'Tikhonov':
+        regMatrix = np.identity(n)
+        regMatrix -= 0.5 * (np.diag(np.ones(n-1),1) + np.diag(np.ones(n-1),-1))
+        regMatrix[1,1] = 0.5
+        regMatrix[n-1,n-1] = 0.5
+        regMatrix[0,0] = 0
+        regMatrix[0,1] = 0
+        regMatrix[1,0] = 0
+    else:
+        regMatrix = np.zeros((n,n))
+    return regMatrix
