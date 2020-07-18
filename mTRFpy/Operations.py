@@ -23,7 +23,7 @@ def calCovariance(x,y):
     x,y = oPrtclsData(x,y)
     return np.matmul(x.T,y)
 
-def genLagMat(x,lags,zeropad = True,bias =True): #
+def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
     '''
     build the lag matrix based on input.
     x: input matrix
@@ -54,8 +54,13 @@ def genLagMat(x,lags,zeropad = True,bias =True): #
         else:
             lagMatrix[:,colSlice] = x
     
+    if not Zeropad:
+        lagMatrix = truncate(lagMatrix,lags[0],lags[-1])
+        
     if bias:
-        lagMatrix = np.concatenate([np.ones((nSamples,1)),lagMatrix],1);
+        lagMatrix = np.concatenate([np.ones((lagMatrix.shape[0],1)),lagMatrix],1);
+
+    print(lagMatrix.shape)    
     
     return lagMatrix
 
@@ -81,11 +86,13 @@ def genRegMat(n:int, method = 'ridge'):
     return regMatrix
 
 def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
-
     assert Type in TypeEnum
     
+    if not Zeropad:
+        y = truncate(y,lags[0],lags[-1])
+    
     if Type == 'multi':
-        xLag = genLagMat(x,lags)
+        xLag = genLagMat(x,lags,Zeropad)
         Cxx = calCovariance(xLag,xLag.copy())
         Cxy = calCovariance(xLag,y)
     
@@ -113,6 +120,9 @@ def Idxs2msec(lags,fs):
     return list(temp/fs * 1e3)
 
 def truncate(x,tminIdx,tmaxIdx):
-    rowSlice = slice(max(0,tmaxIdx)+1,min(0,tminIdx) + len(x))
+    '''
+    the left and right ranges will both be included
+    '''
+    rowSlice = slice(max(0,tmaxIdx),min(0,tminIdx) + len(x))# !!!!
     output = x[rowSlice]
     return output

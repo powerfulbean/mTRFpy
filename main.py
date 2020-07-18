@@ -18,7 +18,7 @@ import numpy as np
 
 oDir = CDirectoryConfig(['TestData'],'mTRFpy.conf')
 
-oStage = CStageControl([0,1,1.1])
+oStage = CStageControl([2])
 
 if oStage(0):
     '''
@@ -72,12 +72,17 @@ if oStage(2):
     
     respTrain = [d[0] for d in temp['resptrain']]
     stimTrain = [d[0] for d in temp['stimtrain']]
+    fs = temp['fs'][0,0]
+    Dir = temp['Dir'][0,0]
     
     bench_key_list = ['w','b','t','fs','Dir','type']
     Model_Bench_Dict = dict()
     for key in bench_key_list:
         Model_Bench_Dict[key] = temp[key]
-    
+        
+    model = md.CTRF()
+    model.train(stimTrain,respTrain,Dir,fs,0,250,100,Zeropad = False)
+
     
 if oStage(3):
     temp = np.array([[1,2,3],[1,2,3],[1,2,3]])

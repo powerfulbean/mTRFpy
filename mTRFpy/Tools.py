@@ -60,7 +60,7 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
         y = ds.CDataList(y)
     
     assert x.fold == y.fold
-    lags = op.msec2Idxs([-100,400],fs)
+    lags = op.msec2Idxs([tmin_ms,tmax_ms],fs)
     Cxx,Cxy = olscovmat(x,y,lags,**kwarg)
     
     Delta = 1/fs

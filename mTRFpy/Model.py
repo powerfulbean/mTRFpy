@@ -54,7 +54,7 @@ class CTRF:
             self.type = kwarg.get('Type')
         
         if kwarg.get('Zeropad') != None:
-            self.zeropad = kwarg.get('Zeropad')
+            self.Zeropad = kwarg.get('Zeropad')
             
         self.w, self.b = w, b
         self.Dir = Dir
