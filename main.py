@@ -18,9 +18,9 @@ import numpy as np
 
 oDir = CDirectoryConfig(['TestData'],'mTRFpy.conf')
 
-oStage = CStageControl([1,1.1])
+oStage = CStageControl([0,1,1.1])
 
-if oStage(1):
+if oStage(0):
     '''
     test mtrfTrain procedure
     '''
@@ -29,6 +29,8 @@ if oStage(1):
     resp = temp['resp'] * temp['factor'][0,0]
     stim = temp['stim']
     fs = temp['fs'][0,0]
+
+if oStage(1):
     oData = CDataRecord(resp,stim,list(),fs)
     
     lags = op.msec2Idxs([-100,400],oData.srate)
@@ -50,6 +52,15 @@ if oStage(1):
     print(tls.cmp2NArray(w,w_benchmark,8))
 
 if oStage(1.1):
+    lags = op.msec2Idxs([-100,400],fs)
+    x = stim
+    y = resp
+    if not isinstance(x, ds.CDataList):
+        x = ds.CDataList(x)
+    if not isinstance(y, ds.CDataList):
+        y = ds.CDataList(y)
+        
+#    Cxx_test,Cxy_test = tls.olscovmat(x+x.copy(),y+y.copy(),lags)
     w_11,b_11,lags_11 = tls.train(stim,resp,fs,-100,400,Lambda)
 
 

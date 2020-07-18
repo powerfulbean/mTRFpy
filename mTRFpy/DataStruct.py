@@ -20,7 +20,7 @@ class CDataList(list):
     def _check(self,data):
         if not isinstance(data,list):
             data = [data]
-        data = pt.CProtocolData()(*data)
+        data = pt.CProtocolData()(*data) #copy the data items in this function
         nColSizeType = len(set([d.shape[1] for d in data]))
         assert nColSizeType == 1 #arrays in the list should have the same size
         return data
@@ -33,6 +33,13 @@ class CDataList(list):
                 rowSlice = slice(i * lenSeg,(i+1) * lenSeg)
                 output.append(d[rowSlice])
         return output
+    
+    def __add__(self,Input):
+        assert isinstance(Input,CDataList)
+        return CDataList(list(self)+list(Input))
+    
+    def copy(self):
+        return CDataList(self,self.dim,self.split)
     
     @property
     def fold(self):
@@ -50,7 +57,7 @@ def DataListOp(funcOp):
         otherArgs = list()
         for arg in args:
             #extract the CDataList type arguments
-            if isinstance(args,CDataList):
+            if isinstance(arg,CDataList):
                 oDataListArgs.append(arg)
             else:
                 otherArgs.append(arg)
