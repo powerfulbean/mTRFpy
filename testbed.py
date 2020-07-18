@@ -1,9 +1,11 @@
 import numpy as np
 
 from mTRFpy import Operations as op
+from mTRFpy import DataStruct as ds
+from mTRFpy import Model as md
 from StellarInfra.StageControl import CStageControl
 
-oStage = CStageControl([2])
+oStage = CStageControl([3])
 
 if oStage(1):
     a = np.array([[0,1,2,3,4,5,6]])
@@ -21,3 +23,15 @@ if oStage(1):
 
 if oStage(2):
     test8 = op.genSmplIdxSeqByMsecRg([-100,400],128)
+    
+    
+if oStage(3):
+    temp = np.array([[1,2,3],[1,2,3],[1,2,3],[1,2,3]])
+    oList = ds.CDataList(temp,2,2)
+    temp1 = [[1,2,3],[1,2,3],[1,2,3],[1,2,3]]
+    oList1 = ds.CDataList(temp1)
+    temp2 = np.array([[1,2],[1,2],[1,2],[1,2]])
+    oList2 = ds.CDataList([temp, temp2])
+    
+if oStage(4):
+    oMd = md.CTRF()

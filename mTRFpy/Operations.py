@@ -9,6 +9,8 @@ import numpy as np
 from . import Protocols as prtcls
 
 
+TypeEnum = tuple(['multi','single'])
+
 def calCovariance(x,y):
     '''
     calculat the covariance of two matrices
@@ -20,7 +22,6 @@ def calCovariance(x,y):
     oPrtclsData = prtcls.CProtocolData()
     x,y = oPrtclsData(x,y)
     return np.matmul(x.T,y)
-
 
 def genLagMat(x,lags,zeropad = True,bias =True): #
     '''
@@ -34,9 +35,10 @@ def genLagMat(x,lags,zeropad = True,bias =True): #
     
     #To Do:
        make warning when absolute lag value is bigger than the number of samples
+       implement the zeropad part
     '''
     oPrtclsData = prtcls.CProtocolData()
-    x = oPrtclsData(x)
+    x = oPrtclsData(x)[0]
     nLags = len(lags)
     
     nSamples = x.shape[0]
@@ -52,21 +54,12 @@ def genLagMat(x,lags,zeropad = True,bias =True): #
         else:
             lagMatrix[:,colSlice] = x
     
+    if bias:
+        lagMatrix = np.concatenate([np.ones((nSamples,1)),lagMatrix],1);
+    
     return lagMatrix
 
-def genSmplIdxSeqByMsecRg(msecRange,fs):
-    '''
-    convert a millisecond range to a list of sample indexes
-    
-    the left and right ranges will both be included
-    '''
-    assert len(msecRange) == 2
-    
-    tmin = msecRange[0]/1e3
-    tmax = msecRange[1]/1e3
-    return list(range(int(np.floor(tmin*fs)),int(np.ceil(tmax*fs)) + 1))
-
-def genRegMat(n, method = 'ridge'):
+def genRegMat(n:int, method = 'ridge'):
     '''
     generates a sparse regularization matrix of size (n,n) for the specified method.
     see also regmat.m in mTRF-Toolbox https://github.com/mickcrosse/mTRF-Toolbox
@@ -86,3 +79,40 @@ def genRegMat(n, method = 'ridge'):
     else:
         regMatrix = np.zeros((n,n))
     return regMatrix
+
+def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
+
+    assert Type in TypeEnum
+    
+    if Type == 'multi':
+        xLag = genLagMat(x,lags)
+        Cxx = calCovariance(xLag,xLag.copy())
+        Cxy = calCovariance(xLag,y)
+    
+    return Cxx, Cxy
+
+def msec2Idxs(msecRange,fs):
+    '''
+    convert a millisecond range to a list of sample indexes
+    
+    the left and right ranges will both be included
+    '''
+    assert len(msecRange) == 2
+    
+    tmin = msecRange[0]/1e3
+    tmax = msecRange[1]/1e3
+    return list(range(int(np.floor(tmin*fs)),int(np.ceil(tmax*fs)) + 1))
+
+def Idxs2msec(lags,fs):
+    '''
+    convert a list of sample indexes to a millisecond range
+    
+    the left and right ranges will both be included
+    '''
+    temp = np.array(lags)
+    return list(temp/fs * 1e3)
+
+def truncate(x,tminIdx,tmaxIdx):
+    rowSlice = slice(max(0,tmaxIdx)+1,min(0,tminIdx) + len(x))
+    output = x[rowSlice]
+    return output

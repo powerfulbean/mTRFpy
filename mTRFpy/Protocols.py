@@ -46,7 +46,4 @@ class CProtocolData(CProtocol):
 #            if 
 #            return None
 #        else:
-        if len(output) == 1:
-            return output[0]
-        else:
-            return tuple(output)
+        return output
