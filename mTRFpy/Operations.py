@@ -60,7 +60,7 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
     if bias:
         lagMatrix = np.concatenate([np.ones((lagMatrix.shape[0],1)),lagMatrix],1);
 
-    print(lagMatrix.shape)    
+#    print(lagMatrix.shape)    
     
     return lagMatrix
 

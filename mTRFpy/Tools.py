@@ -20,33 +20,6 @@ def cmp2NArray(a,b,decimalNum = None):
     return np.array_equal(a,b)
 
 def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True ,Verbose = True):
-    
-#    nXVar = x.nVar
-#    nYVar = y.nVar
-#    nLag = len(lags)
-#    
-#    assert Type in TypeEnum
-#    Cxx = None
-#    Cxy = None
-#    
-#    if Type == 'multi':
-#        nXLagVar = nXVar*nLag + 1
-#        Cxx = np.zeros((nXLagVar,nXLagVar))
-#        Cxy = np.zeros((nXLagVar,nYVar))
-#    else:
-#        nXLagVar = nXVar + 1
-#        Cxx = np.zeros((nXLagVar,nXLagVar,nLag))
-#        Cxy = np.zeros((nXLagVar,nYVar,nLag))
-    
-#    for f in range(x.fold):
-#        xLag = op.genLagMat(x[f],lags)
-#        CxxTemp = op.calCovariance(xLag,xLag.copy())
-#        CxyTemp = op.calCovariance(xLag,y[f])
-#        
-#        if Type == 'multi':
-#            Cxx += CxxTemp
-#            Cxy += CxyTemp
-            
     output = ds.DataListOp(op.calOlsCovMat)(x,y,lags,Type,Zeropad)
     CxxList = [c[0] for c in output]
     CxyList = [c[1] for c in output]

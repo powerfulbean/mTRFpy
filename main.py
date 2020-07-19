@@ -82,11 +82,37 @@ if oStage(2):
         
     model = md.CTRF()
     model.train(stimTrain,respTrain,Dir,fs,0,250,100,Zeropad = False)
+    
+    
+    '''
+    validate the result
+    '''
+    w_test = model.w
+    b_test = model.b
+    tls.cmp2NArray(w_test,np.expand_dims(Model_Bench_Dict['w'],2))
 
     
 if oStage(3):
     temp = np.array([[1,2,3],[1,2,3],[1,2,3]])
     oList = ds.CDataList(temp,2,2)
+    
+if oStage(4):
+    '''
+    test CSKlearnTRF
+    '''
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.pipeline import Pipeline
+    
+    oScaler = MinMaxScaler()
+    model = md.CSKlearnTRF(64,0,250,100,Zeropad = False)
+    clf = Pipeline([('minmax',oScaler),
+                    ('TRF',model)])
+    clf.fit(respTrain[0],stimTrain[0])
+    
+    
+    
+    
+    
     
 
 
