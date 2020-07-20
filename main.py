@@ -18,7 +18,7 @@ import numpy as np
 
 oDir = CDirectoryConfig(['TestData'],'mTRFpy.conf')
 
-oStage = CStageControl([2])
+oStage = CStageControl([2,2.1,2.2])
 
 if oStage(0):
     '''
@@ -69,19 +69,23 @@ if oStage(2):
     test mtrfTrain and mtrfPred 
     '''
     temp = ifMatlab.loadMatFile(oDir.TestData + 'trainNtest_bench.mat')
-    
+    bench_key_list = ['w','b','t','fs','Dir','type']
+    Model_Bench_Dict = dict()
+    for key in bench_key_list:
+        Model_Bench_Dict[key] = temp[key]
+
+if oStage(2.1):
+    '''
+    Train
+    '''
     respTrain = [d[0] for d in temp['resptrain']]
     stimTrain = [d[0] for d in temp['stimtrain']]
     fs = temp['fs'][0,0]
     Dir = temp['Dir'][0,0]
     
-    bench_key_list = ['w','b','t','fs','Dir','type']
-    Model_Bench_Dict = dict()
-    for key in bench_key_list:
-        Model_Bench_Dict[key] = temp[key]
-        
     model = md.CTRF()
     model.train(stimTrain,respTrain,Dir,fs,0,250,100,Zeropad = False)
+    
     
     
     '''
@@ -90,11 +94,68 @@ if oStage(2):
     w_test = model.w
     b_test = model.b
     tls.cmp2NArray(w_test,np.expand_dims(Model_Bench_Dict['w'],2))
+    
+if oStage(2.2):
+    '''
+    Predict
+    '''
+    
+    respTest = temp['resptest']
+    stimTest = temp['stimtest']
+    windowSize_ms = 0
+    
+    if model.Dir == 1:
+        x = stimTest; y = respTest
+    else:
+        x = respTest; y = stimTest
+    
+    if not isinstance(x, ds.CDataList):
+        x = ds.CDataList(x)
+    if not isinstance(y, ds.CDataList):
+        y = ds.CDataList(y)
+    
+    nXObs = [len(d) for d in x]
+    nYObs = [len(d) for d in y]
+    nXVar = x.nVar
+    if y == None:
+        nYObs = nXObs
+        nYVar = model.w.shape[2]
+    else:
+        nYVar = y.nVar
+    nFold = x.fold
+    
+    for idx,n in enumerate(nXObs):
+        assert n == nYObs[idx]
+    
+    lags = op.msec2Idxs([model.t[0],model.t[-1]],model.fs)
+    windowSize = round(windowSize_ms * model.fs)
+    
+    Type = model.Type
+    
+    delta = 1/model.fs
+    
+#    assert Type
+    if model.Type == 'multi':
+        w = model.w.copy()
+        w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
+    else:
+        w = 1
+    
+    pred = ds.CDataList()
+    r = list()
+    err = list()
+    cursor = 0
+    for i in range(x.fold):
+        xLag = op.genLagMat(x[i],lags,model.Zeropad)
+        
+        if Type == 'multi':
+            pred.append(np.matmul(xLag,w))
 
     
 if oStage(3):
     temp = np.array([[1,2,3],[1,2,3],[1,2,3]])
     oList = ds.CDataList(temp,2,2)
+    
     
 if oStage(4):
     '''
@@ -108,7 +169,6 @@ if oStage(4):
     clf = Pipeline([('minmax',oScaler),
                     ('TRF',model)])
     clf.fit(respTrain[0],stimTrain[0])
-    
     
     
     

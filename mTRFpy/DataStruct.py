@@ -9,10 +9,13 @@ from . import Protocols as pt
 import numpy as np
 class CDataList(list):
     
-    def __init__(self,data,dim:int = 0,split:int = 1):
+    def __init__(self,data=None,dim:int = 0,split:int = 1):
         list().__init__([])
+        self.oPrtcl = pt.CProtocolData()
         self.dim = dim
         self.split = split
+        if data is None:
+            return
         data = self._check(data)
         data = self._split(data)
         self.extend(data)
@@ -20,7 +23,7 @@ class CDataList(list):
     def _check(self,data):
         if not isinstance(data,list):
             data = [data]
-        data = pt.CProtocolData()(*data) #copy the data items in this function
+        data = self.oPrtcl(*data) #copy the data items in this function
         nColSizeType = len(set([d.shape[1] for d in data]))
         assert nColSizeType == 1 #arrays in the list should have the same size
         return data
@@ -40,6 +43,10 @@ class CDataList(list):
     
     def copy(self):
         return CDataList(self,self.dim,self.split)
+    
+    def append(self,data):
+        data = self.oPrtcl(*[data])
+        super().append(data[0])
     
     @property
     def fold(self):

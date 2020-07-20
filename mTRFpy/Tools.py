@@ -39,12 +39,19 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
     Delta = 1/fs
     RegM = op.genRegMat(Cxx.shape[1]) * Lambda / Delta
     wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
-    b = wori[0]
+    b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
     return w,b,lags
 
 
+#def predict(*arg,windowSize:int):
+#    assert windowSize >= 0
+#    if windowSize:
+#        nWin = sum(np.floor([len(n)/windowSize for n in nYObs/windowSize]))
+#    else:
+#        nWin = nFold
+    
 
-
-
+def evaluate(y,pred,dim:int = 0, corr = 'Pearson',error='msc',window = 0):
+    pass
     

@@ -31,9 +31,10 @@ class CProtocolData(CProtocol):
             data = np.array(data)
             
             #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
-            if len(data.shape) == 1:
+            if len(data.shape) == 0:
+                data = np.expand_dims([data],1)
+            elif len(data.shape) == 1:
                 data = np.expand_dims(data,1)
-            
             #perform other checks
             if False:
                 raise ValueError()

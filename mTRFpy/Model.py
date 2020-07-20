@@ -22,6 +22,7 @@ class CTRF:
         self.Dir = None
         self.Type = 'multi'
         self.Zeropad = True
+        self.fs = -1
         
     def train(self,stim,resp,Dir,fs,tmin_ms,tmax_ms,Lambda,**kwargs):
         assert Dir in DirEnum
@@ -45,6 +46,7 @@ class CTRF:
         self.w, self.b = w, b
         self.Dir = Dir
         self.t = op.Idxs2msec(lags,fs)
+        self.fs = fs
     
     def predict(self,stim,resp,**kwargs):
         assert self.Dir in DirEnum
@@ -52,6 +54,7 @@ class CTRF:
             x = stim; y = resp
         else:
             x = resp; y = stim
+        
         
         
     

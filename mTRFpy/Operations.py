@@ -126,3 +126,15 @@ def truncate(x,tminIdx,tmaxIdx):
     rowSlice = slice(max(0,tmaxIdx),min(0,tminIdx) + len(x))# !!!!
     output = x[rowSlice]
     return output
+
+def pearsonr(x,y):
+    oPrtclsData = prtcls.CProtocolData()
+    x,y = oPrtclsData(x,y)
+    nObs = len(x)
+    sumX = np.sum(x,0)
+    sumY = np.sum(y,0)
+    sdXY = np.sqrt((np.sum(x**2,0) - (sumX**2/nObs)) * (np.sum(y ** 2, 0) - (sumY ** 2)/nObs))
+    
+    r = (np.sum(x*y,0) - (sumX * sumY)/nObs) / sdXY
+    return r
+    
