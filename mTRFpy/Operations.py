@@ -10,6 +10,8 @@ from . import Protocols as prtcls
 
 
 TypeEnum = tuple(['multi','single'])
+ErrorEnum = tuple(['mse','mae'])
+oPrtclsData = prtcls.CProtocolData()
 
 def calCovariance(x,y):
     '''
@@ -19,7 +21,6 @@ def calCovariance(x,y):
     
     if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
     '''
-    oPrtclsData = prtcls.CProtocolData()
     x,y = oPrtclsData(x,y)
     return np.matmul(x.T,y)
 
@@ -37,7 +38,6 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
        make warning when absolute lag value is bigger than the number of samples
        implement the zeropad part
     '''
-    oPrtclsData = prtcls.CProtocolData()
     x = oPrtclsData(x)[0]
     nLags = len(lags)
     
@@ -128,7 +128,6 @@ def truncate(x,tminIdx,tmaxIdx):
     return output
 
 def pearsonr(x,y):
-    oPrtclsData = prtcls.CProtocolData()
     x,y = oPrtclsData(x,y)
     nObs = len(x)
     sumX = np.sum(x,0)
@@ -138,3 +137,12 @@ def pearsonr(x,y):
     r = (np.sum(x*y,0) - (sumX * sumY)/nObs) / sdXY
     return r
     
+def error(x,y,error = 'mse'):
+    assert error in ErrorEnum
+    x,y = oPrtclsData(x,y)
+    ans = None
+    if error == 'mse':
+        ans = np.sum(np.abs(x - y)**2, 0)/len(x)
+    elif error == 'mae':
+        ans = np.sum(np.abs(x - y),0)/len(x)
+    return ans

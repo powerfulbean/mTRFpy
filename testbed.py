@@ -38,3 +38,4 @@ if oStage(4):
     
 if oStage(5):
     op.truncate([1,2,3],-5,5)
+    

@@ -62,6 +62,8 @@ if oStage(1.1):
         
 #    Cxx_test,Cxy_test = tls.olscovmat(x+x.copy(),y+y.copy(),lags)
     w_11,b_11,lags_11 = tls.train(stim,resp,fs,-100,400,Lambda)
+    print(tls.cmp2NArray(w_11,w_benchmark,8),tls.cmp2NArray(b_11,model_benchmark['b'],8),\
+          tls.cmp2NArray(lags_11,lags,8))
 
 
 if oStage(2):
@@ -93,7 +95,7 @@ if oStage(2.1):
     '''
     w_test = model.w
     b_test = model.b
-    tls.cmp2NArray(w_test,np.expand_dims(Model_Bench_Dict['w'],2))
+    print(tls.cmp2NArray(w_test,np.expand_dims(Model_Bench_Dict['w'],2),12))
     
 if oStage(2.2):
     '''
@@ -115,12 +117,12 @@ if oStage(2.2):
         y = ds.CDataList(y)
     
     nXObs = [len(d) for d in x]
-    nYObs = [len(d) for d in y]
     nXVar = x.nVar
     if y == None:
         nYObs = nXObs
         nYVar = model.w.shape[2]
     else:
+        nYObs = [len(d) for d in y]
         nYVar = y.nVar
     nFold = x.fold
     
@@ -149,8 +151,25 @@ if oStage(2.2):
         xLag = op.genLagMat(x[i],lags,model.Zeropad)
         
         if Type == 'multi':
-            pred.append(np.matmul(xLag,w))
-
+            predTemp = np.matmul(xLag,w)
+            pred.append(predTemp)
+            
+            if y != None:
+                yTrunc = op.truncate(y[i],lags[0],lags[-1]) 
+                rTempList,errTempList = tls.evaluate(yTrunc,predTemp)
+                r.extend(rTempList)
+                err.extend(errTempList)
+    '''
+    validate the result
+    '''
+    
+    print(tls.cmp2NArray(pred[0],temp['pred'],11))
+    rCell = ds.CDataList(r)
+    errCell = ds.CDataList(err)
+    print(tls.cmp2NArray(rCell[0],temp['test_r'],14),\
+          tls.cmp2NArray(errCell[0],temp['test_err'],15))
+    
+    
     
 if oStage(3):
     temp = np.array([[1,2,3],[1,2,3],[1,2,3]])
