@@ -160,7 +160,7 @@ def DataListOp(funcOp):
                         output.append(i)
                 else:
                     for idx,i in enumerate(temp):
-                        output[i] = output[i] + i
+                        output[idx] = output[idx] + i
             return output
         else:
             raise ValueError
