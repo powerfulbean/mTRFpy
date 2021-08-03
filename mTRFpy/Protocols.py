@@ -25,21 +25,22 @@ class CProtocolData(CProtocol):
         super().__init__()
         
     def protocol(self,*dataList):
+        return dataList
         #verify that the the rows correspond to samples and the columns to variables
-        output = list()
-        for data in dataList:
-            data = np.array(data)
+        # output = list()
+        # for data in dataList:
+        #     # data = np.array(data)
             
-            #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
-            if len(data.shape) == 0:
-                data = np.expand_dims([data],1)
-            elif len(data.shape) == 1:
-                data = np.expand_dims(data,1)
-            #perform other checks
-            if False:
-                raise ValueError()
+        #     #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
+        #     if len(data.shape) == 0:
+        #         data = np.expand_dims([data],1)
+        #     elif len(data.shape) == 1:
+        #         data = np.expand_dims(data,1)
+        #     #perform other checks
+        #     if False:
+        #         raise ValueError()
                 
-            output.append(data)
+            # output.append(data)
             
         #end of for
         
@@ -47,4 +48,4 @@ class CProtocolData(CProtocol):
 #            if 
 #            return None
 #        else:
-        return output
+        # return output

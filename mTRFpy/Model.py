@@ -48,14 +48,14 @@ class CTRF:
         self.t = op.Idxs2msec(lags,fs)
         self.fs = fs
     
-    def predict(self,stim,resp,**kwargs):
+    def predict(self,stim,resp = None,**kwargs):
         assert self.Dir in DirEnum
         if self.Dir == 1:
             x = stim; y = resp
         else:
             x = resp; y = stim
         
-        
+        return tls.predict(self,x,y,zeropad = self.Zeropad)
         
     
 

@@ -7,7 +7,7 @@ Created on Tue Jul  7 15:50:28 2020
 
 import numpy as np
 from . import Protocols as prtcls
-
+from memory_profiler import profile
 
 TypeEnum = tuple(['multi','single'])
 ErrorEnum = tuple(['mse','mae'])
@@ -21,7 +21,7 @@ def calCovariance(x,y):
     
     if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
     '''
-    x,y = oPrtclsData(x,y)
+    oPrtclsData(x,y)
     return np.matmul(x.T,y)
 
 def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
@@ -38,7 +38,7 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
        make warning when absolute lag value is bigger than the number of samples
        implement the zeropad part
     '''
-    x = oPrtclsData(x)[0]
+    oPrtclsData(x)
     nLags = len(lags)
     
     nSamples = x.shape[0]
@@ -85,6 +85,7 @@ def genRegMat(n:int, method = 'ridge'):
         regMatrix = np.zeros((n,n))
     return regMatrix
 
+# @profile
 def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
     assert Type in TypeEnum
     
@@ -93,10 +94,13 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
     
     if Type == 'multi':
         xLag = genLagMat(x,lags,Zeropad)
-        Cxx = calCovariance(xLag,xLag.copy())
+        Cxx = calCovariance(xLag,xLag)
         Cxy = calCovariance(xLag,y)
     
+    # output = np.stack([Cxx,Cxy],axis = 0)
+    
     return Cxx, Cxy
+    # return output
 
 def msec2Idxs(msecRange,fs):
     '''
