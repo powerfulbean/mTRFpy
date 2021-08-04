@@ -16,10 +16,11 @@ def truncFloat(a,digits):
     stepper = 10.0 ** digits
     return np.trunc(stepper * a) / stepper
 
-def cmp2NArray(a,b,decimalNum = None):
-    if decimalNum != None:
-        a = np.around(a,decimalNum)
-        b = np.around(b,decimalNum)
+def cmp2NArray(a,b,digitsNum = None):
+    #digitsNum： the number of digits after the decimal point
+    if digitsNum != None:
+        a = np.around(a,digitsNum)
+        b = np.around(b,digitsNum)
     return np.array_equal(a,b)
 
 # @profile
@@ -67,6 +68,8 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
         del Cxy
         oCuda.memPool.free_all_blocks()
     print('tls train, regularization finish')
+    # print(type(wori),wori.shape)
+    np.asarray(wori)
     b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
     print('tls train finish')

@@ -7,6 +7,7 @@ Created on Thu Jul 16 01:50:12 2020
 from collections.abc import Iterable
 from . import Protocols as pt
 import numpy as np
+
 # import sys
 # from memory_profiler import profile
 oCuda = None
@@ -91,9 +92,8 @@ class CDatasetDiskSave(CDataset):
         return stim,resp
     
     def get(self, idx):
+        stim,resp = self.__getitem__(idx)
         realIdx = self.indicesConfig[idx]
-        resp = self.dataset[realIdx].data.T
-        stim = self.dataset.stimuliDict[self.dataset[realIdx].stimuli['wordVecKey']][:,0:self.dataset[realIdx].stimuli['sharedLen']].T 
         self.dataset.clearRef([realIdx])
         return stim,resp
     
@@ -160,11 +160,14 @@ def DataListOp(funcOp):
                         output.append(i)
                 else:
                     for idx,i in enumerate(temp):
-                        if oCuda.cp.cuda.runtime.getDeviceCount() == 1:
-                            output[idx] = output[idx] + i
-                        else:
-                            with oCuda.cp.cuda.Device(1):
+                        if oCuda:
+                            if oCuda.cp.cuda.runtime.getDeviceCount() == 1:
                                 output[idx] = output[idx] + i
+                            else:
+                                with oCuda.cp.cuda.Device(1):
+                                    output[idx] = output[idx] + i
+                        else:
+                            output[idx] = output[idx] + i
                 del temp
                 if oCuda:
                     oCuda.memPool.free_all_blocks()

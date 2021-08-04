@@ -8,6 +8,7 @@ Created on Tue Jul  7 15:50:28 2020
 import numpy as np
 from . import Protocols as prtcls
 from memory_profiler import profile
+from scipy.sparse import csr_matrix
 
 DEBUG = False
 
@@ -15,6 +16,19 @@ TypeEnum = tuple(['multi','single'])
 ErrorEnum = tuple(['mse','mae'])
 oPrtclsData = prtcls.CProtocolData()
 oCuda = None
+sparseFlag = False
+
+def matmul(x,y):
+    '''
+    calculat the matrix product of two arrays
+    x: left matrix
+    y: right matrix
+    
+    '''
+    if isinstance(x, csr_matrix) or isinstance(y, csr_matrix):
+        return x.T @ y
+    else:
+        return np.matmul(x.T,y)
 
 def calCovariance(x,y):
     '''
@@ -22,10 +36,13 @@ def calCovariance(x,y):
     x: left matrix
     y: right matrix
     
-    if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
+    #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
     '''
     oPrtclsData(x,y)
-    return np.matmul(x.T,y)
+    if isinstance(x, csr_matrix) or isinstance(y, csr_matrix):
+        return x.T @ y
+    else:
+        return np.matmul(x.T,y)
 
 def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
     '''
@@ -64,6 +81,8 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
         lagMatrix = np.concatenate([np.ones((lagMatrix.shape[0],1)),lagMatrix],1);
 
 #    print(lagMatrix.shape)    
+    if sparseFlag:
+        lagMatrix = csr_matrix(lagMatrix)
     
     return lagMatrix
 
