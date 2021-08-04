@@ -10,9 +10,10 @@ class CCoreCuda:
     def __init__(self):
         self.cp = self.getCupy()
         self.DEBUG = False
-        self.cp.cuda.set_allocator(self.cp.cuda.MemoryPool(self.cp.cuda.malloc_managed).malloc)
-        mempool = self.cp.get_default_memory_pool()
-        mempool.set_limit(size=10.5*1024**3)
+        self.memPool = self.cp.cuda.MemoryPool(self.cp.cuda.malloc_managed)
+        self.cp.cuda.set_allocator(self.memPool.malloc)
+        # mempool = self.cp.get_default_memory_pool()
+        # mempool.set_limit(size=10.5*1024**3)
         
     def getCupy(self):
         import cupy as cp
@@ -26,12 +27,12 @@ class CCoreCuda:
         
         if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
         '''
-        if isinstance(x, np.ndarray):
-            x = self.cp.asarray(x)
-        if isinstance(y, np.ndarray):
-            y = self.cp.asarray(y)
+        # if isinstance(x, np.ndarray):
+            # x = self.cp.asarray(x)
+        # if isinstance(y, np.ndarray):
+            # y = self.cp.asarray(y)
         if self.DEBUG:
-            mempool = self.cp.get_default_memory_pool()
+            mempool = self.memPool
             pinned_mempool = self.cp.get_default_pinned_memory_pool()
             print(mempool.get_limit())
             print(mempool.used_bytes())              # 0
