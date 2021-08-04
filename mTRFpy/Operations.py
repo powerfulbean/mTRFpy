@@ -102,12 +102,12 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
             Cxx = calCovariance(xLag,xLag)
             Cxy = calCovariance(xLag,y)
         else:
-            if DEBUG:
-                mempool = oCuda.cp.get_default_memory_pool()
-                pinned_mempool = oCuda.cp.get_default_pinned_memory_pool()
-                print(mempool.used_bytes())              # 0
-                print(mempool.total_bytes())             # 0
-                print(pinned_mempool.n_free_blocks())    # 0
+            # if DEBUG:
+            #     mempool = oCuda.cp.get_default_memory_pool()
+            #     pinned_mempool = oCuda.cp.get_default_pinned_memory_pool()
+            #     print(mempool.used_bytes())              # 0
+            #     print(mempool.total_bytes())             # 0
+            #     print(pinned_mempool.n_free_blocks())    # 0
             Cxx = oCuda.calSelfCovariance(xLag)
             Cxy = oCuda.calCovariance(xLag,y)
     
