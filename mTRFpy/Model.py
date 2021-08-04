@@ -71,11 +71,12 @@ class CTRF:
         for i in temp:
             setattr(self, i, temp[i])
             
-    def cuda(self):
+    def cuda(self,debug = False):
         from .coreCuda import CCoreCuda
         oCuda = CCoreCuda()
         op.oCuda = oCuda
         self._oCuda = oCuda
+        self._oCuda.DEBUG = debug
         
     def cpu(self):
         op.oCuda = None

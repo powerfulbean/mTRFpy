@@ -9,6 +9,7 @@ class CCoreCuda:
     
     def __init__(self):
         self.cp = self.getCupy()
+        self.DEBUG = False
         
     def getCupy(self):
         import cupy as cp
@@ -26,6 +27,12 @@ class CCoreCuda:
             x = self.cp.asarray(x)
         if isinstance(y, np.ndarray):
             y = self.cp.asarray(y)
+        if self.DEBUG:
+            mempool = self.cp.get_default_memory_pool()
+            pinned_mempool = self.cp.get_default_pinned_memory_pool()
+            print(mempool.used_bytes())              # 0
+            print(mempool.total_bytes())             # 0
+            print(pinned_mempool.n_free_blocks())    # 0
         temp = self.cp.matmul(x.T,y)
         self.cp.cuda.Stream.null.synchronize()
         return temp
