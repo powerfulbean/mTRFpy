@@ -125,7 +125,7 @@ def predict(model,x,y=0,windowSize_ms:int = 0,zeropad:bool = True):
                 rTempList,errTempList = evaluate(yTrunc,predTemp)
                 r.extend(rTempList)
                 err.extend(errTempList)
-        print('\n')
+    print('\n')
     if y == None:
         return pred
     else:
