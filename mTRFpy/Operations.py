@@ -103,8 +103,8 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
             Cxy = calCovariance(xLag,y)
         else:
             if DEBUG:
-                mempool = oCuda.cupy.get_default_memory_pool()
-                pinned_mempool = oCuda.cupy.get_default_pinned_memory_pool()
+                mempool = oCuda.cp.get_default_memory_pool()
+                pinned_mempool = oCuda.cp.get_default_pinned_memory_pool()
                 print(mempool.used_bytes())              # 0
                 print(mempool.total_bytes())             # 0
                 print(pinned_mempool.n_free_blocks())    # 0
