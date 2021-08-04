@@ -10,6 +10,8 @@ class CCoreCuda:
     def __init__(self):
         self.cp = self.getCupy()
         self.DEBUG = False
+        mempool = self.cp.get_default_memory_pool()
+        mempool.set_limit(size=10.5*1024**3)
         
     def getCupy(self):
         import cupy as cp
