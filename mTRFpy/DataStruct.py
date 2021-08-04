@@ -164,5 +164,5 @@ def DataListOp(funcOp):
             return output
         else:
             raise ValueError
-        print('\n')
+        # print('\n')
     return wrapper
