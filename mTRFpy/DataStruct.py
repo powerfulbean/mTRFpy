@@ -161,6 +161,9 @@ def DataListOp(funcOp):
                 else:
                     for idx,i in enumerate(temp):
                         output[idx] = output[idx] + i
+                del temp
+                if oCuda:
+                    oCuda.memPool.free_all_blocks()
             return output
         else:
             raise ValueError
