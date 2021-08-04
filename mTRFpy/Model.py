@@ -75,11 +75,13 @@ class CTRF:
         from .coreCuda import CCoreCuda
         oCuda = CCoreCuda()
         op.oCuda = oCuda
+        ds.oCuda = oCuda
         self._oCuda = oCuda
         self._oCuda.DEBUG = debug
         
     def cpu(self):
         op.oCuda = None
+        ds.oCuda = None
         self._oCuda = None
         
 

@@ -40,7 +40,11 @@ class CCoreCuda:
             print(pinned_mempool.n_free_blocks())    # 0
         temp = self.cp.matmul(x.T,y)
         self.cp.cuda.Stream.null.synchronize()
-        out = self.cp.asnumpy(temp)
+        if self.cp.cuda.runtime.getDeviceCount() == 1:
+            out = self.cp.asnumpy(temp)
+        else:
+            with self.cp.cuda.Device(1):
+                out = self.cp.array(temp)
         del x
         del y
         del temp

@@ -9,7 +9,7 @@ from . import Protocols as pt
 import numpy as np
 # import sys
 # from memory_profiler import profile
-
+oCuda = None
 def cmp2NArray(a,b,decimalNum = None):
     if decimalNum != None:
         a = np.around(a,decimalNum)
