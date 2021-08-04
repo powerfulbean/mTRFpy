@@ -32,6 +32,7 @@ class CCoreCuda:
         if self.DEBUG:
             mempool = self.cp.get_default_memory_pool()
             pinned_mempool = self.cp.get_default_pinned_memory_pool()
+            print(mempool.get_limit())
             print(mempool.used_bytes())              # 0
             print(mempool.total_bytes())             # 0
             print(pinned_mempool.n_free_blocks())    # 0
