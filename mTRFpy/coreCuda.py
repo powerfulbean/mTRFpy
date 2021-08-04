@@ -27,10 +27,10 @@ class CCoreCuda:
         
         if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
         '''
-        # if isinstance(x, np.ndarray):
-            # x = self.cp.asarray(x)
-        # if isinstance(y, np.ndarray):
-            # y = self.cp.asarray(y)
+        if isinstance(x, np.ndarray):
+            x = self.cp.asarray(x)
+        if isinstance(y, np.ndarray):
+            y = self.cp.asarray(y)
         if self.DEBUG:
             mempool = self.memPool
             pinned_mempool = self.cp.get_default_pinned_memory_pool()
