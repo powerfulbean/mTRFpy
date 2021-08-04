@@ -10,8 +10,8 @@ class CCoreCuda:
     def __init__(self):
         self.cp = self.getCupy()
         self.DEBUG = False
-        self.memPool = self.cp.cuda.MemoryPool(self.cp.cuda.malloc_managed)
-        self.cp.cuda.set_allocator(self.memPool.malloc)
+        self.memPool = self.cp.get_default_memory_pool()#self.cp.cuda.MemoryPool(self.cp.cuda.malloc_managed)
+        # self.cp.cuda.set_allocator(self.memPool.malloc)
         # mempool = self.cp.get_default_memory_pool()
         # mempool.set_limit(size=10.5*1024**3)
         
