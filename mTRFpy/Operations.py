@@ -9,6 +9,8 @@ import numpy as np
 from . import Protocols as prtcls
 from memory_profiler import profile
 
+DEBUG = False
+
 TypeEnum = tuple(['multi','single'])
 ErrorEnum = tuple(['mse','mae'])
 oPrtclsData = prtcls.CProtocolData()
@@ -100,6 +102,12 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
             Cxx = calCovariance(xLag,xLag)
             Cxy = calCovariance(xLag,y)
         else:
+            if DEBUG:
+                mempool = oCuda.cupy.get_default_memory_pool()
+                pinned_mempool = oCuda.cupy.get_default_pinned_memory_pool()
+                print(mempool.used_bytes())              # 0
+                print(mempool.total_bytes())             # 0
+                print(pinned_mempool.n_free_blocks())    # 0
             Cxx = oCuda.calCovariance(xLag,xLag)
             Cxy = oCuda.calCovariance(xLag,y)
     
