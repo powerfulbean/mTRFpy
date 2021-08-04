@@ -160,7 +160,11 @@ def DataListOp(funcOp):
                         output.append(i)
                 else:
                     for idx,i in enumerate(temp):
-                        output[idx] = output[idx] + i
+                        if oCuda.cp.cuda.runtime.getDeviceCount() == 1:
+                            output[idx] = output[idx] + i
+                        else:
+                            with oCuda.cp.cuda.Device(1):
+                                output[idx] = output[idx] + i
                 del temp
                 if oCuda:
                     oCuda.memPool.free_all_blocks()
