@@ -55,11 +55,16 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
         wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
     else:
         RegM = oCuda.cp.asarray(RegM)
+        Cxx = oCuda.cp.asarray(Cxx)
+        Cxy = oCuda.cp.asarray(Cxy)
         wori = oCuda.cp.matmul(oCuda.cp.linalg.inv(Cxx + RegM), Cxy) #/ Delta
         oCuda.cp.cuda.Stream.null.synchronize()
         # print(type(wori),type(Cxx),type(Cxy))
         wori = oCuda.cp.asnumpy(wori)
         wori = wori / Delta
+        del Cxx
+        del Cxy
+        oCuda.memPool.free_all_blocks()
     print('tls train, regularization finish')
     b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')

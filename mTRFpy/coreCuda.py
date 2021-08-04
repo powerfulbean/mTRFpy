@@ -40,7 +40,12 @@ class CCoreCuda:
             print(pinned_mempool.n_free_blocks())    # 0
         temp = self.cp.matmul(x.T,y)
         self.cp.cuda.Stream.null.synchronize()
-        return temp
+        out = self.cp.asnumpy(temp)
+        del x
+        del y
+        del temp
+        self.memPool.free_all_blocks()
+        return out
     
     def calSelfCovariance(self,x):
         '''
@@ -61,4 +66,8 @@ class CCoreCuda:
             print(pinned_mempool.n_free_blocks())    # 0
         temp = self.cp.matmul(x.T,x)
         self.cp.cuda.Stream.null.synchronize()
-        return temp
+        out = self.cp.asnumpy(temp)
+        del x
+        del temp
+        self.memPool.free_all_blocks()
+        return out
