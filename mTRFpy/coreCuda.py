@@ -41,3 +41,24 @@ class CCoreCuda:
         temp = self.cp.matmul(x.T,y)
         self.cp.cuda.Stream.null.synchronize()
         return temp
+    
+    def calSelfCovariance(self,x):
+        '''
+        calculat the covariance of two matrices
+        x: left matrix
+        y: right matrix
+        
+        if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
+        '''
+        if isinstance(x, np.ndarray):
+            x = self.cp.asarray(x)
+        if self.DEBUG:
+            mempool = self.memPool
+            pinned_mempool = self.cp.get_default_pinned_memory_pool()
+            print(mempool.get_limit())
+            print(mempool.used_bytes())              # 0
+            print(mempool.total_bytes())             # 0
+            print(pinned_mempool.n_free_blocks())    # 0
+        temp = self.cp.matmul(x.T,x)
+        self.cp.cuda.Stream.null.synchronize()
+        return temp

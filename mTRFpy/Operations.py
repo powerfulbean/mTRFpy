@@ -108,7 +108,7 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
                 print(mempool.used_bytes())              # 0
                 print(mempool.total_bytes())             # 0
                 print(pinned_mempool.n_free_blocks())    # 0
-            Cxx = oCuda.calCovariance(xLag,xLag)
+            Cxx = oCuda.calSelfCovariance(xLag,xLag)
             Cxy = oCuda.calCovariance(xLag,y)
     
     # output = np.stack([Cxx,Cxy],axis = 0)
