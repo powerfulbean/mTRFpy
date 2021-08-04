@@ -7,6 +7,7 @@ Created on Thu Jul 16 14:42:40 2020
 import sklearn as skl
 from sklearn.base import BaseEstimator,RegressorMixin, TransformerMixin
 
+from StellarInfra import IO as siIO
 from . import DataStruct as ds
 from . import Tools as tls
 from . import Operations as op
@@ -23,6 +24,7 @@ class CTRF:
         self.Type = 'multi'
         self.Zeropad = True
         self.fs = -1
+        self._oCuda = None
         
     def train(self,stim,resp,Dir,fs,tmin_ms,tmax_ms,Lambda,**kwargs):
         assert Dir in DirEnum
@@ -35,7 +37,7 @@ class CTRF:
             y = stim
             tmin_ms, tmax_ms = Dir * tmax_ms, Dir * tmin_ms
         
-        w,b,lags = tls.train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwargs)
+        w,b,lags = tls.train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = self._oCuda,**kwargs)
         
         if kwargs.get('Type') != None:
             self.type = kwargs.get('Type')
@@ -56,8 +58,29 @@ class CTRF:
             x = resp; y = stim
         
         return tls.predict(self,x,y,zeropad = self.Zeropad)
-        
     
+    def save(self,path,name):
+        output = dict()
+        for i in self.__dict__:
+            output[i] = self.__dict__[i]
+        
+        siIO.saveObject(output, path,name, '.mtrf')
+        
+    def load(self,path):
+        temp = siIO.loadObject(path)
+        for i in temp:
+            setattr(self, i, temp[i])
+            
+    def cuda(self):
+        from .coreCuda import CCoreCuda
+        oCuda = CCoreCuda()
+        op.oCuda = oCuda
+        self._oCuda = oCuda
+        
+    def cpu(self):
+        op.oCuda = None
+        self._oCuda = None
+        
 
 class CSKlearnTRF(BaseEstimator,RegressorMixin, TransformerMixin, CTRF):
     '''

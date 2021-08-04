@@ -8,7 +8,7 @@ import numpy as np
 from . import Operations as op
 from . import DataStruct as ds
 from . import Protocols as pt
-from memory_profiler import profile
+# from memory_profiler import profile
 
 oDataPrtcl = pt.CProtocolData()
 
@@ -36,8 +36,8 @@ def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True ,
     # print('olscovmat collect data finish')
     return Cxx, Cxy
 
-@profile
-def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
+# @profile
+def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
     if not isinstance(x, ds.CDataset):
         if not isinstance(x, ds.CDataList):
             x = ds.CDataList(x)
@@ -51,7 +51,15 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
     print('tls train, start regularization matrix')
     Delta = 1/fs
     RegM = op.genRegMat(Cxx.shape[1]) * Lambda / Delta
-    wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
+    if oCuda is None:
+        wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
+    else:
+        RegM = oCuda.cp.asarray(RegM)
+        wori = oCuda.cp.matmul(oCuda.cp.linalg.inv(Cxx + RegM), Cxy) #/ Delta
+        oCuda.cp.cuda.Stream.null.synchronize()
+        # print(type(wori),type(Cxx),type(Cxy))
+        wori = oCuda.cp.asnumpy(wori)
+        wori = wori / Delta
     print('tls train, regularization finish')
     b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')

@@ -5,7 +5,7 @@ from mTRFpy import DataStruct as ds
 from mTRFpy import Model as md
 from StellarInfra.StageControl import CStageControl
 
-oStage = CStageControl([3])
+oStage = CStageControl([6])
 
 if oStage(1):
     a = np.array([[0,1,2,3,4,5,6]])
@@ -38,4 +38,22 @@ if oStage(4):
     
 if oStage(5):
     op.truncate([1,2,3],-5,5)
+    
+if oStage(6):
+    '''
+    test cupy
+    '''
+    import cupy as cp
+    import numpy as np
+    import time
+    s = time.time()
+    x_cpu = np.ones((10,10,10))
+    e = time.time()
+    print(e - s)
+    ### CuPy and GPU
+    s = time.time()
+    x_gpu = cp.ones((10,10,10))
+    cp.cuda.Stream.null.synchronize()
+    e = time.time()
+    print(e - s)
     

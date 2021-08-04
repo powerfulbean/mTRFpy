@@ -12,6 +12,7 @@ from memory_profiler import profile
 TypeEnum = tuple(['multi','single'])
 ErrorEnum = tuple(['mse','mae'])
 oPrtclsData = prtcls.CProtocolData()
+oCuda = None
 
 def calCovariance(x,y):
     '''
@@ -92,10 +93,15 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
     if not Zeropad:
         y = truncate(y,lags[0],lags[-1])
     
+    
     if Type == 'multi':
         xLag = genLagMat(x,lags,Zeropad)
-        Cxx = calCovariance(xLag,xLag)
-        Cxy = calCovariance(xLag,y)
+        if oCuda is None:
+            Cxx = calCovariance(xLag,xLag)
+            Cxy = calCovariance(xLag,y)
+        else:
+            Cxx = oCuda.calCovariance(xLag,xLag)
+            Cxy = oCuda.calCovariance(xLag,y)
     
     # output = np.stack([Cxx,Cxy],axis = 0)
     
