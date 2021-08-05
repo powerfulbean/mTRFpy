@@ -9,7 +9,7 @@ from . import Protocols as pt
 import numpy as np
 
 # import sys
-# from memory_profiler import profile
+from memory_profiler import profile
 oCuda = None
 def cmp2NArray(a,b,decimalNum = None):
     if decimalNum != None:
@@ -111,6 +111,11 @@ class CDatasetDiskSave(CDataset):
             return temp[0].shape[1]
         else:
             return temp[1].shape[1]
+        
+    def sparse(self):
+        from scipy.sparse import csr_matrix
+        for i in self.dataset.stimuliDict:
+            self.dataset.stimuliDict[i] = csr_matrix(self.dataset.stimuliDict[i])
             
 # @profile
 def buildDataset(dataset,indicesConfig):
@@ -124,6 +129,7 @@ def buildDataset(dataset,indicesConfig):
 
     
 def DataListOp(funcOp):
+    # @profile
     def wrapper(*args, **kwargs):
         oDataListArgs = list() #a list of CDataList
         otherArgs = list()

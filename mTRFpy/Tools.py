@@ -69,7 +69,8 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
         oCuda.memPool.free_all_blocks()
     print('tls train, regularization finish')
     # print(type(wori),wori.shape)
-    np.asarray(wori)
+    wori = np.asarray(wori)
+    # wori = wori.toarray()
     b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
     print('tls train finish')
@@ -117,7 +118,9 @@ def predict(model,x,y=0,windowSize_ms:int = 0,zeropad:bool = True):
         xLag = op.genLagMat(x[i],lags,model.Zeropad)
         print('\rtest fold: ',i,end='\r')
         if Type == 'multi':
-            predTemp = np.matmul(xLag,w)
+            # print(xLag.shape,w.shape)
+            # predTemp = np.matmul(xLag,w)
+            predTemp = op.matTransposeMul(xLag.T,w)
             # print(predTemp.shape)
             pred.append(predTemp)
             

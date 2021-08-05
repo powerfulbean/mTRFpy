@@ -8,7 +8,9 @@ Created on Tue Jul  7 15:50:28 2020
 import numpy as np
 from . import Protocols as prtcls
 from memory_profiler import profile
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix,lil_matrix
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse import hstack
 
 DEBUG = False
 
@@ -18,14 +20,14 @@ oPrtclsData = prtcls.CProtocolData()
 oCuda = None
 sparseFlag = False
 
-def matmul(x,y):
+def matTransposeMul(x,y):
     '''
     calculat the matrix product of two arrays
     x: left matrix
     y: right matrix
     
     '''
-    if isinstance(x, csr_matrix) or isinstance(y, csr_matrix):
+    if sparseFlag:
         return x.T @ y
     else:
         return np.matmul(x.T,y)
@@ -38,8 +40,9 @@ def calCovariance(x,y):
     
     #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
     '''
-    oPrtclsData(x,y)
-    if isinstance(x, csr_matrix) or isinstance(y, csr_matrix):
+    # oPrtclsData(x,y)
+    # print(x.shape,y.shape)
+    if sparseFlag:
         return x.T @ y
     else:
         return np.matmul(x.T,y)
@@ -58,13 +61,19 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
        make warning when absolute lag value is bigger than the number of samples
        implement the zeropad part
     '''
-    oPrtclsData(x)
+    # oPrtclsData(x)
     nLags = len(lags)
     
     nSamples = x.shape[0]
     nVar = x.shape[1]
-    lagMatrix = np.zeros((nSamples,nVar*nLags))
-    
+    # lagMatrix = np.zeros((nSamples,nVar*nLags))
+    # print(type(x),isinstance(x, csr_matrix))
+    if isinstance(x, csc_matrix):
+        lagMatrix = lil_matrix((nSamples,nVar*nLags))
+        # x = x.toarray()
+    else:
+        lagMatrix = np.zeros((nSamples,nVar*nLags))
+    # print(type(lagMatrix),lagMatrix)
     for idx,lag in enumerate(lags):
         colSlice = slice(idx * nVar,(idx + 1) * nVar)
         if lag < 0:
@@ -78,7 +87,12 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
         lagMatrix = truncate(lagMatrix,lags[0],lags[-1])
         
     if bias:
-        lagMatrix = np.concatenate([np.ones((lagMatrix.shape[0],1)),lagMatrix],1);
+        if isinstance(x, csc_matrix):
+            ones = lil_matrix((lagMatrix.shape[0],1))
+            ones[:] = 1
+            lagMatrix = hstack([ones,lagMatrix])
+        else:
+            lagMatrix = np.concatenate([np.ones((lagMatrix.shape[0],1)),lagMatrix],1);
 
 #    print(lagMatrix.shape)    
     if sparseFlag:
@@ -113,7 +127,6 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
     
     if not Zeropad:
         y = truncate(y,lags[0],lags[-1])
-    
     
     if Type == 'multi':
         xLag = genLagMat(x,lags,Zeropad)
