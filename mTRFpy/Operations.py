@@ -46,6 +46,21 @@ def calCovariance(x,y):
         return x.T @ y
     else:
         return np.matmul(x.T,y)
+    
+def calSelfCovariance(x):
+    '''
+    calculat the covariance of two matrices
+    x: left matrix
+    y: right matrix
+    
+    #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
+    '''
+    # oPrtclsData(x,y)
+    # print(x.shape,y.shape)
+    if sparseFlag:
+        return x.T @ x
+    else:
+        return np.matmul(x.T,x)
 
 def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
     '''
@@ -131,7 +146,7 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
     if Type == 'multi':
         xLag = genLagMat(x,lags,Zeropad)
         if oCuda is None:
-            Cxx = calCovariance(xLag,xLag)
+            Cxx = calSelfCovariance(xLag)
             Cxy = calCovariance(xLag,y)
         else:
             # if DEBUG:
