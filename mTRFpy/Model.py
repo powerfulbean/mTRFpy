@@ -9,9 +9,8 @@ from sklearn.base import BaseEstimator,RegressorMixin, TransformerMixin
 
 from StellarInfra import IO as siIO
 from . import DataStruct as ds
-from . import Tools as tls
-from . import Operations as op
-
+from . import Basics as bs
+from . import Core
 DirEnum = tuple([-1,1]) 
     
 class CTRF:
@@ -37,7 +36,7 @@ class CTRF:
             y = stim
             tmin_ms, tmax_ms = Dir * tmax_ms, Dir * tmin_ms
         
-        w,b,lags = tls.train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = self._oCuda,**kwargs)
+        w,b,lags = bs.train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = self._oCuda,**kwargs)
         
         if kwargs.get('Type') != None:
             self.type = kwargs.get('Type')
@@ -47,7 +46,7 @@ class CTRF:
             
         self.w, self.b = w, b
         self.Dir = Dir
-        self.t = op.Idxs2msec(lags,fs)
+        self.t = Core.Idxs2msec(lags,fs)
         self.fs = fs
     
     def predict(self,stim,resp = None,**kwargs):
@@ -57,7 +56,7 @@ class CTRF:
         else:
             x = resp; y = stim
         
-        return tls.predict(self,x,y,zeropad = self.Zeropad)
+        return bs.predict(self,x,y,zeropad = self.Zeropad,**kwargs)
     
     def save(self,path,name):
         output = dict()
@@ -72,15 +71,15 @@ class CTRF:
             setattr(self, i, temp[i])
             
     def cuda(self,debug = False):
-        from .coreCuda import CCoreCuda
+        from .CudaCore import CCoreCuda
         oCuda = CCoreCuda()
-        op.oCuda = oCuda
+        Core.oCuda = oCuda
         ds.oCuda = oCuda
         self._oCuda = oCuda
         self._oCuda.DEBUG = debug
         
     def cpu(self):
-        op.oCuda = None
+        Core.oCuda = None
         ds.oCuda = None
         self._oCuda = None
         

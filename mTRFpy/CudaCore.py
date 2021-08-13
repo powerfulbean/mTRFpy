@@ -5,6 +5,7 @@ Created on Tue Aug  3 20:12:48 2021
 @author: ShiningStone
 """
 import numpy as np
+
 class CCoreCuda:
     
     def __init__(self):

@@ -20,7 +20,7 @@ oPrtclsData = prtcls.CProtocolData()
 oCuda = None
 sparseFlag = False
 
-def matTransposeMul(x,y):
+def matMul(x,y):
     '''
     calculat the matrix product of two arrays
     x: left matrix
@@ -28,9 +28,9 @@ def matTransposeMul(x,y):
     
     '''
     if sparseFlag:
-        return x.T @ y
+        return x @ y
     else:
-        return np.matmul(x.T,y)
+        return np.matmul(x,y)
 
 def calCovariance(x,y):
     '''
@@ -49,9 +49,8 @@ def calCovariance(x,y):
     
 def calSelfCovariance(x):
     '''
-    calculat the covariance of two matrices
-    x: left matrix
-    y: right matrix
+    calculat the covariance of matrix itself
+    x: input matrix
     
     #if the input for x and y are both 1-D vectors, they will be reshaped to (len(vector),1)
     '''
@@ -149,19 +148,9 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
             Cxx = calSelfCovariance(xLag)
             Cxy = calCovariance(xLag,y)
         else:
-            # if DEBUG:
-            #     mempool = oCuda.cp.get_default_memory_pool()
-            #     pinned_mempool = oCuda.cp.get_default_pinned_memory_pool()
-            #     print(mempool.used_bytes())              # 0
-            #     print(mempool.total_bytes())             # 0
-            #     print(pinned_mempool.n_free_blocks())    # 0
             Cxx = oCuda.calSelfCovariance(xLag)
             Cxy = oCuda.calCovariance(xLag,y)
-    
-    # output = np.stack([Cxx,Cxy],axis = 0)
-    
     return Cxx, Cxy
-    # return output
 
 def msec2Idxs(msecRange,fs):
     '''

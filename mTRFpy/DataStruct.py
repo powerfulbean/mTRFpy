@@ -70,6 +70,10 @@ class CDataList(list):
         array = self.__getitem__(0)
         return array.shape[1]
     
+    @property
+    def T(self):
+        return [i.T for i in self]
+    
 class CDataset:
     
     def __init__(self,*args,**kwargs):
