@@ -7,6 +7,7 @@ Created on Tue Jul 14 17:01:25 2020
 import numpy as np
 from . import Core
 from . import DataStruct as ds
+from .DataStruct import CDataList
 from . import Protocols as pt
 # from memory_profiler import profile
 
@@ -63,7 +64,7 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
     return w,b,lags
 
 
-def predict(model,x,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0):
+def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0, specifyLag:int = -1, specifyChan:int = -1):
     # assert windowSize >= 0
     # if windowSize:
     #     nWin = sum(np.floor([len(n)/windowSize for n in nYObs/windowSize]))
@@ -93,6 +94,17 @@ def predict(model,x,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0):
 #    assert Type
     if model.Type == 'multi':
         w = model.w.copy()
+        if specifyLag >= 0:
+            lags = [lags[specifyLag]]
+            w = w[:,specifyLag:specifyLag+1,:]
+            # print(specifyLag,specifyLag+1,w.shape,lags[0],lags[0]+1,model.w.shape)
+        if specifyChan >= 0:
+            w = w[specifyChan:specifyChan+1,:,:]
+            nXVar = 1
+            # print(x[0].shape)
+            x = x.getChan(specifyChan)
+            # print(x[0].shape,w.shape)
+        # print(nXVar,lags)
         w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
     else:
         w = 1
@@ -107,6 +119,7 @@ def predict(model,x,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0):
         if Type == 'multi':
             # print(xLag.shape,w.shape)
             # predTemp = np.matmul(xLag,w)
+            # print(xLag.shape,lags)
             predTemp = Core.matMul(xLag,w)
             # print(predTemp.shape)
             pred.append(predTemp)

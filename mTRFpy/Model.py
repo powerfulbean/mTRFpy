@@ -15,7 +15,7 @@ DirEnum = tuple([-1,1])
     
 class CTRF:
     
-    def __init__(self):
+    def __init__(self,):
         self.w = None
         self.b = None
         self.t = None
@@ -82,6 +82,20 @@ class CTRF:
         Core.oCuda = None
         ds.oCuda = None
         self._oCuda = None
+        
+    def plotWeights(self,vecNames = None):
+
+        '''desined for models trained with combined vector '''
+        from matplotlib import pyplot as plt
+        times = self.t
+        out = list()
+        for i in range(self.w.shape[0]):
+            weights = self.w[i,:,:]#take mean along the input dimension
+            fig1 = plt.figure()
+            plt.plot(times,weights[:,:])
+            plt.title(vecNames[i])
+            out.append(fig1)
+        return out
         
 
 class CSKlearnTRF(BaseEstimator,RegressorMixin, TransformerMixin, CTRF):

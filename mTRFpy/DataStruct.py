@@ -7,6 +7,7 @@ Created on Thu Jul 16 01:50:12 2020
 from collections.abc import Iterable
 from . import Protocols as pt
 import numpy as np
+from scipy.stats import zscore
 
 # import sys
 from memory_profiler import profile
@@ -72,7 +73,17 @@ class CDataList(list):
     
     @property
     def T(self):
-        return [i.T for i in self]
+        return CDataList([i.T for i in self])
+    
+    def getChan(self,chanId):
+        return CDataList([i[:,chanId:chanId+1] for i in self])
+    
+    def zscored(self,axis):
+        out = list()
+        for i in self:
+            out.append(zscore(i,axis))
+        return CDataList(out)
+            
     
 class CDataset:
     
@@ -120,17 +131,50 @@ class CDatasetDiskSave(CDataset):
         from scipy.sparse import csr_matrix
         for i in self.dataset.stimuliDict:
             self.dataset.stimuliDict[i] = csr_matrix(self.dataset.stimuliDict[i])
-            
+
+def findSecondNonZeroIdx(data):
+    data = data.copy()
+    t1 = np.argmax(data>0,axis = 1)
+    # print(t1)
+    for idx,i in enumerate(t1):
+        data[idx,i] = 0
+    # print(data)
+    t1 = np.argmax(data>0,axis = 1)
+    return t1[0]
+    
+
 # @profile
 def buildDataset(dataset,indicesConfig):
-    resp = [dataset[i].data.T for i in indicesConfig]
-    stim = [dataset.stimuliDict[dataset[i].stimuli['wordVecKey']][:,0:dataset[i].stimuli['sharedLen']].T for i in indicesConfig]
-    dataset.clearRef(indicesConfig)
+    # print(type(dataset),indicesConfig)
+    
+    # resp = [dataset[i].data.T[2*64:,:] for i in indicesConfig]
+    # stim = [dataset.stimuliDict[dataset[i].stimuli['wordVecKey']][:,0:dataset[i].stimuli['sharedLen']].T[64* 2:,:] for i in indicesConfig]
+    resp = list()
+    stim = list()
+    for i in indicesConfig:
+        stimTemp = dataset.stimuliDict[dataset[i].stimuli['wordVecKey']][:,0:dataset[i].stimuli['sharedLen']]
+        tarIdx = findSecondNonZeroIdx(stimTemp)
+        resp.append(dataset[i].data.T[tarIdx:,:])
+        stim.append(stimTemp.T[tarIdx:,:])
+    # dataset.clearRef(indicesConfig)
     resp = CDataList(resp)
     stim = CDataList(stim)
-    
+    resp = resp.zscored(0)
+    stim = stim.zscored(0)
     return stim,resp
 
+def buildResidualDataset(model,dataset,indicesConfig,idxForRes):
+    stim,resp = buildDataset(dataset, indicesConfig)
+    stimRes = [i[:,1:] for i in stim]
+    stimOut = [i[:,0:1] for i in stim]
+    # stimRes = [i[:,0:1] for i in stim]
+    # stimOut = [i[:,1:] for i in stim]
+    stimRes = CDataList(stimRes)
+    stimOut = CDataList(stimOut)
+    respRes = model.predict(stimRes)
+    respOut = [resp[idx] - respRes[idx] for idx,i in enumerate(respRes)]
+    respOut = CDataList(respOut)
+    return stimOut,respOut
     
 def DataListOp(funcOp):
     # @profile
@@ -152,9 +196,25 @@ def DataListOp(funcOp):
         if isinstance(oDataListArgs[0],CDataList):
             for idx in range(oDataListArgs[0].fold):
                 #prepare the 'idx'th data in CDataList
+                print('\rfold: ',idx,end='\r')
                 curDataArg = [oDataList[idx] for oDataList in oDataListArgs]
                 curArgs = curDataArg + otherArgs
-                output.append(funcOp(*curArgs,**kwargs))
+                # output.append(funcOp(*curArgs,**kwargs))
+                temp = funcOp(*curArgs,**kwargs)
+                if len(output) == 0:
+                    for i in temp:
+                        output.append(i)
+                else:
+                    for idx,i in enumerate(temp):
+                        if oCuda:
+                            if oCuda.cp.cuda.runtime.getDeviceCount() == 1:
+                                output[idx] = output[idx] + i
+                            else:
+                                with oCuda.cp.cuda.Device(1):
+                                    output[idx] = output[idx] + i
+                        else:
+                            output[idx] = output[idx] + i
+                del temp
             return output
         elif isinstance(oDataListArgs[0],CDataset):
             dataset = oDataListArgs[0]
