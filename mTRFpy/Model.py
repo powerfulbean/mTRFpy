@@ -83,7 +83,7 @@ class CTRF:
         ds.oCuda = None
         self._oCuda = None
         
-    def plotWeights(self,vecNames = None):
+    def plotWeights(self,vecNames = None,ylim = None):
 
         '''desined for models trained with combined vector '''
         from matplotlib import pyplot as plt
@@ -94,6 +94,10 @@ class CTRF:
             fig1 = plt.figure()
             plt.plot(times,weights[:,:])
             plt.title(vecNames[i])
+            plt.xlabel("time (ms)")
+            plt.ylabel("a.u.")
+            if ylim:
+                plt.ylim(ylim)
             out.append(fig1)
         return out
         
