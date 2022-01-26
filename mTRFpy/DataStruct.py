@@ -153,6 +153,7 @@ def buildDataset(dataset,indicesConfig):
     stim = list()
     for i in indicesConfig:
         stimTemp = dataset.stimuliDict[dataset[i].stimuli['wordVecKey']][:,0:dataset[i].stimuli['sharedLen']]
+        dataset[i].data = dataset[i].data[:,0:dataset[i].stimuli['sharedLen']]
         tarIdx = findSecondNonZeroIdx(stimTemp)
         resp.append(dataset[i].data.T[tarIdx:,:])
         stim.append(stimTemp.T[tarIdx:,:])
