@@ -157,23 +157,30 @@ def buildDataset(dataset,indicesConfig):
         tarIdx = findSecondNonZeroIdx(stimTemp)
         resp.append(dataset[i].data.T[tarIdx:,:])
         stim.append(stimTemp.T[tarIdx:,:])
-    # dataset.clearRef(indicesConfig)
+        dataset.clearRef([i])
     resp = CDataList(resp)
     stim = CDataList(stim)
     resp = resp.zscored(0)
     stim = stim.zscored(0)
     return stim,resp
-
+import time
 def buildResidualDataset(model,dataset,indicesConfig,idxForRes):
     stim,resp = buildDataset(dataset, indicesConfig)
     stimRes = [i[:,1:] for i in stim]
     stimOut = [i[:,0:1] for i in stim]
     # stimRes = [i[:,0:1] for i in stim]
     # stimOut = [i[:,1:] for i in stim]
+    del stim
     stimRes = CDataList(stimRes)
     stimOut = CDataList(stimOut)
     respRes = model.predict(stimRes)
-    respOut = [resp[idx] - respRes[idx] for idx,i in enumerate(respRes)]
+    # time.sleep(5)
+    respOut = [None] * len(respRes)
+    for idx,i in enumerate(respRes):
+        respOut[idx] = resp[idx] - respRes[idx]
+        resp[idx] = None
+        respRes[idx] = None
+    # respOut = [resp[idx] - respRes[idx] for idx,i in enumerate(respRes)]
     respOut = CDataList(respOut)
     return stimOut,respOut
     

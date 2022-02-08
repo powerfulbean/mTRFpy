@@ -112,7 +112,6 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     pred = ds.CDataList()
     r = list()
     err = list()
-    cursor = 0
     for i in range(x.fold):
         xLag = Core.genLagMat(x[i],lags,model.Zeropad)
         print('\rtest fold: ',i,end='\r')
@@ -132,6 +131,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
                 rTempList,errTempList = evaluate(yTrunc,predTemp,dim=dim)
                 r.extend(rTempList)
                 err.extend(errTempList)
+        del xLag
     print('\n')
     if y == None:
         return pred
