@@ -83,6 +83,12 @@ class CDataList(list):
         for i in self:
             out.append(zscore(i,axis))
         return CDataList(out)
+    
+    def selectByIndices(self,indicies):
+        out = CDataList()
+        for idx in indicies:
+            out.append(self.__getitem__(idx))
+        return out
             
     
 class CDataset:
@@ -164,7 +170,7 @@ def buildDataset(dataset,indicesConfig):
     stim = stim.zscored(0)
     return stim,resp
 import time
-def buildResidualDataset(model,dataset,indicesConfig,idxForRes):
+def buildResidualDataset(model,dataset,indicesConfig,idxForRes = None):
     stim,resp = buildDataset(dataset, indicesConfig)
     stimRes = [i[:,1:] for i in stim]
     stimOut = [i[:,0:1] for i in stim]
@@ -204,7 +210,7 @@ def DataListOp(funcOp):
         if isinstance(oDataListArgs[0],CDataList):
             for idx in range(oDataListArgs[0].fold):
                 #prepare the 'idx'th data in CDataList
-                print('\rfold: ',idx,end='\r')
+                # print('\rfold: ',idx,end='\r')
                 curDataArg = [oDataList[idx] for oDataList in oDataListArgs]
                 curArgs = curDataArg + otherArgs
                 # output.append(funcOp(*curArgs,**kwargs))

@@ -5,14 +5,48 @@ Created on Thu Jul 16 14:42:40 2020
 @author: Jin Dou
 """
 import sklearn as skl
+import numpy as np
 from sklearn.base import BaseEstimator,RegressorMixin, TransformerMixin
+from sklearn.model_selection import ShuffleSplit,LeaveOneOut
 
 from StellarInfra import IO as siIO
 from . import DataStruct as ds
 from . import Basics as bs
 from . import Core
+import sys
+
 DirEnum = tuple([-1,1]) 
-    
+
+def crossVal(stim:ds.CDataList,resp:ds.CDataList,
+             Dir,fs,tmin_ms,tmax_ms,Lambda,
+             random_state = 42,**kwargs):
+    # rs = ShuffleSplit(split = 20,tsetrandom_state=random_state)
+    rs = LeaveOneOut()
+    finalR = []
+    finalErr = []
+    idx = 0
+    nStim = len(stim)
+    sys.stdout.flush()
+    for trainIdx,testIdx in rs.split(stim):
+        # print('def\rabc')
+        # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
+        # sys.stdout.flush()
+        print("\r" + f"cross validation >>>>>..... split {idx+1}/{nStim}",end='\r')
+        idx+=1
+        oTRF = CTRF()
+        stimTrain = stim.selectByIndices(trainIdx)
+        respTrain = resp.selectByIndices(trainIdx)
+        oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
+        
+        stimTest = stim.selectByIndices(testIdx)
+        respTest = resp.selectByIndices(testIdx)
+        _,r,err = oTRF.predict(stimTest,respTest)
+        finalR.append(r)
+        finalErr.append(err)
+    finalR = np.concatenate(finalR)
+    finalErr = np.concatenate(finalErr)
+    return finalR,finalErr#np.mean(finalR,axis=0),np.mean(finalErr,axis=0)
+
 class CTRF:
     
     def __init__(self,):
@@ -48,6 +82,7 @@ class CTRF:
         self.Dir = Dir
         self.t = Core.Idxs2msec(lags,fs)
         self.fs = fs
+    
     
     def predict(self,stim,resp = None,**kwargs):
         assert self.Dir in DirEnum

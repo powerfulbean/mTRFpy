@@ -36,7 +36,7 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
     assert x.fold == y.fold
     lags = Core.msec2Idxs([tmin_ms,tmax_ms],fs)
     Cxx,Cxy = olscovmat(x,y,lags,**kwarg)
-    print('tls train, start regularization matrix')
+    # print('tls train, start regularization matrix')
     Delta = 1/fs
     RegM = Core.genRegMat(Cxx.shape[1]) * Lambda / Delta
     if oCuda is None:
@@ -54,13 +54,13 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
         del Cxx
         del Cxy
         oCuda.memPool.free_all_blocks()
-    print('tls train, regularization finish')
+    # print('tls train, regularization finish')
     # print(type(wori),wori.shape)
     wori = np.asarray(wori)
     # wori = wori.toarray()
     b = wori[0:1]
     w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
-    print('tls train finish')
+    # print('tls train finish')
     return w,b,lags
 
 
@@ -114,7 +114,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     err = list()
     for i in range(x.fold):
         xLag = Core.genLagMat(x[i],lags,model.Zeropad)
-        print('\rtest fold: ',i,end='\r')
+        # print('\rtest fold: ',i,end='\r')
         if Type == 'multi':
             # print(xLag.shape,w.shape)
             # predTemp = np.matmul(xLag,w)
@@ -132,7 +132,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
                 r.extend(rTempList)
                 err.extend(errTempList)
         del xLag
-    print('\n')
+    # print('\n')
     if y == None:
         return pred
     else:
