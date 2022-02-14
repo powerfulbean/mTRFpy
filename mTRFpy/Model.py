@@ -8,6 +8,8 @@ import sklearn as skl
 import numpy as np
 from sklearn.base import BaseEstimator,RegressorMixin, TransformerMixin
 from sklearn.model_selection import ShuffleSplit,LeaveOneOut
+from multiprocessing import Pool,shared_memory
+
 
 from StellarInfra import IO as siIO
 from . import DataStruct as ds
@@ -17,32 +19,91 @@ import sys
 
 DirEnum = tuple([-1,1]) 
 
+def funcTrainNVal(oInput):
+    trainIdx = oInput[0]
+    testIdx = oInput[1]
+    idx = oInput[2]
+    nSplits = oInput[3]
+    modelParam = shared_memory.ShareableList(name='sharedModelParam') 
+    Dir = modelParam[0]
+    fs = modelParam[1]
+    tmin_ms = modelParam[2]
+    tmax_ms = modelParam[3]
+    Lambda = modelParam[4]
+    stim = modelParam[5]
+    resp = modelParam[6]
+    oTRF = CTRF()
+    stimTrain = stim.selectByIndices(trainIdx)
+    respTrain = resp.selectByIndices(trainIdx)
+    oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda)
+    
+    stimTest = stim.selectByIndices(testIdx)
+    respTest = resp.selectByIndices(testIdx)
+    _,r,err = oTRF.predict(stimTest,respTest)
+    sys.stdout.write("\r" + f"cross validation >>>>>..... split {idx}/{nSplits}\r")
+    return (r,err)
+
+def createSharedNArray(a,name):
+    shm = shared_memory.SharedMemory(name=name,create=True, size=a.nbytes)
+    b = np.ndarray(a.shape, dtype=a.dtype, buffer=shm.buf)
+    b[:] = a[:]
+    return b
+    
+
 def crossVal(stim:ds.CDataList,resp:ds.CDataList,
              Dir,fs,tmin_ms,tmax_ms,Lambda,
-             random_state = 42,**kwargs):
-    # rs = ShuffleSplit(split = 20,tsetrandom_state=random_state)
-    rs = LeaveOneOut()
-    finalR = []
-    finalErr = []
-    idx = 0
-    nStim = len(stim)
-    sys.stdout.flush()
-    for trainIdx,testIdx in rs.split(stim):
-        # print('def\rabc')
-        # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
-        # sys.stdout.flush()
-        print("\r" + f"cross validation >>>>>..... split {idx+1}/{nStim}",end='\r')
-        idx+=1
-        oTRF = CTRF()
-        stimTrain = stim.selectByIndices(trainIdx)
-        respTrain = resp.selectByIndices(trainIdx)
-        oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
+             random_state = 42,mode = None,nWorkers=1,n_Splits = 80, **kwargs):
+    if mode == 'fast':
+        nSplits = n_Splits
+        testSize = 1/nSplits
+        if testSize > 0.1:
+            testSize = 0.1
+        rs = ShuffleSplit(n_splits = nSplits,test_size=testSize,random_state=random_state)
+    else:
+        rs = LeaveOneOut()
+        nStim = len(stim)
+        nSplits = nStim
+    
+    if nWorkers <= 1:
+        finalR = []
+        finalErr = []
+        idx = 0
         
-        stimTest = stim.selectByIndices(testIdx)
-        respTest = resp.selectByIndices(testIdx)
-        _,r,err = oTRF.predict(stimTest,respTest)
-        finalR.append(r)
-        finalErr.append(err)
+        for trainIdx,testIdx in rs.split(stim):
+            # print('def\rabc')
+            # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
+            # sys.stdout.flush()
+            print("\r" + f"cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
+            idx+=1
+            oTRF = CTRF()
+            stimTrain = stim.selectByIndices(trainIdx)
+            respTrain = resp.selectByIndices(trainIdx)
+            oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
+            
+            stimTest = stim.selectByIndices(testIdx)
+            respTest = resp.selectByIndices(testIdx)
+            _,r,err = oTRF.predict(stimTest,respTest)
+            finalR.append(r)
+            finalErr.append(err)
+    else:
+        splitParam = []
+        idx=1
+        for trainIdx,testIdx in rs.split(stim):
+            splitParam.append([trainIdx,testIdx,idx,nSplits])
+            idx+=1
+            
+        modelParam = shared_memory.ShareableList(
+            [Dir,fs, tmin_ms, tmax_ms, Lambda],
+            name= 'sharedModelParam')
+        
+        sharedStim = createSharedNArray(stim, 'sharedStim')
+        sharedResp = createSharedNArray(resp, 'sharedResp')
+        
+        # stop
+        with Pool(nWorkers) as pool:
+            out = pool.imap(funcTrainNVal, splitParam,chunksize=int(nSplits/nWorkers))
+            finalR = [i[0] for i in out]
+            finalErr = [i[1] for i in out]
     finalR = np.concatenate(finalR)
     finalErr = np.concatenate(finalErr)
     return finalR,finalErr#np.mean(finalR,axis=0),np.mean(finalErr,axis=0)
