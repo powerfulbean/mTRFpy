@@ -52,8 +52,8 @@ def createSharedNArray(a,name):
 
 def crossVal(stim:ds.CDataList,resp:ds.CDataList,
              Dir,fs,tmin_ms,tmax_ms,Lambda,
-             random_state = 42,mode = None,nWorkers=1,n_Splits = 80, **kwargs):
-    if mode == 'fast':
+             random_state = 42,nWorkers=1,n_Splits = 10, **kwargs):
+    if n_Splits is not None:
         nSplits = n_Splits
         testSize = 1/nSplits
         if testSize > 0.1:
