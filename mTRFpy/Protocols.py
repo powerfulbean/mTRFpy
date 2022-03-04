@@ -18,7 +18,15 @@ class CProtocol:
     @abstractmethod
     def protocol(self,param):
         pass
+
+class CStimRespProtocol(CProtocol):
+    def protocol(self,stim,resp):
+        assert isinstance(stim,np.ndarray)
+        assert isinstance(resp,np.ndarray)
+        assert stim.shape[0] == resp.shape[0]
+        return (stim,resp)
     
+
 class CProtocolData(CProtocol):
     
     def __init__(self):

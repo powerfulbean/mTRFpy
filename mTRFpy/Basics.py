@@ -12,6 +12,7 @@ from . import Protocols as pt
 # from memory_profiler import profile
 
 oDataPrtcl = pt.CProtocolData()
+oStimRespPrtcl = pt.CStimRespProtocol()
 
 def truncFloat(a,digits):
     stepper = 10.0 ** digits
@@ -183,7 +184,26 @@ def evaluate(y,pred,dim:int = 0, corr = 'Pearson',error='mse',window = 0):
         err.append(errTemp)
         
     return np.array(r),np.array(err)
-    
-    
+
+def split(stim,resp,nFold):
+    outputStim = list()
+    outputResp = list()
+    stim,resp = oStimRespPrtcl(stim,resp)
+    lenSeg = int(np.ceil(len(stim)/nFold))
+    nObs = stim.shape[0]
+    for i in range(nFold):
+        rowSlice = slice(i * lenSeg,min((i+1) * lenSeg,nObs))
+        outputStim.append(stim[rowSlice])
+        outputResp.append(resp[rowSlice])
+    outputStim = outputStim
+    outputResp = outputResp
+    return CDataList(outputStim),CDataList(outputResp)
+
+def partition(stim,resp,nFold,testFold):
+    outputStim,outputResp = split(stim, resp, nFold)
+    r1,s1,r2,s2 = CDataList(outputStim[:-testFold]), CDataList(outputResp[:-testFold]), \
+            CDataList(outputStim[-testFold:]), CDataList(outputResp[-testFold:])
+                
+    return r1,s1,r2,s2
     
     

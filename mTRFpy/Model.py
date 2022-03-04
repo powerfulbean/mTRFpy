@@ -53,6 +53,8 @@ def createSharedNArray(a,name):
 def crossVal(stim:ds.CDataList,resp:ds.CDataList,
              Dir,fs,tmin_ms,tmax_ms,Lambda,
              random_state = 42,nWorkers=1,n_Splits = 10, **kwargs):
+    stim = ds.CDataList(stim)
+    resp = ds.CDataList(resp)
     if n_Splits is not None:
         nSplits = n_Splits
         testSize = 1/nSplits
@@ -185,8 +187,20 @@ class CTRF:
         from matplotlib import pyplot as plt
         times = self.t
         out = list()
-        for i in range(self.w.shape[0]):
-            weights = self.w[i,:,:]#take mean along the input dimension
+        if self.Dir == 1:
+            nStimChan = self.w.shape[0]
+        elif self.Dir == -1:
+            nStimChan = self.w.shape[-1]
+        else:
+            raise ValueError
+        
+        for i in range(nStimChan):
+            if self.Dir == 1:
+                weights = self.w[i,:,:]#take mean along the input dimension
+            elif self.Dir == -1:
+                weights = self.w[:,:,i].T
+            else:
+                raise ValueError
             fig1 = plt.figure()
             plt.plot(times,weights[:,:])
             plt.title(vecNames[i])

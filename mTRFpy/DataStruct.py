@@ -43,8 +43,9 @@ class CDataList(list):
         output = list()
         for d in data:
             lenSeg = int(np.ceil(len(d)/ self.split))
+            nObs = d.shape[0]
             for i in range(self.split):
-                rowSlice = slice(i * lenSeg,(i+1) * lenSeg)
+                rowSlice = slice(i * lenSeg,min((i+1) * lenSeg,nObs))
                 output.append(d[rowSlice])
         return output
     
@@ -188,6 +189,7 @@ def buildResidualDataset(model,dataset,indicesConfig,idxForRes = None):
         respRes[idx] = None
     # respOut = [resp[idx] - respRes[idx] for idx,i in enumerate(respRes)]
     respOut = CDataList(respOut)
+    # print(stimOut[0].shape,respOut[0].shape)
     return stimOut,respOut
     
 def DataListOp(funcOp):
