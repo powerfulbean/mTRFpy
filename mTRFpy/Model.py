@@ -53,6 +53,26 @@ def createSharedNArray(a,name):
 def crossVal(stim:ds.CDataList,resp:ds.CDataList,
              Dir,fs,tmin_ms,tmax_ms,Lambda,
              random_state = 42,nWorkers=1,n_Splits = 10, **kwargs):
+    if np.isscalar(Lambda):
+        r,err = crossValPerLambda(stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda,
+                                 random_state = random_state,nWorkers=nWorkers,
+                                 n_Splits = n_Splits,**kwargs)
+        return np.mean(r,axis = 0,keepdims=True),np.mean(err,axis = 0,keepdims=True)
+    else:
+        result = []
+        for l in Lambda:
+            r,err = crossValPerLambda(stim, resp, Dir, fs, tmin_ms, tmax_ms, l, 
+                                  random_state = random_state,nWorkers=nWorkers,
+                                   n_Splits = n_Splits,**kwargs)
+            result.append(
+                (np.mean(r,axis = 0,keepdims=True),np.mean(err,axis = 0,keepdims=True))
+                )
+        return result    
+        
+
+def crossValPerLambda(stim:ds.CDataList,resp:ds.CDataList,
+             Dir,fs,tmin_ms,tmax_ms,Lambda,
+             random_state = 42,nWorkers=1,n_Splits = 10, **kwargs):
     stim = ds.CDataList(stim)
     resp = ds.CDataList(resp)
     if n_Splits is not None:
@@ -75,7 +95,10 @@ def crossVal(stim:ds.CDataList,resp:ds.CDataList,
             # print('def\rabc')
             # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
             # sys.stdout.flush()
-            print("\r" + f"cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
+            sys.stdout.write("\033[F") 
+            sys.stdout.write("\033[K")  
+            print("\r" + f"Lambda: {Lambda}; cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
+            
             idx+=1
             oTRF = CTRF()
             stimTrain = stim.selectByIndices(trainIdx)
@@ -181,7 +204,7 @@ class CTRF:
         ds.oCuda = None
         self._oCuda = None
         
-    def plotWeights(self,vecNames = None,ylim = None):
+    def plotWeights(self,vecNames = None,ylim = None,newFig = True,chan = [None]):
 
         '''desined for models trained with combined vector '''
         from matplotlib import pyplot as plt
@@ -201,14 +224,18 @@ class CTRF:
                 weights = self.w[:,:,i].T
             else:
                 raise ValueError
-            fig1 = plt.figure()
-            plt.plot(times,weights[:,:])
+            if newFig:
+                fig1 = plt.figure()
+            else:
+                fig1 = None
+            plt.plot(times,weights[:,slice(*chan)])
             plt.title(vecNames[i])
             plt.xlabel("time (ms)")
             plt.ylabel("a.u.")
             if ylim:
                 plt.ylim(ylim)
-            out.append(fig1)
+            if fig1:
+                out.append(fig1)
         return out
         
 
