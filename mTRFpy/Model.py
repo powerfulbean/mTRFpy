@@ -16,6 +16,7 @@ from . import DataStruct as ds
 from . import Basics as bs
 from . import Core
 import sys
+from tqdm import tqdm
 
 DirEnum = tuple([-1,1]) 
 
@@ -60,7 +61,7 @@ def crossVal(stim:ds.CDataList,resp:ds.CDataList,
         return np.mean(r,axis = 0,keepdims=True),np.mean(err,axis = 0,keepdims=True)
     else:
         result = []
-        for l in Lambda:
+        for l in tqdm(Lambda,desc = 'lambda',leave = False):
             r,err = crossValPerLambda(stim, resp, Dir, fs, tmin_ms, tmax_ms, l, 
                                   random_state = random_state,nWorkers=nWorkers,
                                    n_Splits = n_Splits,**kwargs)
@@ -91,13 +92,13 @@ def crossValPerLambda(stim:ds.CDataList,resp:ds.CDataList,
         finalErr = []
         idx = 0
         
-        for trainIdx,testIdx in rs.split(stim):
+        for trainIdx,testIdx in tqdm(rs.split(stim),desc = 'cv',leave = False):
             # print('def\rabc')
             # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
             # sys.stdout.flush()
-            sys.stdout.write("\033[F") 
-            sys.stdout.write("\033[K")  
-            print("\r" + f"Lambda: {Lambda}; cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
+            # sys.stdout.write("\033[F") 
+            # sys.stdout.write("\033[K")  
+            # print("\r" + f"Lambda: {Lambda}; cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
             
             idx+=1
             oTRF = CTRF()

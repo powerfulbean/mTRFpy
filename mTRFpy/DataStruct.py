@@ -151,7 +151,7 @@ def findSecondNonZeroIdx(data):
     
 
 # @profile
-def buildDataset(dataset,indicesConfig):
+def buildDataset(dataset,indicesConfig,saveMem = True):
     # print(type(dataset),indicesConfig)
     
     # resp = [dataset[i].data.T[2*64:,:] for i in indicesConfig]
@@ -164,7 +164,8 @@ def buildDataset(dataset,indicesConfig):
         tarIdx = findSecondNonZeroIdx(stimTemp)
         resp.append(dataset[i].data.T[tarIdx:,:])
         stim.append(stimTemp.T[tarIdx:,:])
-        dataset.clearRef([i])
+        if saveMem:
+            dataset.clearRef([i])
     resp = CDataList(resp)
     stim = CDataList(stim)
     resp = resp.zscored(0)
