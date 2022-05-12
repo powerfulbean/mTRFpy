@@ -77,7 +77,6 @@ def genLagMat(x,lags,Zeropad:bool = True,bias =True): #
     '''
     # oPrtclsData(x)
     nLags = len(lags)
-    
     nSamples = x.shape[0]
     nVar = x.shape[1]
     # lagMatrix = np.zeros((nSamples,nVar*nLags))

@@ -145,8 +145,34 @@ class CTRF:
         self.Zeropad = True
         self.fs = -1
         self._oCuda = None
-        
+    
+    def __radd__(self, oTRF):
+        if oTRF == 0:
+            return self.copy()
+        else:
+            return self.__add__(oTRF)
+    
+    def __add__(self,oTRF):  
+        oTRFNew = self.copy()
+        oTRFNew.w += oTRF.w
+        oTRFNew.b += oTRF.b
+        #!!!need check other params
+        return oTRFNew
+    
+    def __truediv__(self,num):
+        oTRFNew = self.copy()
+        oTRFNew.w /= num
+        oTRFNew.b /= num
+        return oTRFNew
+    
     def train(self,stim,resp,Dir,fs,tmin_ms,tmax_ms,Lambda,**kwargs):
+        
+        if isinstance(stim, np.ndarray):
+            stim = ds.CDataList([stim])
+        
+        if isinstance(resp, np.ndarray):
+            resp = ds.CDataList([resp])
+        
         assert Dir in DirEnum
         
         if (Dir == 1):
@@ -172,6 +198,12 @@ class CTRF:
     
     
     def predict(self,stim,resp = None,**kwargs):
+        if isinstance(stim, np.ndarray):
+            stim = ds.CDataList([stim])
+        
+        if isinstance(resp, np.ndarray):
+            resp = ds.CDataList([resp])
+            
         assert self.Dir in DirEnum
         if self.Dir == 1:
             x = stim; y = resp
@@ -191,6 +223,16 @@ class CTRF:
         temp = siIO.loadObject(path)
         for i in temp:
             setattr(self, i, temp[i])
+            
+    def copy(self):
+        oTRF = CTRF()
+        for k,v in self.__dict__.items():
+            value = v
+            if getattr(v,'copy',None) is not None:
+                value = v.copy()
+            setattr(oTRF, k, value)
+        return oTRF
+        
             
     def cuda(self,debug = False):
         from .CudaCore import CCoreCuda
@@ -230,7 +272,7 @@ class CTRF:
             else:
                 fig1 = None
             plt.plot(times,weights[:,slice(*chan)])
-            plt.title(vecNames[i])
+            plt.title(vecNames[i] if vecNames is not None else '')
             plt.xlabel("time (ms)")
             plt.ylabel("a.u.")
             if ylim:
