@@ -11,17 +11,16 @@ replicating the example provided in mTRFToolbox:
     
 '''
 
-from StellarInfra import siIO
-from StellarInfra import StageControl
+from mTRFpy import Tools
 from mTRFpy.Model import CTRF
 from mTRFpy.Tools import cmp2NArray
 
-oStage = StageControl.CStageControl([2,3])
+oStage = Tools.StageControl([1,2])
 
 if oStage(1):
     #simple encoder validation
-    speechAndRespData = siIO.loadMatFile('speech_data.mat')
-    encoderResult = siIO.loadMatFile('EncoderTask.mat')
+    speechAndRespData = Tools.loadMatFile('speech_data.mat')
+    encoderResult = Tools.loadMatFile('EncoderTask.mat')
     stim = speechAndRespData['stim']
     resp = speechAndRespData['resp']
     fs = speechAndRespData['fs'][0,0]
@@ -36,8 +35,8 @@ if oStage(1):
 
 if oStage(2):
     #simple decoder validation
-    speechAndRespData = siIO.loadMatFile('speech_data.mat')
-    decoderResult = siIO.loadMatFile('DecoderTask.mat')
+    speechAndRespData = Tools.loadMatFile('speech_data.mat')
+    decoderResult = Tools.loadMatFile('DecoderTask.mat')
     stim = speechAndRespData['stim']
     resp = speechAndRespData['resp']
     fs = speechAndRespData['fs'][0,0]

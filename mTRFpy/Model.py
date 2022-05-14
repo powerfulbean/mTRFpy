@@ -11,7 +11,7 @@ from sklearn.model_selection import ShuffleSplit,LeaveOneOut
 from multiprocessing import Pool,shared_memory
 
 
-from StellarInfra import IO as siIO
+from . import Tools
 from . import DataStruct as ds
 from . import Basics as bs
 from . import Core
@@ -217,10 +217,10 @@ class CTRF:
         for i in self.__dict__:
             output[i] = self.__dict__[i]
         
-        siIO.saveObject(output, path,name, '.mtrf')
+        Tools.saveObject(output, path,name, '.mtrf')
         
     def load(self,path):
-        temp = siIO.loadObject(path)
+        temp = Tools.loadObject(path)
         for i in temp:
             setattr(self, i, temp[i])
             
