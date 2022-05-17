@@ -9,7 +9,6 @@ import warnings
 import numpy as np
 from scipy import io as scipyIO
 
-from .Model import CTRF
 from StimRespFlow.outsideLibInterfaces import CIfMNE
 from matplotlib import pyplot as plt
 
@@ -18,7 +17,7 @@ class CDTRFWeights:
     '''
     Used to visualize the weights of TRF, and other anaylsis
     '''
-    def __init__(self,w,t,model:CTRF,srate,chanlocs,figpath = None):
+    def __init__(self,w,t,model,srate,chanlocs,figpath = None):
         self._w = w
         self._t = t
         self._data = model
