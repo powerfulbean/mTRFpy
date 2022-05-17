@@ -4,18 +4,14 @@ Created on Tue Jul 14 17:01:25 2020
 
 @author: Jin Dou
 """
+import os
+import warnings
 import numpy as np
-from . import Core
-from . import DataStruct as ds
+from scipy import io as scipyIO
 
-from . import Protocols as pt
-from StellarInfra import IO as siIO
-from StellarInfra.DirManage import CDirectoryConfig
-
-from mTRFpy.Model import CTRF
+from .Model import CTRF
 from StimRespFlow.outsideLibInterfaces import CIfMNE
 from matplotlib import pyplot as plt
-from collections import OrderedDict
 
 
 class CDTRFWeights:
@@ -94,9 +90,10 @@ class CDTRFWeights:
         else:
             oWeight = self.oMNE.getMNEEvoked(self.weights[inChanIdx].T)
         time = np.array(self.t)
-        oWeight.times = time
-        fig3 = oWeight.plot_topomap(time[::4],res = 256,sensors=False,
-                        cmap='jet',outlines='head',time_unit='s',title = title,vmin = -1600000, vmax = 1600000)#
+        oWeight.times = time / 1000
+        slide = len(self.t) // 20
+        fig3 = oWeight.plot_topomap(time[::slide+1]/1000,res = 256,sensors=False,
+                        cmap='jet',outlines='head',time_unit='s',title = title)#,vmin = -3500, vmax = 3500)#
         temp1 = fig3.get_axes()
         temp1[0].set_title('')
         t2 = temp1[-1]
@@ -104,17 +101,12 @@ class CDTRFWeights:
         # t2.set_axis_off()
         # t2.set_visible(False)
         self._save(fig3, title,'topoplot'.lower())
+        return oWeight
     
     def _save(self,figHandle,title,tag):
         if self.figpath:
             figHandle.savefig(self.figpath +'/'+ title.replace('.','_') + '_' + tag)
             plt.close(figHandle)
-
-
-loadMatFile = siIO.loadMatFile
-saveMatFile = siIO.saveMatFile
-
-oDataPrtcl = pt.CProtocolData()
 
 def cmp2NArray(a,b,digitsNum = None):
     #digitsNum： the number of digits after the decimal point
@@ -123,10 +115,56 @@ def cmp2NArray(a,b,digitsNum = None):
         b = np.around(b,digitsNum)
     return np.array_equal(a,b)
 
-if __name__ == '__main__':
+def checkFolder(folderPath):
+#    print(folderPath)
+#    if not isinstance(folderPath,str):
+#        return
+    if not os.path.isdir(folderPath) and not os.path.isfile(folderPath):
+        warnings.warn("path: " + folderPath + " doesn't exist, and it is created")
+        os.makedirs(folderPath)
+
+''' Python Object IO'''
+def saveObject(Object,folderName,tag=None, ext = '.bin'):
+    if tag is None:
+        file = open(folderName, 'wb')
+    else:
+        checkFolder(folderName)
+        file = open(folderName + '/' + str(tag) + ext, 'wb')
+    import pickle
+    pickle.dump(Object,file)
+    file.close()
     
-    oDir = CDirectoryConfig(['TestData'],'..\mTRFpy.conf')
-    temp = loadMatFile(oDir.TestData + 'speech_data.mat')
-    temp1 = saveMatFile( oDir.TestData+ 'speech_data_out.mat',temp)
+def loadObject(filePath):
+    import pickle
+    file = open(filePath, 'rb')
+    temp = pickle.load(file)
+    return temp
+''' End '''
+
+
+
+'''load Matlab .Mat file '''
+
+def loadMatFile(matFilePath):
+    return scipyIO.loadmat(matFilePath)
+
+def saveMatFile(matFilePath,mdict,**kwargs):
+    return scipyIO.savemat(matFilePath,mdict,**kwargs)
+''' End '''
+
+
+class StageControl:
     
+    def __init__(self,tartgetList):
+        self.targetList = tartgetList
+        
+    def stage(self,stageNum):
+        if(stageNum in self.targetList):
+            print('Stage_' + str(stageNum) + ':')
+            return True
+        else:
+            return False
+        
+    def __call__(self,stageNum):
+        return self.stage(stageNum)
     
