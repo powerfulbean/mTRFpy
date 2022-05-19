@@ -85,7 +85,7 @@ if oStage(2.1):
     fs = temp['fs'][0,0]
     Dir = temp['Dir'][0,0]
     
-    model = md.CTRF()
+    model = md.TRF()
     model.train(stimTrain,respTrain,Dir,fs,0,250,100,Zeropad = False)
     
     
@@ -93,8 +93,8 @@ if oStage(2.1):
     '''
     validate the result
     '''
-    w_test = model.w
-    b_test = model.b
+    w_test = model.weights
+    b_test = model.bias
     print(tls.cmp2NArray(w_test,np.expand_dims(Model_Bench_Dict['w'],2),12))
     
 if oStage(2.2):
@@ -120,7 +120,7 @@ if oStage(2.2):
     nXVar = x.nVar
     if y == None:
         nYObs = nXObs
-        nYVar = model.w.shape[2]
+        nYVar = model.weights.shape[2]
     else:
         nYObs = [len(d) for d in y]
         nYVar = y.nVar
@@ -129,7 +129,7 @@ if oStage(2.2):
     for idx,n in enumerate(nXObs):
         assert n == nYObs[idx]
     
-    lags = op.msec2Idxs([model.t[0],model.t[-1]],model.fs)
+    lags = op.msec2Idxs([model.times[0],model.times[-1]],model.fs)
     windowSize = round(windowSize_ms * model.fs)
     
     Type = model.Type
@@ -138,8 +138,8 @@ if oStage(2.2):
     
 #    assert Type
     if model.Type == 'multi':
-        w = model.w.copy()
-        w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
+        w = model.weights.copy()
+        w = np.concatenate([model.bias,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
     else:
         w = 1
     

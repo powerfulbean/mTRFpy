@@ -76,7 +76,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     nXVar = x.nVar
     if y == None:
         nYObs = nXObs
-        nYVar = model.w.shape[2]
+        nYVar = model.weights.shape[2]
     else:
         nYObs = [len(d) for d in y]
         nYVar = y.nVar
@@ -85,20 +85,19 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     for idx,n in enumerate(nXObs):
         assert n == nYObs[idx]
     
-    lags = Core.msec2Idxs([model.t[0],model.t[-1]],model.fs)
+    lags = Core.msec2Idxs([model.times[0],model.times[-1]],model.fs)
     windowSize = round(windowSize_ms * model.fs)
     
-    Type = model.Type
+    Type = model.kind
     
     delta = 1/model.fs
     
-#    assert Type
-    if model.Type == 'multi':
-        w = model.w.copy()
+    if model.kind == 'multi':
+        w = model.weights.copy()
         if specifyLag >= 0:
             lags = [lags[specifyLag]]
             w = w[:,specifyLag:specifyLag+1,:]
-            # print(specifyLag,specifyLag+1,w.shape,lags[0],lags[0]+1,model.w.shape)
+            # print(specifyLag,specifyLag+1,w.shape,lags[0],lags[0]+1,model.weights.shape)
         if specifyChan >= 0:
             w = w[specifyChan:specifyChan+1,:,:]
             nXVar = 1
@@ -106,7 +105,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
             x = x.getChan(specifyChan)
             # print(x[0].shape,w.shape)
         # print(nXVar,lags)
-        w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
+        w = np.concatenate([model.bias,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
     else:
         w = 1
     
@@ -114,7 +113,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     r = list()
     err = list()
     for i in range(x.fold):
-        xLag = Core.genLagMat(x[i],lags,model.Zeropad)
+        xLag = Core.genLagMat(x[i],lags,model.zeropad)
         # print('\rtest fold: ',i,end='\r')
         if Type == 'multi':
             # print(xLag.shape,w.shape)

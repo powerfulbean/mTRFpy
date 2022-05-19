@@ -30,7 +30,7 @@ def funcTrainNVal(oInput):
     Lambda = modelParam[4]
     stim = modelParam[5]
     resp = modelParam[6]
-    oTRF = CTRF()
+    oTRF = TRF()
     stimTrain = stim.selectByIndices(trainIdx)
     respTrain = resp.selectByIndices(trainIdx)
     oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda)
@@ -106,7 +106,7 @@ def crossValPerLambda(stim: ds.CDataList, resp: ds.CDataList,
             # print("\r" + f"Lambda: {Lambda}; cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
 
             idx += 1
-            oTRF = CTRF()
+            oTRF = TRF()
             stimTrain = stim.selectByIndices(trainIdx)
             respTrain = resp.selectByIndices(trainIdx)
             oTRF.train(stimTrain, respTrain, Dir, fs,
@@ -142,7 +142,7 @@ def crossValPerLambda(stim: ds.CDataList, resp: ds.CDataList,
     return finalR, finalErr  # np.mean(finalR,axis=0),np.mean(finalErr,axis=0)
 
 
-class CTRF:
+class TRF:
     '''
     Class for the (multivariate) temporal response function.
     Can be used as a forward encoding model (stimulus to neural response)
@@ -158,32 +158,32 @@ class CTRF:
             matrix with zeros. If False, delete them.
     '''
     def __init__(self, direction=1, kind='multi', zeropad=True, method=''):
-        self.w = None
-        self.b = None
-        self.t = None
-        self.Dir = direction
-        self.Type = 'multi'
-        self.Zeropad = True
+        self.weights = None
+        self.bias = None
+        self.times = None
+        self.direction = direction
+        self.kind = kind
+        self.zeropad = True
         self.fs = -1
         self._oCuda = None
 
-    def __radd__(self, oTRF):
-        if oTRF == 0:
+    def __radd__(self, trf):
+        if trf == 0:
             return self.copy()
         else:
-            return self.__add__(oTRF)
+            return self.__add__(trf)
 
-    def __add__(self, oTRF):
+    def __add__(self, trf):
         oTRFNew = self.copy()
-        oTRFNew.w += oTRF.w
-        oTRFNew.b += oTRF.b
+        oTRFNew.weights += trf.weights
+        oTRFNew.bias += trf.bias
         #!!!need check other params
         return oTRFNew
 
     def __truediv__(self, num):
         oTRFNew = self.copy()
-        oTRFNew.w /= num
-        oTRFNew.b /= num
+        oTRFNew.weights /= num
+        oTRFNew.bias /= num
         return oTRFNew
 
     def train(self, stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
@@ -213,9 +213,9 @@ class CTRF:
         if kwargs.get('Zeropad') != None:
             self.Zeropad = kwargs.get('Zeropad')
 
-        self.w, self.b = w, b
-        self.Dir = Dir
-        self.t = Core.Idxs2msec(lags, fs)
+        self.weights, self.bias = w, b
+        self.direction = Dir
+        self.times = Core.Idxs2msec(lags, fs)
         self.fs = fs
 
     def predict(self, stim, resp=None, **kwargs):
@@ -225,14 +225,14 @@ class CTRF:
         if isinstance(resp, np.ndarray):
             resp = ds.CDataList([resp])
 
-        if self.Dir == 1:
+        if self.direction == 1:
             x = stim
             y = resp
         else:
             x = resp
             y = stim
 
-        return bs.predict(self, x, y, zeropad=self.Zeropad, **kwargs)
+        return bs.predict(self, x, y, zeropad=self.zeropad, **kwargs)
 
     def save(self, path, name):
         output = dict()
@@ -247,7 +247,7 @@ class CTRF:
             setattr(self, i, temp[i])
 
     def copy(self):
-        oTRF = CTRF()
+        oTRF = TRF()
         for k, v in self.__dict__.items():
             value = v
             if getattr(v, 'copy', None) is not None:
@@ -271,21 +271,21 @@ class CTRF:
     def plotWeights(self, vecNames=None, ylim=None, newFig=True, chan=[None]):
         '''desined for models trained with combined vector '''
         from matplotlib import pyplot as plt
-        times = self.t
+        times = self.times
         out = list()
-        if self.Dir == 1:
-            nStimChan = self.w.shape[0]
-        elif self.Dir == -1:
-            nStimChan = self.w.shape[-1]
+        if self.direction == 1:
+            nStimChan = self.weights.shape[0]
+        elif self.direction == -1:
+            nStimChan = self.weights.shape[-1]
         else:
             raise ValueError
 
         for i in range(nStimChan):
-            if self.Dir == 1:
+            if self.direction == 1:
                 # take mean along the input dimension
-                weights = self.w[i, :, :]
-            elif self.Dir == -1:
-                weights = self.w[:, :, i].T
+                weights = self.weights[i, :, :]
+            elif self.direction == -1:
+                weights = self.weights[:, :, i].T
             else:
                 raise ValueError
             if newFig:
@@ -301,33 +301,3 @@ class CTRF:
             if fig1:
                 out.append(fig1)
         return out
-
-
-class CSKlearnTRF(BaseEstimator, RegressorMixin, TransformerMixin, CTRF):
-    '''
-    main difference is that Dir will always be 1
-
-    '''
-
-    def __init__(self, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
-        super().__init__()
-        self.Dir = 1
-        self.fs = fs
-        self.tmin_ms = tmin_ms
-        self.tmax_ms = tmax_ms
-        self.Lambda = Lambda
-        self.Type = 'multi'
-        self.Zeropad = True
-        self.kwargs = kwargs
-
-    def fit(self, x, y):
-        x = skl.utils.check_array(x)
-        y = skl.utils.check_array(y)
-        self.train(x, y, self.Dir, self.fs, self.tmin_ms,
-                   self.tmax_ms, self.Lambda, **self.kwargs)
-
-    def predict(self, x):
-        pass
-
-    def transform(self, x):
-        pass

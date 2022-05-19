@@ -34,7 +34,7 @@ if oStage(3):
     oList2 = ds.CDataList([temp, temp2])
     
 if oStage(4):
-    oMd = md.CTRF()
+    oMd = md.TRF()
     
 if oStage(5):
     op.truncate([1,2,3],-5,5)
