@@ -161,11 +161,20 @@ class TRF:
         self.weights = None
         self.bias = None
         self.times = None
-        self.direction = direction
-        self.kind = kind
-        self.zeropad = True
+        if direction in [1, -1]:
+            self.direction = direction
+        else:
+            raise ValueError('Parameter direction must be either 1 or -1!')
+        if kind in ['multi', 'single']:
+            self.kind = kind
+        else:
+            raise ValueError(
+                    'Paramter kind must be either "multi" or "single"!')
+        if isinstance(zeropad, bool):
+            self.zeropad = True
+        else:
+            raise ValueError('Parameter zeropad must be boolean!')
         self.fs = -1
-        self._oCuda = None
 
     def __radd__(self, trf):
         if trf == 0:
@@ -174,17 +183,20 @@ class TRF:
             return self.__add__(trf)
 
     def __add__(self, trf):
-        oTRFNew = self.copy()
-        oTRFNew.weights += trf.weights
-        oTRFNew.bias += trf.bias
-        #!!!need check other params
-        return oTRFNew
+        if not isinstance(trf, TRF):
+            raise TypeError('Can only add to another TRF instance!')
+        if not (self.direction == trf.direction) and (self.kind == trf.kind):
+            raise ValueError('Added TRFs must be of same kind and direction!')
+        trf_new = self.copy()
+        trf_new.weights += trf.weights
+        trf_new.bias += trf.bias
+        return trf_new
 
     def __truediv__(self, num):
-        oTRFNew = self.copy()
-        oTRFNew.weights /= num
-        oTRFNew.bias /= num
-        return oTRFNew
+        trf_new = self.copy()
+        trf_new.weights /= num
+        trf_new.bias /= num
+        return trf_new
 
     def train(self, stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
 
@@ -204,8 +216,7 @@ class TRF:
             y = stim
             tmin_ms, tmax_ms = Dir * tmax_ms, Dir * tmin_ms
 
-        w, b, lags = bs.train(x, y, fs, tmin_ms, tmax_ms,
-                              Lambda, oCuda=self._oCuda, **kwargs)
+        w, b, lags = bs.train(x, y, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
 
         if kwargs.get('Type') != None:
             self.type = kwargs.get('Type')
@@ -254,19 +265,6 @@ class TRF:
                 value = v.copy()
             setattr(oTRF, k, value)
         return oTRF
-
-    def cuda(self, debug=False):
-        from .CudaCore import CCoreCuda
-        oCuda = CCoreCuda()
-        Core.oCuda = oCuda
-        ds.oCuda = oCuda
-        self._oCuda = oCuda
-        self._oCuda.DEBUG = debug
-
-    def cpu(self):
-        Core.oCuda = None
-        ds.oCuda = None
-        self._oCuda = None
 
     def plotWeights(self, vecNames=None, ylim=None, newFig=True, chan=[None]):
         '''desined for models trained with combined vector '''

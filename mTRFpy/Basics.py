@@ -26,7 +26,7 @@ def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True ,
     return Cxx, Cxy
 
 # @profile
-def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
+def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
     if not isinstance(x, ds.CDataset):
         if not isinstance(x, ds.CDataList):
             x = ds.CDataList(x)
@@ -40,21 +40,7 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
     # print('tls train, start regularization matrix')
     Delta = 1/fs
     RegM = Core.genRegMat(Cxx.shape[1]) * Lambda / Delta
-    if oCuda is None:
-        wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
-    else:
-        RegM = oCuda.cp.asarray(RegM)
-        Cxx = oCuda.cp.array(Cxx)
-        Cxy = oCuda.cp.array(Cxy)
-            
-        wori = oCuda.cp.matmul(oCuda.cp.linalg.inv(Cxx + RegM), Cxy) #/ Delta
-        oCuda.cp.cuda.Stream.null.synchronize()
-        # print(type(wori),type(Cxx),type(Cxy))
-        wori = oCuda.cp.asnumpy(wori)
-        wori = wori / Delta
-        del Cxx
-        del Cxy
-        oCuda.memPool.free_all_blocks()
+    wori = np.matmul(np.linalg.inv(Cxx + RegM), Cxy) / Delta
     # print('tls train, regularization finish')
     # print(type(wori),wori.shape)
     wori = np.asarray(wori)
