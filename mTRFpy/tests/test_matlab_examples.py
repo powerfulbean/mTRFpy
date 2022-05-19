@@ -16,7 +16,7 @@ def test_encoding():
     encoder_results = loadmat(str(root/'results'/'encoder_results.mat'))
     # w = input features (stimuli) x times x output features (=channels)
     w, b, times, _, direction, kind = encoder_results['modelEncoder'][0][0]
-    prediction1 = encoder_results['predResp'][0]
+    prediction1 = encoder_results['predResp']
     correlation1 = encoder_results['predRespStats']['r'][0][0][0]
     error1 = encoder_results['predRespStats']['err'][0][0][0]
     # train the TRF model on the data
@@ -29,7 +29,7 @@ def test_encoding():
     # check that the results are the same as in matlab
     np.testing.assert_almost_equal(trf_encoder.w, w, decimal=12)
     np.testing.assert_almost_equal(trf_encoder.b, b,  decimal=12)
-    np.testing.assert_equal(trf_encoder.t, times)
+    np.testing.assert_equal(trf_encoder.t, times[0])
     np.testing.assert_almost_equal(prediction1, prediction2[0], decimal=12)
     np.testing.assert_almost_equal(correlation1, correlation2[0], decimal=12)
     np.testing.assert_almost_equal(error1, error2[0], decimal=12)

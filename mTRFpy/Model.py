@@ -16,8 +16,6 @@ from . import Core
 import sys
 from tqdm import tqdm
 
-DirEnum = tuple([-1, 1])
-
 
 def funcTrainNVal(oInput):
     trainIdx = oInput[0]
@@ -147,17 +145,23 @@ def crossValPerLambda(stim: ds.CDataList, resp: ds.CDataList,
 class CTRF:
     '''
     Class for the (multivariate) temporal response function.
-    Can be used as a formward (encoding) or backward (decoding model).
+    Can be used as a forward encoding model (stimulus to neural response)
+    or backward decoding model (neural response to stimulus) using time lagged
+    input features as per Crosse et al. (2016).
+    Arguments:
+        direction (int): Direction of the model. Can be 1 to fit a forward
+            model (default) or -1 to fit a backward model.
+        kind (str): Kind of model to fit. Can be 'multi' (default) to fit
+            a multi-lag model using all time lags simulatneously or
+            'single' to fit separate sigle-lag models for each individual lag.
+        zeropad (bool): If True (defaul), pad the outer rows of the design
+            matrix with zeros. If False, delete them.
     '''
-    # instance properties
-    weight = property(fget=lambda self: self.w,
-                      doc='Fitted model weight')
-
-    def __init__(self,):
+    def __init__(self, direction=1, kind='multi', zeropad=True, method=''):
         self.w = None
         self.b = None
         self.t = None
-        self.Dir = None
+        self.Dir = direction
         self.Type = 'multi'
         self.Zeropad = True
         self.fs = -1
@@ -190,7 +194,7 @@ class CTRF:
         if isinstance(resp, np.ndarray):
             resp = ds.CDataList([resp])
 
-        assert Dir in DirEnum
+        assert Dir in [1, -1]
 
         if (Dir == 1):
             x = stim
@@ -221,7 +225,6 @@ class CTRF:
         if isinstance(resp, np.ndarray):
             resp = ds.CDataList([resp])
 
-        assert self.Dir in DirEnum
         if self.Dir == 1:
             x = stim
             y = resp
