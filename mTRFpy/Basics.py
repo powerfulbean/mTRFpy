@@ -19,24 +19,9 @@ def truncFloat(a,digits):
     return np.trunc(stepper * a) / stepper
 
 # @profile
-def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True ,Verbose = True):
-    output = ds.DataListOp(Core.calOlsCovMat)(x,y,lags,Type,Zeropad)
-    Cxx = output[0]
-    Cxy = output[1]
-    return Cxx, Cxy
-
-# @profile
 def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
-    if not isinstance(x, ds.CDataset):
-        if not isinstance(x, ds.CDataList):
-            x = ds.CDataList(x)
-    if not isinstance(y, ds.CDataset):
-        if not isinstance(y, ds.CDataList):
-            y = ds.CDataList(y)
-    
-    assert x.fold == y.fold
     lags = Core.msec2Idxs([tmin_ms,tmax_ms],fs)
-    Cxx,Cxy = olscovmat(x,y,lags,**kwarg)
+    Cxx,Cxy = Core.calOlsCovMat(x,y,lags,'multi',True)
     # print('tls train, start regularization matrix')
     Delta = 1/fs
     RegM = Core.genRegMat(Cxx.shape[1]) * Lambda / Delta
@@ -46,7 +31,7 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,**kwarg):
     wori = np.asarray(wori)
     # wori = wori.toarray()
     b = wori[0:1]
-    w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
+    w = wori[1:].reshape((x.shape[1],len(lags),y.shape[1]),order = 'F')
     # print('tls train finish')
     return w,b,lags
 

@@ -200,34 +200,33 @@ class TRF:
 
     def train(self, stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
 
-        if isinstance(stim, np.ndarray):
-            stim = ds.CDataList([stim])
+        if self.direction == 1:
+            x, y = stim, resp
+        elif self.direction == -1:
+            x, y = resp, stim
+            tmin_ms, tmax_ms = -1 * tmax_ms, -1 * tmin_ms
 
-        if isinstance(resp, np.ndarray):
-            resp = ds.CDataList([resp])
-
-        assert Dir in [1, -1]
-
-        if (Dir == 1):
-            x = stim
-            y = resp
-        else:
-            x = resp
-            y = stim
-            tmin_ms, tmax_ms = Dir * tmax_ms, Dir * tmin_ms
-
-        w, b, lags = bs.train(x, y, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
-
-        if kwargs.get('Type') != None:
-            self.type = kwargs.get('Type')
-
-        if kwargs.get('Zeropad') != None:
-            self.Zeropad = kwargs.get('Zeropad')
+        w, b, lags = self._train(x, y, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
 
         self.weights, self.bias = w, b
         self.direction = Dir
         self.times = Core.Idxs2msec(lags, fs)
         self.fs = fs
+
+    def _train(self, x, y, fs, tmin, tmax, Lambda, **kwarg):
+
+        tmin, tmax = tmin/1e3, tmax/1e3  # TODO: change time to seconds
+        lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
+        cov_xx, cov_xy = covariance_matrices(x, y, lags)
+        delta = 1/fs
+        regmat = regularization_matrix(cov_xx.shape[1], 'ridge')
+        regmat *= Lambda / delta
+
+        wori = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / delta
+        b = wori[0:1]
+        w = wori[1:].reshape((x.shape[1], len(lags), y.shape[1]), order='F')
+        # print('tls train finish')
+        return w, b, lags
 
     def predict(self, stim, resp=None, **kwargs):
         if isinstance(stim, np.ndarray):
@@ -299,3 +298,78 @@ class TRF:
             if fig1:
                 out.append(fig1)
         return out
+
+
+# define matrix operations
+def truncate(x, tminIdx, tmaxIdx):
+    '''
+    the left and right ranges will both be included
+    '''
+    rowSlice = slice(max(0, tmaxIdx), min(0, tminIdx) + len(x))
+    output = x[rowSlice]
+    return output
+
+
+def covariance_matrices(x, y, lags, zeropad=True):
+    if zeropad is False:
+        y = truncate(y, lags[0], lags[-1])
+    x_lag = lag_matrix(x, lags, zeropad)
+    cov_xx = x_lag.T @ x_lag
+    cov_xy = x_lag.T @ y
+    return cov_xx, cov_xy
+
+
+def lag_matrix(x, lags, zeropad=True, bias=True):
+    '''
+    build the lag matrix based on input.
+    x: input matrix
+    lags: a list (or list like supporting len() method) of integers,
+         each of them should indicate the time lag in samples.
+    see also 'lagGen' in mTRF-Toolbox github.com/mickcrosse/mTRF-Toolbox
+    #To Do:
+       make warning when absolute lag value is bigger than the number of
+       samples implement the zeropad part
+    '''
+    n_lags = len(lags)
+    n_samples, n_variables = x.shape
+    lag_matrix = np.zeros((n_samples, n_variables*n_lags))
+
+    for idx, lag in enumerate(lags):
+        col_slice = slice(idx * n_variables, (idx + 1) * n_variables)
+        if lag < 0:
+            lag_matrix[0:n_samples + lag, col_slice] = x[-lag:, :]
+        elif lag > 0:
+            lag_matrix[lag:n_samples, col_slice] = x[0:n_samples-lag, :]
+        else:
+            lag_matrix[:, col_slice] = x
+
+    if zeropad is False:
+        lag_matrix = truncate(lag_matrix, lags[0], lags[-1])
+
+    if bias:
+        lag_matrix = np.concatenate(
+                [np.ones((lag_matrix.shape[0], 1)), lag_matrix], 1)
+
+    return lag_matrix
+
+
+def regularization_matrix(size, method='ridge'):
+    '''
+    generates a sparse regularization matrix for the specified method.
+    see also regmat.m in https://github.com/mickcrosse/mTRF-Toolbox.
+    '''
+    if method == 'ridge':
+        regmat = np.identity(size)
+        regmat[0, 0] = 0
+    elif method == 'Tikhonov':
+        regmat = np.identity(size)
+        regmat -= 0.5 * (np.diag(np.ones(size-1), 1) +
+                         np.diag(np.ones(size-1), -1))
+        regmat[1, 1] = 0.5
+        regmat[size-1, size-1] = 0.5
+        regmat[0, 0] = 0
+        regmat[0, 1] = 0
+        regmat[1, 0] = 0
+    else:
+        regmat = np.zeros((size, size))
+    return regmat
