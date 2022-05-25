@@ -156,11 +156,24 @@ class TRF:
             'single' to fit separate sigle-lag models for each individual lag.
         zeropad (bool): If True (defaul), pad the outer rows of the design
             matrix with zeros. If False, delete them.
+        method (str): Regularization method. Can be 'ridge' (default) or
+            'tikhonov'.
+    Attributes:
+       weights (np.ndarray): Model weights which are estimated by fitting the
+           model to the data using the train() method. The weight matrix should
+           have the shape stimulus features x time lags x response features.
+        bias (np.ndarray): Vector containing the bias term for every
+            response feature.
+        times (list): Model time lags, estimated based on the training time
+            window and sampling rate.
+
     '''
-    def __init__(self, direction=1, kind='multi', zeropad=True, method=''):
+    def __init__(self, direction=1, kind='multi', zeropad=True,
+                 method='ridge'):
         self.weights = None
         self.bias = None
         self.times = None
+        self.fs = -1
         if direction in [1, -1]:
             self.direction = direction
         else:
@@ -171,10 +184,13 @@ class TRF:
             raise ValueError(
                     'Paramter kind must be either "multi" or "single"!')
         if isinstance(zeropad, bool):
-            self.zeropad = True
+            self.zeropad = zeropad
         else:
             raise ValueError('Parameter zeropad must be boolean!')
-        self.fs = -1
+        if method in ['ridge', 'tikhonov']:
+            self.method = method
+        else:
+            raise ValueError('Method must be either "ridge" or "tikhonov"!')
 
     def __radd__(self, trf):
         if trf == 0:
@@ -206,27 +222,21 @@ class TRF:
             x, y = resp, stim
             tmin_ms, tmax_ms = -1 * tmax_ms, -1 * tmin_ms
 
-        w, b, lags = self._train(x, y, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
-
-        self.weights, self.bias = w, b
-        self.direction = Dir
-        self.times = Core.Idxs2msec(lags, fs)
-        self.fs = fs
-
-    def _train(self, x, y, fs, tmin, tmax, Lambda, **kwarg):
-
-        tmin, tmax = tmin/1e3, tmax/1e3  # TODO: change time to seconds
+        tmin, tmax = tmin_ms/1e3, tmax_ms/1e3  # TODO: change time to seconds
         lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
         cov_xx, cov_xy = covariance_matrices(x, y, lags)
         delta = 1/fs
-        regmat = regularization_matrix(cov_xx.shape[1], 'ridge')
+        regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= Lambda / delta
 
-        wori = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / delta
-        b = wori[0:1]
-        w = wori[1:].reshape((x.shape[1], len(lags), y.shape[1]), order='F')
-        # print('tls train finish')
-        return w, b, lags
+        weight_matrix = np.matmul(
+                np.linalg.inv(cov_xx + regmat), cov_xy) / delta
+        self.bias = weight_matrix[0:1]
+        self.weights = weight_matrix[1:].reshape(
+                (x.shape[1], len(lags), y.shape[1]), order='F')
+        self.direction = Dir
+        self.times = Core.Idxs2msec(lags, fs)
+        self.fs = fs
 
     def predict(self, stim, resp=None, **kwargs):
         if isinstance(stim, np.ndarray):
@@ -361,7 +371,7 @@ def regularization_matrix(size, method='ridge'):
     if method == 'ridge':
         regmat = np.identity(size)
         regmat[0, 0] = 0
-    elif method == 'Tikhonov':
+    elif method == 'tikhonov':
         regmat = np.identity(size)
         regmat -= 0.5 * (np.diag(np.ones(size-1), 1) +
                          np.diag(np.ones(size-1), -1))
