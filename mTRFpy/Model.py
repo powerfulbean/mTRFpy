@@ -215,6 +215,12 @@ class TRF:
         return trf_new
 
     def train(self, stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
+        '''
+        Estimate model weight by training on the data.
+        Arguments:
+            stim (np.ndarray):
+
+        '''
 
         if self.direction == 1:
             x, y = stim, resp
@@ -331,17 +337,28 @@ def covariance_matrices(x, y, lags, zeropad=True):
 
 def lag_matrix(x, lags, zeropad=True, bias=True):
     '''
-    build the lag matrix based on input.
-    x: input matrix
+    Construct a matrix with time lagged input features.
+    See also 'lagGen' in mTRF-Toolbox github.com/mickcrosse/mTRF-Toolbox.
+    Arguments:
+        x (np.ndarray): Input data matrix of shape time x features
+        lags (list): Time lags in samples
     lags: a list (or list like supporting len() method) of integers,
          each of them should indicate the time lag in samples.
-    see also 'lagGen' in mTRF-Toolbox github.com/mickcrosse/mTRF-Toolbox
-    #To Do:
-       make warning when absolute lag value is bigger than the number of
-       samples implement the zeropad part
+    zeropad (bool): If True (default) apply zero paddinf to the colums
+        with non-zero time lags to ensure causality. Otherwise,
+        truncate the matrix.
+    bias (bool): If True (default), concatenate an array of ones to
+        the left of the array to include a constant bias term in the
+        regression.
+    Returns:
+        lag_matrix (np.ndarray): Matrix of time lagged inputs with shape
+            times x number of lags * number of features (+1 if bias==True).
+            If zeropad is False, the first dimension is truncated.
     '''
     n_lags = len(lags)
     n_samples, n_variables = x.shape
+    if max(lags) > n_samples:
+        raise ValueError("The maximum lag can't be longer than the signal!")
     lag_matrix = np.zeros((n_samples, n_variables*n_lags))
 
     for idx, lag in enumerate(lags):
