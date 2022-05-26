@@ -214,33 +214,36 @@ class TRF:
         trf_new.bias /= num
         return trf_new
 
-    def train(self, stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs):
+    def train(self, stimulus, response, fs, tmin, tmax, regularization):
         '''
-        Estimate model weight by training on the data.
+        Compute the TRF weights that minimze the mean squared error between the
+        actual and predicted neural response.
         Arguments:
             stim (np.ndarray):
-
+            resp (np.ndarray):
+            fs (int): Sample rate of stimulus and response in hertz.
+            tmin (float): Minimum time lag in seconds
+            tmax (float): Maximum time lag in seconds
+            regularization (float, int): The regularization paramter (lambda).
         '''
 
         if self.direction == 1:
             x, y = stim, resp
         elif self.direction == -1:
             x, y = resp, stim
-            tmin_ms, tmax_ms = -1 * tmax_ms, -1 * tmin_ms
+            tmin, tmax = -1 * tmax, -1 * tmin
 
-        tmin, tmax = tmin_ms/1e3, tmax_ms/1e3  # TODO: change time to seconds
         lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
         cov_xx, cov_xy = covariance_matrices(x, y, lags)
         delta = 1/fs
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= Lambda / delta
-
+        # calculate reverse correlation:
         weight_matrix = np.matmul(
                 np.linalg.inv(cov_xx + regmat), cov_xy) / delta
         self.bias = weight_matrix[0:1]
         self.weights = weight_matrix[1:].reshape(
                 (x.shape[1], len(lags), y.shape[1]), order='F')
-        self.direction = Dir
         self.times = Core.Idxs2msec(lags, fs)
         self.fs = fs
 

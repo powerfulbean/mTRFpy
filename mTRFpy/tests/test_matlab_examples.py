@@ -21,8 +21,8 @@ def test_encoding():
     error1 = encoder_results['predRespStats']['err'][0][0][0]
     # train the TRF model on the data
     trf_encoder = TRF()
-    tmin, tmax = -100, 200
-    trf_encoder.train(stimuli, response, 1, fs, tmin, tmax, 100)
+    tmin, tmax = -0.1, 0.2
+    trf_encoder.train(stimuli, response, fs, tmin, tmax, 100)
     # use the trained TRF to predict data
     prediction2, correlation2, error2 = trf_encoder.predict(stimuli, response)
 
