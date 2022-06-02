@@ -219,35 +219,66 @@ class TRF:
         Compute the TRF weights that minimze the mean squared error between the
         actual and predicted neural response.
         Arguments:
-            stim (np.ndarray):
-            resp (np.ndarray):
+            stimulus (np.ndarray): Stimulus data, has to be of shape
+                samples x features.
+            response (np.ndarray): Neural response, must be of shape
+                samples x fetures. Must have the same number of samples
+                as the stimulus.
             fs (int): Sample rate of stimulus and response in hertz.
             tmin (float): Minimum time lag in seconds
             tmax (float): Maximum time lag in seconds
             regularization (float, int): The regularization paramter (lambda).
         '''
-
         if self.direction == 1:
-            x, y = stim, resp
+            x, y = stimulus, response
         elif self.direction == -1:
-            x, y = resp, stim
+            x, y = response, stimulus
             tmin, tmax = -1 * tmax, -1 * tmin
 
         lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
         cov_xx, cov_xy = covariance_matrices(x, y, lags)
         delta = 1/fs
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
-        regmat *= Lambda / delta
+        regmat *= regularization / delta
         # calculate reverse correlation:
         weight_matrix = np.matmul(
                 np.linalg.inv(cov_xx + regmat), cov_xy) / delta
         self.bias = weight_matrix[0:1]
         self.weights = weight_matrix[1:].reshape(
                 (x.shape[1], len(lags), y.shape[1]), order='F')
-        self.times = Core.Idxs2msec(lags, fs)
+        self.times = np.array(lags)/fs
         self.fs = fs
 
+    def predict2(self, stimulus=None, response=None):
+        if self.direction == 1:
+            if stimulus is None:
+                raise ValueError(
+                        "Need stimulus to predict with a forward model!")
+            else:
+                x, y = stimulus, response
+        elif self.direction == -1:
+            if response is None:
+                raise ValueError(
+                        "Need response to predict with a backward model!")
+            else:
+                x, y = stimulus, response
+
+        x_samples, x_features = x.shape
+        if y is None:
+            y_samples = x_samples
+            y_features = self.weights.shape[0]
+        else:
+            y_samples, y_features = y.shape
+
+        lags = list(range(int(np.floor(self.times[0]*self.fs)),
+                          int(np.ceil(self.times[0]*self.fs)) + 1))
+        delta = 1/self.fs
+
+
     def predict(self, stim, resp=None, **kwargs):
+        if self.weights is None:
+            raise ValueError("Can't make predictions with an untrained model!")
+
         if isinstance(stim, np.ndarray):
             stim = ds.CDataList([stim])
 

@@ -56,7 +56,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     for idx,n in enumerate(nXObs):
         assert n == nYObs[idx]
     
-    lags = Core.msec2Idxs([model.times[0],model.times[-1]],model.fs)
+    lags = Core.msec2Idxs([model.times[0]*1e3,model.times[-1]*1e3],model.fs)
     windowSize = round(windowSize_ms * model.fs)
     
     Type = model.kind
