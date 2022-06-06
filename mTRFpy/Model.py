@@ -5,6 +5,7 @@ Created on Thu Jul 16 14:42:40 2020
 @author: Jin Dou
 """
 import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.model_selection import ShuffleSplit, LeaveOneOut
 from multiprocessing import Pool, shared_memory
 from . import Tools
@@ -317,39 +318,70 @@ class TRF:
             setattr(oTRF, k, value)
         return oTRF
 
-    def plotWeights(self, vecNames=None, ylim=None, newFig=True, chan=[None]):
-        '''desined for models trained with combined vector '''
-        from matplotlib import pyplot as plt
-        times = self.times
-        out = list()
-        if self.direction == 1:
-            nStimChan = self.weights.shape[0]
-        elif self.direction == -1:
-            nStimChan = self.weights.shape[-1]
+    def plot_forward_weights(self, tmin=None, tmax=None, channels=None,
+                             axes=None, show=True, mode='avg', kind='line'):
+        '''
+        Plot the weights of a forward model, indicating how strongly the
+        neural response is affected by stimulus features at different time
+        lags.
+        Arguments:
+            tmin (None | float): Start of the time window for plotting in
+                seconds. If None (default) this is set to 0.05 seconds
+                after beginning of self.times.
+            tmax (None | float): End of the time window for plotting in
+                seconds. If None (default) this is set to 0.05 before
+                the end of self.times.
+            channels (None | list | int): If an integer or a list of integers,
+                only use those channels. If None (default), use all.
+            axes (matplotlib.axes.Axes): Axis to plot to. If None is
+                provided (default) generate a new plot.
+            show (bool): If True (default), show the plot after drawing.
+            mode (str): Mode for combining information across channels.
+                Can be 'avg' to use the mean or 'gfp' to use global
+                field power (i.e. standard deviation across channels).
+            kind (str): Type of plot to draw. If 'line' (default), average
+                the weights across all stimulus features, if 'image' draw
+                a features-by-times plot where the weights are color-coded.
+        Returns:
+            fig (matplotlib.figure.Figure): If no Axes instance is provided,
+                the newly created figure is returned
+        '''
+        if self.direction == -1:
+            raise ValueError('Not possible for decoding models!')
+        if axes is None:
+            fig, ax = plt.subplots(figsize=(6, 6))
         else:
-            raise ValueError
-
-        for i in range(nStimChan):
-            if self.direction == 1:
-                # take mean along the input dimension
-                weights = self.weights[i, :, :]
-            elif self.direction == -1:
-                weights = self.weights[:, :, i].T
+            fig = None  # dont create a new figure
+        # select time window
+        if tmin is None:
+            tmin = self.times[0] + 0.05
+        if tmax is None:
+            tmax = self.times[-1] - 0.05
+        start = np.argmin(np.abs(self.times-tmin))
+        stop = np.argmin(np.abs(self.times-tmax))
+        weights = self.weights[:, start:stop, :]
+        # select channels and average if there are multiple
+        if isinstance(channels, int):
+            weights = weights[:, :, channels]
+        else:
+            if isinstance(channels, list):
+                weights = weights[:, :, channels]
             else:
-                raise ValueError
-            if newFig:
-                fig1 = plt.figure()
-            else:
-                fig1 = None
-            plt.plot(times, weights[:, slice(*chan)])
-            plt.title(vecNames[i] if vecNames is not None else '')
-            plt.xlabel("time (ms)")
-            plt.ylabel("a.u.")
-            if ylim:
-                plt.ylim(ylim)
-            if fig1:
-                out.append(fig1)
-        return out
+                weights = weights
+            if mode == 'avg':
+                weights = weights.sum(axis=-1)
+            elif mode == 'gfp':
+                weights = weights.std(axis=-1)
+        if kind == 'line':
+            ax.plot(self.times[start:stop], weights.mean(axis=0))
+        elif kind == 'image':
+            ax.imshow(weights, origin='lower', aspect='auto',
+                      extent=[tmin, tmax, 0, weights.shape[0]])
+        ax.set(xlabel='Time lag [s]')
+        if show is True:
+            plt.show()
+        if fig is not None:
+            return fig
 
 
 # define matrix operations
