@@ -31,9 +31,9 @@ def test_encoding():
     np.testing.assert_almost_equal(trf_encoder.weights, w, decimal=12)
     np.testing.assert_almost_equal(trf_encoder.bias, b,  decimal=12)
     np.testing.assert_equal(trf_encoder.times, times[0]/1e3)
-    np.testing.assert_almost_equal(prediction1, prediction2[0], decimal=12)
-    np.testing.assert_almost_equal(correlation1, correlation2[0], decimal=12)
-    np.testing.assert_almost_equal(error1, error2[0], decimal=12)
+    np.testing.assert_almost_equal(prediction1, prediction2, decimal=12)
+    np.testing.assert_almost_equal(correlation1, correlation2, decimal=12)
+    np.testing.assert_almost_equal(error1, error2, decimal=12)
 
 
 def test_decoding():

@@ -4,15 +4,11 @@ Created on Thu Jul 16 14:42:40 2020
 
 @author: Jin Dou
 """
-import sklearn as skl
 import numpy as np
-from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.model_selection import ShuffleSplit, LeaveOneOut
 from multiprocessing import Pool, shared_memory
 from . import Tools
 from . import DataStruct as ds
-from . import Basics as bs
-from . import Core
 import sys
 from tqdm import tqdm
 
@@ -249,7 +245,9 @@ class TRF:
         self.times = np.array(lags)/fs
         self.fs = fs
 
-    def predict2(self, stimulus=None, response=None):
+    def predict(self, stimulus=None, response=None, lag=None, channel=None):
+        if self.weights is None:
+            raise ValueError("Can't make predictions with an untrained model!")
         if self.direction == 1:
             if stimulus is None:
                 raise ValueError(
@@ -271,28 +269,32 @@ class TRF:
             y_samples, y_features = y.shape
 
         lags = list(range(int(np.floor(self.times[0]*self.fs)),
-                          int(np.ceil(self.times[0]*self.fs)) + 1))
+                          int(np.ceil(self.times[-1]*self.fs)) + 1))
         delta = 1/self.fs
 
-
-    def predict(self, stim, resp=None, **kwargs):
-        if self.weights is None:
-            raise ValueError("Can't make predictions with an untrained model!")
-
-        if isinstance(stim, np.ndarray):
-            stim = ds.CDataList([stim])
-
-        if isinstance(resp, np.ndarray):
-            resp = ds.CDataList([resp])
-
-        if self.direction == 1:
-            x = stim
-            y = resp
+        w = self.weights.copy()
+        if lag is not None:  # select lag and corresponding weights
+            lags = [lags[lag]]
+            w = w[:, lag:lag+1, :]
+        if channel is not None:
+            w = w[channel:channel+1, :, :]
+            x_features = 1
+            x = np.expand_dims(x[:, channel], axis=1)
+        w = np.concatenate([
+            self.bias,
+            w.reshape(x_features*len(lags), y_features, order='F')
+            ])*delta
+        x_lag = lag_matrix(x, lags, self.zeropad)
+        y_pred = x_lag @ w
+        if y is not None:
+            if self.zeropad is False:
+                y = truncate(y, lags[0], lags[-1])
+            mse = np.sum(np.abs(y - y_pred)**2, 0)/len(y)
+            r = (np.mean((y-y.mean(0))*(y_pred-y_pred.mean(0)), 0) /
+                 (y.std(0)*y_pred.std(0)))
+            return y_pred, r, mse
         else:
-            x = resp
-            y = stim
-
-        return bs.predict(self, x, y, zeropad=self.zeropad, **kwargs)
+            return y_pred
 
     def save(self, path, name):
         output = dict()
