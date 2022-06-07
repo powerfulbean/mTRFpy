@@ -9,6 +9,16 @@ import numpy as np
 from sklearn.base import BaseEstimator,RegressorMixin, TransformerMixin
 from sklearn.model_selection import ShuffleSplit,LeaveOneOut
 from multiprocessing import Pool,shared_memory
+from matplotlib import pyplot as plt
+from matplotlib.gridspec import GridSpec
+
+IF_MNE = False
+
+try:
+    import mne
+    IF_MNE = True
+except:
+    IF_MNE = False
 
 
 from . import Tools
@@ -223,6 +233,7 @@ class CTRF:
         temp = Tools.loadObject(path)
         for i in temp:
             setattr(self, i, temp[i])
+        return self
             
     def copy(self):
         oTRF = CTRF()
@@ -280,6 +291,144 @@ class CTRF:
             if fig1:
                 out.append(fig1)
         return out
+    
+    def weightsMneObj(self,tarStimChanIdx = 0, chNames = None,montage = None):
+        '''
+
+        Parameters
+        ----------
+        tarStimChanIdx: int
+            stimuli's target channel index for exporting the weights    
+            The default is 0.
+        chNames : list, optional
+            list of channel names, The default is None.
+        montage: mne.channels.DigMontage, optoinal
+            The default is None.
+        
+        
+        Returns
+        -------
+        The mne object containing the data in self.w
+
+        '''
+        if not IF_MNE:
+            raise ModuleNotFoundError('the module MNE is not available')
+        if self.Dir == -1:
+            weights = self.w[:,:,tarStimChanIdx]
+        else:
+            weights = self.w[tarStimChanIdx].T
+        info = mne.create_info(chNames, self.fs,ch_types = 'eeg')
+        mneW = mne.EvokedArray(weights,info)
+        if montage is not None:
+            mneW.set_montage(montage)
+        time = np.array(self.t)
+        mneW.times = time / 1000
+        return mneW
+    
+    def topoplot(self,tarStimChanIdx, chNames,montage,figpath = None,title = '',**kwargs):
+        
+        mneW = self.weightsMneObj(tarStimChanIdx, chNames,montage)
+        slide = len(self.t) // 20
+        if kwargs.get('axes') is not None:
+            times = 'auto'
+        else:
+            times = np.array(self.t) / 1000
+            slide = len(times) //20
+            times = times[1:-1:slide]
+            
+        fig = mneW.plot_topomap(times = times,res = 256,sensors=False,
+                        cmap='jet',outlines='head',time_unit='s',scalings = 1,
+                        title = title + ' weight',units = 'a.u.',
+                        **kwargs)#,vmin = -3500, vmax = 3500)#
+        if figpath:
+            fig.savefig(figpath +'/'+ title.replace('.','_') + '_' + 'topoplot')
+            plt.close(fig)
+        
+        return fig
+        # slide = len(self.t) // 20
+        # fig3 = mneW.plot_topomap(time[::slide+1]/1000,res = 256,sensors=False,
+        #                 cmap='jet',outlines='head',time_unit='s',title = '')#,vmin = -3500, vmax = 3500)#
+        # temp1 = fig3.get_axes()
+        # temp1[0].set_title('')
+        # t2 = temp1[-1]
+        # t2.set_title('a.u.')
+        # t2.set_axis_off()
+        # t2.set_visible(False)
+        # self._save(fig3, title,'topoplot'.lower())
+     
+    def _plotWSTD(self,axs,ylim_w,ylim_std):
+        w = self.w
+        t = self.t
+        axs[0].spines['top'].set_visible(False)
+        axs[0].spines['right'].set_visible(False)
+        axs[0].spines['bottom'].set_visible(False)
+        axs[1].spines['top'].set_visible(False)
+        axs[1].spines['right'].set_visible(False)
+        axs[0].set_xticks([])
+        if ylim_w is not None:
+            axs[0].set_ylim(*ylim_w)  
+            ticks = [0,(0+ylim_w[-1])/4,ylim_w[-1]*0.75]
+            axs[0].set_yticks(ticks)
+        # ticklabels = axs[0].get_yticklabels()
+        axs[0].plot(t,w[0])
+        axs[0].tick_params(axis=u'y', which=u'both',direction = 'in')
+        axs[1].tick_params(axis=u'both', which=u'both',direction = 'in')
+        axs[0].set_ylabel('a.u.')
+        # times = [t[0],t[6],t[17]]
+        # [axs[0].axvline(x = i,color='black',linewidth=0.8) for i in times]
+        
+        std = np.std(w[0],axis=1,keepdims = True)
+        if ylim_std is not None:
+            axs[1].set_ylim(*ylim_std)
+            ticks = [0,np.round(ylim_std[-1]/2,2),ylim_std[-1]]
+        else:
+            ticks = np.arange(0,0.2+0.05,0.05)
+        ticklabels = axs[1].get_yticklabels()
+        ticklabels[-1].set_visible(False)
+        # ticks[-2] = max(std)
+        ticks = np.round(ticks,decimals=3)
+        axs[1].set_yticks(ticks)
+        axs[1].tick_params(axis=u'both', which=u'both',direction = 'in')
+        axs[1].plot(t,std,color='black')
+        axs[1].set_ylabel('STD')
+        axs[1].set_xlabel('time (ms)')
+        # [axs[1].axvline(x = i,color='black',linewidth=0.8) for i in times]
+        
+     
+    def wSTDPlot(self,title="",ylim_w = None,ylim_std =None):
+        # model = self.model
+        fig = plt.figure(figsize = (20,10))
+        gs = fig.add_gridspec(2, hspace=0,height_ratios = [1,0.5])
+        axs = gs.subplots(sharex=False)
+        self._plotWSTD(axs,ylim_w,ylim_std)
+        return fig
+    
+    # def plotWSTDAndTopoplot(self,tarStimChanIdx,chanloc,title='',kwargsTopo = {}):
+    #     fig = plt.figure(constrained_layout=True, figsize=(10, 4))
+    #     subfigs = fig.subfigures(2, 1, wspace=0.07, height_ratios=[2, 1])
+    #     gs1 = GridSpec(2, 1, figure=subfigs[0])
+    #     ax0 = subfigs[0].add_subplot(gs1[0, :])
+    #     ax1 = subfigs[0].add_subplot(gs1[1, :])
+    #     gs2 = GridSpec(2, 10, figure=subfigs[1])
+    #     axs1 = [subfigs[1].add_subplot(gs2[0, i]) for i in range(10)]
+    #     axs2 = [subfigs[1].add_subplot(gs2[1, i]) for i in range(10)]
+    #     axs = axs1 + axs2
+    #     self.topoplot(tarStimChanIdx,chanloc[0],chanloc[1],axes = axs,**kwargsTopo)
+    #     return fig
+        
+    
+    def plotWSTDAndTopoplot(self,tarStimChanIdx,chanloc,title='',kwargsTopo = {}):
+        fig = plt.figure()
+        gs = GridSpec(4, 11, figure=fig)
+        axs1 = [fig.add_subplot(gs[2, i]) for i in range(10)]
+        axs2 = [fig.add_subplot(gs[3, i]) for i in range(10)]
+        axs = axs1 + axs2
+        fig = self.topoplot(tarStimChanIdx,chanloc[0],chanloc[1],axes = axs,**kwargsTopo)
+        ax0 = fig.add_subplot(gs[0, 1:-1])
+        ax1 = fig.add_subplot(gs[1, 1:-1])
+        self._plotWSTD([ax0,ax1], ylim_w = [-3,3],ylim_std = [0,1])
+        return fig
+        
         
 
 class CSKlearnTRF(BaseEstimator,RegressorMixin, TransformerMixin, CTRF):
