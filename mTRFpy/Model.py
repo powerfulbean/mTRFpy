@@ -4,139 +4,55 @@ Created on Thu Jul 16 14:42:40 2020
 
 @author: Jin Dou
 """
+import copy
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.model_selection import ShuffleSplit, LeaveOneOut
-from multiprocessing import Pool, shared_memory
 from . import Tools
-from . import DataStruct as ds
-import sys
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    tdqm = False
 
 
-def funcTrainNVal(oInput):
-    trainIdx = oInput[0]
-    testIdx = oInput[1]
-    idx = oInput[2]
-    nSplits = oInput[3]
-    modelParam = shared_memory.ShareableList(name='sharedModelParam')
-    Dir = modelParam[0]
-    fs = modelParam[1]
-    tmin_ms = modelParam[2]
-    tmax_ms = modelParam[3]
-    Lambda = modelParam[4]
-    stim = modelParam[5]
-    resp = modelParam[6]
-    oTRF = TRF()
-    stimTrain = stim.selectByIndices(trainIdx)
-    respTrain = resp.selectByIndices(trainIdx)
-    oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda)
-    stimTest = stim.selectByIndices(testIdx)
-    respTest = resp.selectByIndices(testIdx)
-    _, r, err = oTRF.predict(stimTest, respTest)
-    sys.stdout.write(
-        "\r" + f"cross validation >>>>>..... split {idx}/{nSplits}\r")
-    return (r, err)
+def cross_validate(model, stimulus, response, fs, tmin, tmax,
+                   regularization, splits=5, test_size=0.1, random_state=None):
 
-
-def createSharedNArray(a, name):
-    shm = shared_memory.SharedMemory(name=name, create=True, size=a.nbytes)
-    b = np.ndarray(a.shape, dtype=a.dtype, buffer=shm.buf)
-    b[:] = a[:]
-    return b
-
-
-def crossVal(stim: ds.CDataList, resp: ds.CDataList,
-             Dir, fs, tmin_ms, tmax_ms, Lambda,
-             random_state=42, nWorkers=1, n_Splits=10, **kwargs):
-    if np.isscalar(Lambda):
-        r, err = crossValPerLambda(
-                stim, resp, Dir, fs, tmin_ms, tmax_ms, Lambda,
-                random_state=random_state, nWorkers=nWorkers,
-                n_Splits=n_Splits, **kwargs)
-
-        return (np.mean(r, axis=0, keepdims=True),
-                np.mean(err, axis=0, keepdims=True))
-
+    if not stimulus.ndim == 3 and response.ndim == 3:
+        raise ValueError('Arrays must be 3D with'
+                         'observations x samples x features!')
+    if stimulus.shape[0:2] != response.shappe[0:2]:
+        raise ValueError('Stimulus and response must have same number of'
+                         'samples and observations!')
+    observations = np.arange(stimulus.shape[0])
+    if splits == -1:  # do leave-one-out cross validation
+        idx_test = observations
+        idx_train = idx_test[1:] - (idx_test[:, None] >= idx_test[1:])
     else:
-        result = []
-        for la in tqdm(Lambda, desc='lambda', leave=False):
-            r, err = crossValPerLambda(
-                    stim, resp, Dir, fs, tmin_ms, tmax_ms, la,
-                    random_state=random_state, nWorkers=nWorkers,
-                    n_Splits=n_Splits, **kwargs)
-            result.append(
-                (np.mean(r, axis=0, keepdims=True),
-                 np.mean(err, axis=0, keepdims=True))
-            )
-        return result
+        n_test = int(stimulus.shape[0] * test_size)
+        n_train = stimulus.shape[0] - n_test
+        idx_test = np.zeros((splits, n_test))
+        idx_train = np.zeros((splits, n_train))
+        for i in range(splits):
+            train = np.random.choice(observations, n_train, replace=False)
+            test = np.array(list(set(observations) - set(train)))
+            idx_test[i], idx_train[i] = test, train
 
-
-def crossValPerLambda(stim: ds.CDataList, resp: ds.CDataList,
-                      Dir, fs, tmin_ms, tmax_ms, Lambda,
-                      random_state=42, nWorkers=1, n_Splits=10, **kwargs):
-    stim = ds.CDataList(stim)
-    resp = ds.CDataList(resp)
-    if n_Splits is not None:
-        nSplits = n_Splits
-        testSize = 1/nSplits
-        if testSize > 0.1:
-            testSize = 0.1
-        rs = ShuffleSplit(n_splits=nSplits, test_size=testSize,
-                          random_state=random_state)
+    if tqdm is not False:
+        folds = tqdm(range(idx_train.shape[0]))
     else:
-        rs = LeaveOneOut()
-        nStim = len(stim)
-        nSplits = nStim
-
-    if nWorkers <= 1:
-        finalR = []
-        finalErr = []
-        idx = 0
-
-        for trainIdx, testIdx in tqdm(rs.split(stim), desc='cv', leave=False):
-            # print('def\rabc')
-            # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
-            # sys.stdout.flush()
-            # sys.stdout.write("\033[F")
-            # sys.stdout.write("\033[K")
-            # print("\r" + f"Lambda: {Lambda}; cross validation >>>>>..... split {idx+1}/{nSplits}",end='\r')
-
-            idx += 1
-            oTRF = TRF()
-            stimTrain = stim.selectByIndices(trainIdx)
-            respTrain = resp.selectByIndices(trainIdx)
-            oTRF.train(stimTrain, respTrain, Dir, fs,
-                       tmin_ms, tmax_ms, Lambda, **kwargs)
-
-            stimTest = stim.selectByIndices(testIdx)
-            respTest = resp.selectByIndices(testIdx)
-            _, r, err = oTRF.predict(stimTest, respTest)
-            finalR.append(r)
-            finalErr.append(err)
-    else:
-        splitParam = []
-        idx = 1
-        for trainIdx, testIdx in rs.split(stim):
-            splitParam.append([trainIdx, testIdx, idx, nSplits])
-            idx += 1
-
-        modelParam = shared_memory.ShareableList(
-            [Dir, fs, tmin_ms, tmax_ms, Lambda],
-            name='sharedModelParam')
-
-        sharedStim = createSharedNArray(stim, 'sharedStim')
-        sharedResp = createSharedNArray(resp, 'sharedResp')
-
-        # stop
-        with Pool(nWorkers) as pool:
-            out = pool.imap(funcTrainNVal, splitParam,
-                            chunksize=int(nSplits/nWorkers))
-            finalR = [i[0] for i in out]
-            finalErr = [i[1] for i in out]
-    finalR = np.concatenate(finalR)
-    finalErr = np.concatenate(finalErr)
-    return finalR, finalErr  # np.mean(finalR,axis=0),np.mean(finalErr,axis=0)
+        folds = range(idx_train.shape[0])
+    models = []
+    correlations = np.zeros(idx_train.shape[0])
+    errors = np.zeros(idx_train.shape[0])
+    for fold in folds:
+        trf = model.copy()
+        trf.train(stimulus[idx_train], response[idx_train], tmin, tmax,
+                  regularization)
+        models.append(trf)
+        fold_correlation, fold_error = trf.predict(
+            stimulus[idx_test], response[idx_test])
+        correlations[fold], errors[fold] = fold_correlation, fold_error
+    return models, correlations, errors
 
 
 class TRF:
@@ -210,6 +126,32 @@ class TRF:
         trf_new.weights /= num
         trf_new.bias /= num
         return trf_new
+
+    def __copy__(self):
+        return copy.deepcopy(self)
+
+    def fit(self, stimulus, response, fs, tmin, tmax, regularization,
+            splits=5, random_state=42):
+        if not stimulus.ndim == 3 and response.ndim == 3:
+            raise ValueError('TRF fitting requires 3-dimensional arrays'
+                             'for stimulus and response with the shape'
+                             'n_stimuli x n_sammples x n_features.')
+        if np.isscalar(regularization):
+            correlation, error = cross_validate(
+                stimulus, response, self.direction, fs, tmin, tmax,
+                regularization, splits, random_state)
+        else:  # run cross-validation once per regularization parameter
+            correlation, error = [], []
+            if tqdm is not False:
+                regularization = tqdm(regularization, leave=False,
+                                      desc='fitting regularization parameter')
+            for r in regularization:
+                reg_correlation, reg_error = cross_validate(
+                        stimulus, response, self.direction, fs, tmin, tmax, r,
+                        splits, random_state)
+                correlation.append(reg_correlation)
+                error.append(reg_error)
+            return correlation, error
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         '''
@@ -343,8 +285,8 @@ class TRF:
                 the weights across all stimulus features, if 'image' draw
                 a features-by-times plot where the weights are color-coded.
         Returns:
-            fig (matplotlib.figure.Figure): If no Axes instance is provided,
-                the newly created figure is returned
+            fig (matplotlib.figure.Figure): If now axes was provided and
+                a new figure is created, it is returned.
         '''
         if self.direction == -1:
             raise ValueError('Not possible for decoding models!')
@@ -382,6 +324,18 @@ class TRF:
             plt.show()
         if fig is not None:
             return fig
+
+    def plot_topography(self, info, stimulus_feature=None):
+        try:
+            from mne.viz import plot_topomap
+        except ImportError:
+            print('Topographical plots require MNE-Python!')
+
+        if stimulus_feature is None:
+            weights = self.weights.mean(axis=0)
+        else:
+            weights = self.weights[stimulus_feature, :, :]
+        plot_topomap(weights, info)
 
 
 # define matrix operations
