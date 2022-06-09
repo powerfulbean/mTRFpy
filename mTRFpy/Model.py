@@ -15,12 +15,13 @@ except ImportError:
 
 
 def cross_validate(model, stimulus, response, fs, tmin, tmax,
-                   regularization, splits=5, test_size=0.1, random_state=None):
-
+                   regularization, splits=5, test_size=0.1, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
     if not stimulus.ndim == 3 and response.ndim == 3:
         raise ValueError('Arrays must be 3D with'
                          'observations x samples x features!')
-    if stimulus.shape[0:2] != response.shappe[0:2]:
+    if stimulus.shape[0:2] != response.shape[0:2]:
         raise ValueError('Stimulus and response must have same number of'
                          'samples and observations!')
     observations = np.arange(stimulus.shape[0])
@@ -36,7 +37,7 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
             train = np.random.choice(observations, n_train, replace=False)
             test = np.array(list(set(observations) - set(train)))
             idx_test[i], idx_train[i] = test, train
-
+    idx_test, idx_train = idx_test.astype(int), idx_train.astype(int)
     if tqdm is not False:
         folds = tqdm(range(idx_train.shape[0]))
     else:
@@ -46,8 +47,9 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
     errors = np.zeros(idx_train.shape[0])
     for fold in folds:
         trf = model.copy()
-        trf.train(stimulus[idx_train], response[idx_train], tmin, tmax,
-                  regularization)
+        # TODO: how to handle the multiple trials?
+        trf.train(stimulus[idx_train[fold]], response[idx_train[fold]],
+                  fs, tmin, tmax, regularization)
         models.append(trf)
         fold_correlation, fold_error = trf.predict(
             stimulus[idx_test], response[idx_test])
@@ -81,10 +83,10 @@ class TRF:
             window and sampling rate.
 
     '''
-    def __init__(self, direction=1, kind='multi', zeropad=True,
+    def __init__(self, direction=1, kind='multi', zeropad=True, bias=True,
                  method='ridge'):
         self.weights = None
-        self.bias = None
+        self.bias = bias
         self.times = None
         self.fs = -1
         if direction in [1, -1]:
@@ -168,15 +170,27 @@ class TRF:
             tmax (float): Maximum time lag in seconds
             regularization (float, int): The regularization paramter (lambda).
         '''
-        if self.direction == 1:
-            x, y = stimulus, response
-        elif self.direction == -1:
-            x, y = response, stimulus
-            tmin, tmax = -1 * tmax, -1 * tmin
-
+        # If the data contains only a single observation, add empty dimension
+        if stimulus.ndim == 2 and response.ndim == 2:
+            stimulus = np.expand_dims(stimulus, axis=0)
+            response = np.expand_dims(response, axis=0)
         lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
-        cov_xx, cov_xy = covariance_matrices(x, y, lags)
         delta = 1/fs
+        for i_trial in range(stimulus.shape[0]):
+            if self.direction == 1:
+                x, y = stimulus[i_trial], response[i_trial]
+            elif self.direction == -1:
+                x, y = response[i_trial], stimulus[i_trial]
+                tmin, tmax = -1 * tmax, -1 * tmin
+            assert x.ndim == 2 and y.ndim == 2
+            # sum covariances matrices across observations
+            cov_xx_trial, cov_xy_trial = covariance_matrices(
+                x, y, lags, self.zeropad, self.bias)
+            if i_trial == 0:
+                cov_xx, cov_xy = cov_xx_trial, cov_xy_trial
+            else:
+                cov_xx += cov_xx_trial
+                cov_xy += cov_xy_trial
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= regularization / delta
         # calculate reverse correlation:
@@ -189,55 +203,80 @@ class TRF:
         self.fs = fs
 
     def predict(self, stimulus=None, response=None, lag=None, channel=None):
+        # check that inputs are valid
         if self.weights is None:
             raise ValueError("Can't make predictions with an untrained model!")
+        if self.direction == 1 and stimulus is None:
+            raise ValueError("Need stimulus to predict with a forward model!")
+        elif self.direction == -1 and response is None:
+            raise ValueError("Need response to predict with a backward model!")
+        # if only a single observation, add an empty dimension
+        if stimulus is not None:
+            if stimulus.ndim == 2:
+                stimulus = np.expand_dims(stimulus, axis=0)
+        if response is not None:
+            if response.ndim == 2:
+                response = np.expand_dims(response, axis=0)
+        if stimulus is None:
+            stimulus = np.repeat(None, response.shape[0])
+        if response is None:
+            response = np.repeat(None, stimulus.shape[0])
+        # create output arrays:
         if self.direction == 1:
-            if stimulus is None:
-                raise ValueError(
-                        "Need stimulus to predict with a forward model!")
-            else:
-                x, y = stimulus, response
+            prediction = np.zeros(stimulus.shape[:2]+(self.weights.shape[-1],))
+            correlation = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
+            error = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
         elif self.direction == -1:
-            if response is None:
-                raise ValueError(
-                        "Need response to predict with a backward model!")
+            prediction = np.zeros(response.shape[0:2]+(self.weights.shape[-1]))
+            correlation = np.zeros((response.shape[0], self.weights.shape[-1]))
+            error = np.zeros(response.shape[0])
+        # predict y for each trial:
+        for i_trial in range(stimulus.shape[0]):
+            if self.direction == 1:
+                x, y = stimulus[i_trial], response[i_trial]
+            elif self.direction == -1:
+                x, y = response[i_trial], stimulus[i_trial]
+
+            x_samples, x_features = x.shape
+            if y is None:
+                y_samples = x_samples
+                y_features = self.weights.shape[-1]
             else:
-                x, y = stimulus, response
+                y_samples, y_features = y.shape
 
-        x_samples, x_features = x.shape
-        if y is None:
-            y_samples = x_samples
-            y_features = self.weights.shape[0]
-        else:
-            y_samples, y_features = y.shape
+            lags = list(range(int(np.floor(self.times[0]*self.fs)),
+                              int(np.ceil(self.times[-1]*self.fs)) + 1))
+            delta = 1/self.fs
 
-        lags = list(range(int(np.floor(self.times[0]*self.fs)),
-                          int(np.ceil(self.times[-1]*self.fs)) + 1))
-        delta = 1/self.fs
-
-        w = self.weights.copy()
-        if lag is not None:  # select lag and corresponding weights
-            lags = [lags[lag]]
-            w = w[:, lag:lag+1, :]
-        if channel is not None:
-            w = w[channel:channel+1, :, :]
-            x_features = 1
-            x = np.expand_dims(x[:, channel], axis=1)
-        w = np.concatenate([
-            self.bias,
-            w.reshape(x_features*len(lags), y_features, order='F')
-            ])*delta
-        x_lag = lag_matrix(x, lags, self.zeropad)
-        y_pred = x_lag @ w
-        if y is not None:
-            if self.zeropad is False:
-                y = truncate(y, lags[0], lags[-1])
-            mse = np.sum(np.abs(y - y_pred)**2, 0)/len(y)
-            r = (np.mean((y-y.mean(0))*(y_pred-y_pred.mean(0)), 0) /
-                 (y.std(0)*y_pred.std(0)))
-            return y_pred, r, mse
-        else:
-            return y_pred
+            w = self.weights.copy()
+            if lag is not None:  # select lag and corresponding weights
+                lags = [lags[lag]]
+                w = w[:, lag:lag+1, :]
+            if channel is not None:
+                w = w[channel:channel+1, :, :]
+                x_features = 1
+                x = np.expand_dims(x[:, channel], axis=1)
+            w = np.concatenate([
+                self.bias,
+                w.reshape(x_features*len(lags), y_features, order='F')
+                ])*delta
+            x_lag = lag_matrix(x, lags, self.zeropad)
+            y_pred = x_lag @ w
+            if y is not None:
+                if self.zeropad is False:
+                    y = truncate(y, lags[0], lags[-1])
+                err = np.mean((y - y_pred)**2, axis=0)
+                r = (np.mean((y-y.mean(0))*(y_pred-y_pred.mean(0)), 0) /
+                     (y.std(0)*y_pred.std(0)))
+                correlation[i_trial], error[i_trial] = r, err
+            prediction[i_trial] = y_pred
+            if prediction.shape[0] == 1:  # remove empty dimension
+                prediction, correlation, error = \
+                    prediction[0], correlation[0], error[0]
+            if y is not None:
+                return prediction, correlation, error
+            else:
+                return prediction
 
     def save(self, path, name):
         output = dict()
@@ -348,10 +387,10 @@ def truncate(x, tminIdx, tmaxIdx):
     return output
 
 
-def covariance_matrices(x, y, lags, zeropad=True):
+def covariance_matrices(x, y, lags, zeropad=True, bias=True):
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
-    x_lag = lag_matrix(x, lags, zeropad)
+    x_lag = lag_matrix(x, lags, zeropad, bias)
     cov_xx = x_lag.T @ x_lag
     cov_xy = x_lag.T @ y
     return cov_xx, cov_xy
