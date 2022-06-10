@@ -187,10 +187,12 @@ class TRF:
             cov_xx_trial, cov_xy_trial = covariance_matrices(
                 x, y, lags, self.zeropad, self.bias)
             if i_trial == 0:
-                cov_xx, cov_xy = cov_xx_trial, cov_xy_trial
+                cov_xx, cov_xy = cov_xx_trial.copy(), cov_xy_trial.copy()
             else:
                 cov_xx += cov_xx_trial
                 cov_xy += cov_xy_trial
+        cov_xx /= stimulus.shape[0]
+        cov_xy /= stimulus.shape[0]
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= regularization / delta
         # calculate reverse correlation:
@@ -270,13 +272,13 @@ class TRF:
                      (y.std(0)*y_pred.std(0)))
                 correlation[i_trial], error[i_trial] = r, err
             prediction[i_trial] = y_pred
-            if prediction.shape[0] == 1:  # remove empty dimension
-                prediction, correlation, error = \
-                    prediction[0], correlation[0], error[0]
-            if y is not None:
-                return prediction, correlation, error
-            else:
-                return prediction
+        if prediction.shape[0] == 1:  # remove empty dimension
+            prediction, correlation, error = \
+                prediction[0], correlation[0], error[0]
+        if y is not None:
+            return prediction, correlation, error
+        else:
+            return prediction
 
     def save(self, path, name):
         output = dict()
