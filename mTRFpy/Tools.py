@@ -91,8 +91,8 @@ class CDTRFWeights:
         time = np.array(self.t)
         oWeight.times = time / 1000
         slide = len(self.t) // 20
-        fig3 = oWeight.plot_topomap(time[::slide+1]/1000,res = 256,sensors=False,
-                        cmap='jet',outlines='head',time_unit='s',title = title)#,vmin = -3500, vmax = 3500)#
+        fig3 = oWeight.plot_topomap(time[13::slide+1]/1000,res = 256,sensors=False,
+                        cmap='jet',outlines='head',time_unit='s',title = title,vmin = -600000, vmax = 600000)#
         temp1 = fig3.get_axes()
         temp1[0].set_title('')
         t2 = temp1[-1]
