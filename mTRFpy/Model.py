@@ -338,7 +338,7 @@ class CTRF:
             
         fig = mneW.plot_topomap(times = times,res = 256,sensors=False,
                         cmap='jet',outlines='head',time_unit='s',scalings = 1,
-                        title = title + ' weight',units = 'a.u.',
+                        title = title + ' weight',units = 'a.u.',cbar_fmt='%3.3f',
                         **kwargs)#,vmin = -3500, vmax = 3500)#
         if figpath:
             fig.savefig(figpath +'/'+ title.replace('.','_') + '_' + 'topoplot')
@@ -357,7 +357,10 @@ class CTRF:
         # self._save(fig3, title,'topoplot'.lower())
      
     def _plotWSTD(self,axs,ylim_w,ylim_std):
-        w = self.w
+        if self.Dir == -1:
+            w = self.w.T
+        else:
+            w = self.w
         t = self.t
         axs[0].spines['top'].set_visible(False)
         axs[0].spines['right'].set_visible(False)
@@ -367,7 +370,7 @@ class CTRF:
         axs[0].set_xticks([])
         if ylim_w is not None:
             axs[0].set_ylim(*ylim_w)  
-            ticks = [0,(0+ylim_w[-1])/4,ylim_w[-1]*0.75]
+            ticks = [0,ylim_w[-1]*0.4,ylim_w[-1]]
             axs[0].set_yticks(ticks)
         # ticklabels = axs[0].get_yticklabels()
         axs[0].plot(t,w[0])
@@ -380,14 +383,13 @@ class CTRF:
         std = np.std(w[0],axis=1,keepdims = True)
         if ylim_std is not None:
             axs[1].set_ylim(*ylim_std)
-            ticks = [0,np.round(ylim_std[-1]/2,2),ylim_std[-1]]
-        else:
-            ticks = np.arange(0,0.2+0.05,0.05)
+            ticks = [0,ylim_std[-1]/2,ylim_std[-1]]
+            # print(ticks)
+            # ticks = np.round(ticks)#,decimals=3)
+            axs[1].set_yticks(ticks)
         ticklabels = axs[1].get_yticklabels()
         ticklabels[-1].set_visible(False)
         # ticks[-2] = max(std)
-        ticks = np.round(ticks,decimals=3)
-        axs[1].set_yticks(ticks)
         axs[1].tick_params(axis=u'both', which=u'both',direction = 'in')
         axs[1].plot(t,std,color='black')
         axs[1].set_ylabel('STD')
@@ -417,16 +419,20 @@ class CTRF:
     #     return fig
         
     
-    def plotWSTDAndTopoplot(self,tarStimChanIdx,chanloc,title='',kwargsTopo = {}):
+    def plotWSTDAndTopoplot(self,tarStimChanIdx,chanloc,title='',
+                            ylim_w = None,ylim_std = None,kwargsTopo = {}):
+        
         fig = plt.figure()
         gs = GridSpec(4, 11, figure=fig)
         axs1 = [fig.add_subplot(gs[2, i]) for i in range(10)]
         axs2 = [fig.add_subplot(gs[3, i]) for i in range(10)]
         axs = axs1 + axs2
-        fig = self.topoplot(tarStimChanIdx,chanloc[0],chanloc[1],axes = axs,**kwargsTopo)
+        kwargsTopo['vmin'] = ylim_w[0] if ylim_w else None
+        kwargsTopo['vmax'] = ylim_w[1] if ylim_w else None
+        fig = self.topoplot(tarStimChanIdx,chanloc[0],chanloc[1],axes = axs,title=title,**kwargsTopo)
         ax0 = fig.add_subplot(gs[0, 1:-1])
         ax1 = fig.add_subplot(gs[1, 1:-1])
-        self._plotWSTD([ax0,ax1], ylim_w = [-3,3],ylim_std = [0,1])
+        self._plotWSTD([ax0,ax1],ylim_w = ylim_w,ylim_std = ylim_std)#, ylim_w = [-0.1,1],ylim_std = [0,1])
         return fig
         
         
