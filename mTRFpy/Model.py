@@ -356,7 +356,7 @@ class CTRF:
         # t2.set_visible(False)
         # self._save(fig3, title,'topoplot'.lower())
      
-    def _plotWSTD(self,axs,ylim_w,ylim_std):
+    def _plotWSTD(self,tarStimChanIdx,axs,ylim_w,ylim_std):
         if self.Dir == -1:
             w = self.w.T
         else:
@@ -373,14 +373,14 @@ class CTRF:
             ticks = [0,ylim_w[-1]*0.4,ylim_w[-1]]
             axs[0].set_yticks(ticks)
         # ticklabels = axs[0].get_yticklabels()
-        axs[0].plot(t,w[0])
+        axs[0].plot(t,w[tarStimChanIdx])
         axs[0].tick_params(axis=u'y', which=u'both',direction = 'in')
         axs[1].tick_params(axis=u'both', which=u'both',direction = 'in')
         axs[0].set_ylabel('a.u.')
         # times = [t[0],t[6],t[17]]
         # [axs[0].axvline(x = i,color='black',linewidth=0.8) for i in times]
         
-        std = np.std(w[0],axis=1,keepdims = True)
+        std = np.std(w[tarStimChanIdx],axis=1,keepdims = True)
         if ylim_std is not None:
             axs[1].set_ylim(*ylim_std)
             ticks = [0,ylim_std[-1]/2,ylim_std[-1]]
@@ -397,12 +397,12 @@ class CTRF:
         # [axs[1].axvline(x = i,color='black',linewidth=0.8) for i in times]
         
      
-    def wSTDPlot(self,title="",ylim_w = None,ylim_std =None):
+    def wSTDPlot(self,title="",ylim_w = None,ylim_std =None,tarStimChanIdx = 0):
         # model = self.model
         fig = plt.figure(figsize = (20,10))
         gs = fig.add_gridspec(2, hspace=0,height_ratios = [1,0.5])
         axs = gs.subplots(sharex=False)
-        self._plotWSTD(axs,ylim_w,ylim_std)
+        self._plotWSTD(tarStimChanIdx,axs,ylim_w,ylim_std)
         return fig
     
     # def plotWSTDAndTopoplot(self,tarStimChanIdx,chanloc,title='',kwargsTopo = {}):
@@ -432,7 +432,7 @@ class CTRF:
         fig = self.topoplot(tarStimChanIdx,chanloc[0],chanloc[1],axes = axs,title=title,**kwargsTopo)
         ax0 = fig.add_subplot(gs[0, 1:-1])
         ax1 = fig.add_subplot(gs[1, 1:-1])
-        self._plotWSTD([ax0,ax1],ylim_w = ylim_w,ylim_std = ylim_std)#, ylim_w = [-0.1,1],ylim_std = [0,1])
+        self._plotWSTD(tarStimChanIdx,[ax0,ax1],ylim_w = ylim_w,ylim_std = ylim_std)#, ylim_w = [-0.1,1],ylim_std = [0,1])
         return fig
         
         
