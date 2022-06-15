@@ -5,13 +5,14 @@ Created on Thu Jul 16 14:42:40 2020
 @author: Jin Dou
 """
 import copy
+from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
 from . import Tools
 try:
     from tqdm import tqdm
 except ImportError:
-    tdqm = False
+    tqdm = False
 
 
 def cross_validate(model, stimulus, response, fs, tmin, tmax,
@@ -51,8 +52,8 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         trf.train(stimulus[idx_train[fold]], response[idx_train[fold]],
                   fs, tmin, tmax, regularization)
         models.append(trf)
-        fold_correlation, fold_error = trf.predict(
-            stimulus[idx_test], response[idx_test])
+        _, fold_correlation, fold_error = trf.predict(
+            stimulus[idx_test[fold]], response[idx_test[fold]])
         correlations[fold], errors[fold] = fold_correlation, fold_error
     return models, correlations, errors
 
@@ -204,7 +205,47 @@ class TRF:
         self.times = np.array(lags)/fs
         self.fs = fs
 
-    def predict(self, stimulus=None, response=None, lag=None, channel=None):
+    def predict(self, stimulus=None, response=None, lag=None, feature=None,
+                average_trials=True, average_features=True):
+        """
+        Use the trained model to predict the response from the stimulus
+        (or vice versa) and optionally estimate the prediction's accuracy.
+        Arguments:
+            stimulus (np.ndarray | None): stimulus matrix of shape
+                trials x samples x features. The first dimension can be
+                omitted if there is only a single trial. When using a forward
+                model, this must be specified. When using a backward model
+                it can be provided to estimate the prediction's error and
+                correlation with the actual response.
+            response (np.ndarray | None):  response matrix of shape
+                trials x samples x features. The first dimension can be omitted
+                if there is only a single trial. When using a backward model,
+                this must be specified. When using a forward model it can be
+                provided to estimate the prediction's error and correlation
+                with the actual response.
+            lag (int | list of int | None): If not None (default), only use the
+                specified lags for prediction. The provided integers are used
+                for indexing the elements in self.times.
+            feature (int | list of int | None): If not None (default), only use
+                the specified features of the stimulus or response for
+                prediction. The provided integeres are used to index the
+                inputs in the first dimension of self.weights.
+            average_trials (bool): If True (default), average correlation
+                and error across all trials.
+            average_features (bool): If True (default), average correlation
+                and error across all prediction features (e.g. channels in
+                the case of forward modelling).
+        Returns:
+            prediction (np.ndarray): Predicted output. Has the same shape as
+                the input size of the last dimension (i.e. features) is equal
+                to the last dimension in self.weights.
+            correlation (float, np.ndarray): If average_trials and
+                average_features are True, this is a scalar. Otherwise it's an
+                array with one value per trial and feature.
+            error (float, np.ndarray):If average_trials and average_features
+                are True, this is a scalar. Otherwise it's an array with one
+                value per trial and feature.
+        """
         # check that inputs are valid
         if self.weights is None:
             raise ValueError("Can't make predictions with an untrained model!")
@@ -252,12 +293,16 @@ class TRF:
 
             w = self.weights.copy()
             if lag is not None:  # select lag and corresponding weights
-                lags = [lags[lag]]
-                w = w[:, lag:lag+1, :]
-            if channel is not None:
-                w = w[channel:channel+1, :, :]
-                x_features = 1
-                x = np.expand_dims(x[:, channel], axis=1)
+                if not isinstance(lag, Iterable):
+                    lag = [lag]
+                lags = list(np.array(lags)[lag])
+                w = w[:, lag, :]
+            if feature is not None:
+                if not isinstance(feature, Iterable):
+                    feature = [feature]
+                w = w[feature, :, :]
+                x_features = len(feature)
+                x = x[:, feature]
             w = np.concatenate([
                 self.bias,
                 w.reshape(x_features*len(lags), y_features, order='F')
@@ -276,6 +321,10 @@ class TRF:
             prediction, correlation, error = \
                 prediction[0], correlation[0], error[0]
         if y is not None:
+            if average_trials is True:
+                correlation, error = correlation.mean(0), error.mean(0)
+            if average_features is True:
+                correlation, error = correlation.mean(-1), error.mean(-1)
             return prediction, correlation, error
         else:
             return prediction
