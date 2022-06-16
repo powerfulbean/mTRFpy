@@ -23,9 +23,9 @@ def test_encoding():
     trf_encoder = TRF()
     tmin, tmax = -0.1, 0.2
     trf_encoder.train(stimuli, response, fs, tmin, tmax, 100)
-    print(trf_encoder.times)
     # use the trained TRF to predict data
-    prediction2, correlation2, error2 = trf_encoder.predict(stimuli, response)
+    prediction2, correlation2, error2 = trf_encoder.predict(
+            stimuli, response, average_features=False)
 
     # check that the results are the same as in matlab
     np.testing.assert_almost_equal(trf_encoder.weights, w, decimal=12)

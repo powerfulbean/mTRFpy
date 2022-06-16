@@ -1,12 +1,12 @@
 from pathlib import Path
 import numpy as np
-from numpy.random import randint, uniform
+from numpy.random import randint
 from scipy.io import loadmat
 from mTRFpy.Model import TRF, cross_validate
 root = Path(__file__).parent.absolute()
 
 
-def test_train_forward():
+def test_train():
     speech_response = loadmat(str(root/'data'/'speech_data.mat'))
     fs = speech_response['fs'][0][0]
     response = speech_response['resp'][0:100]
@@ -27,8 +27,8 @@ def test_train_forward():
             assert trf1.weights.shape[0] == stimuli.shape[-1]
             assert trf1.weights.shape[-1] == response.shape[-1]
         if direction == -1:
-            assert trf1.weights.shape[0] == stimuli.shape[-1]
-            assert trf1.weights.shape[-1] == response.shape[-1]
+            assert trf1.weights.shape[-1] == stimuli.shape[-1]
+            assert trf1.weights.shape[0] == response.shape[-1]
         np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
 
 
@@ -54,11 +54,9 @@ def test_predict():
     predictions, correlations, error = trf.predict(
             stimuli, responses, average_trials=False)
     assert correlations.shape[0] == error.shape[0] == reps
-    
     predictions, correlations, error = trf.predict(
             stimuli, responses, average_features=False)
     assert correlations.shape[-1] == trf.weights.shape[-1]
-
     features = \
         [randint(trf.weights.shape[0]) for _ in range(randint(2, 10))]
     lags = \
@@ -82,3 +80,20 @@ def test_crossval():
     test_size = np.random.uniform(0.05, 0.3)
     models, correlations, errors = cross_validate(
         trf, stimulus, response, fs, tmin, tmax, reg, splits, test_size)
+    assert isinstance(models, TRF)
+    assert np.isscalar(correlations) and np.isscalar(errors)
+    models, correlations, errors = cross_validate(
+        trf, stimulus, response, fs, tmin, tmax, reg, splits, test_size,
+        average_splits=False)
+    assert correlations.ndim == 1 and len(correlations) == splits
+    assert len(models) == splits
+    models, correlations, errors = cross_validate(
+        trf, stimulus, response, fs, tmin, tmax, reg, splits, test_size,
+        average_splits=False)
+    assert correlations.ndim == 1 and len(correlations) == splits
+    assert len(models) == splits
+    models, correlations, errors = cross_validate(
+        trf, stimulus, response, fs, tmin, tmax, reg, splits, test_size,
+        average_features=False)
+    assert correlations.ndim == 1
+    assert len(correlations) == models.weights.shape[-1]

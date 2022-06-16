@@ -16,7 +16,44 @@ except ImportError:
 
 
 def cross_validate(model, stimulus, response, fs, tmin, tmax,
-                   regularization, splits=5, test_size=0.1, seed=None):
+                   regularization, splits=5, test_size=0.1, seed=None,
+                   average_features=True, average_splits=True):
+    """
+    Train and test a model using n-fold cross-validation.
+    Arguments:
+        model (instance of TRF): The model that is fit to the data.
+            For every iteration of cross-validation a new copy is created.
+        stimulus (np.ndarray | None): Stimulus matrix of shape
+            trials x samples x features.
+        response (np.ndarray | None):  Response matrix of shape
+            trials x samples x features.
+        fs (int): Sample rate of stimulus and response in hertz.
+        tmin (float): Minimum time lag in seconds
+        tmax (float): Maximum time lag in seconds
+        regularization (float, int): The regularization paramter (lambda).
+        splits (int): Number of randomized split for cross validation.
+            If -1, do leave-one-out cross-validation.
+        test_size (float): Percentage of the data that is used to estimate
+            the trained model's predcitions.
+        seed (int): Seed for the random number generator.
+        average_features (bool): If True (default), average correlations
+            and scores across all predicted features. Else, return one
+            value for every feature.
+        average_splits (bool): If true, average models, the correlations and
+            erros across all cross-validation splits. Else, return one
+            value for each split.
+    Returns:
+        models (list | instance of TRF): The fitted models(s). If
+            average_splits is False, a list with one model for each split
+            is returned. Else, the weights are averaged across splits
+            and a single model is retruned (default).
+        correlations (np.ndarray | float): Correlation between the actual
+            and predicted output. If average_features or average_splits
+            is False, a separate value for each feature / split is returned
+        errors (np.array | float): Mean squared error between the actual
+            and predicted output. If average_features or average_splits
+            is False, a separate value for each feature / split is returned
+    """
     if seed is not None:
         np.random.seed(seed)
     if not stimulus.ndim == 3 and response.ndim == 3:
@@ -44,8 +81,16 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
     else:
         folds = range(idx_train.shape[0])
     models = []
-    correlations = np.zeros(idx_train.shape[0])
-    errors = np.zeros(idx_train.shape[0])
+    if average_features is True:
+        correlations = np.zeros(idx_train.shape[0])
+        errors = np.zeros(idx_train.shape[0])
+    else:
+        if model.direction == 1:
+            n_features = response.shape[-1]
+        elif model.direction == -1:
+            n_features = stimulus.shape[-1]
+        correlations = np.zeros((idx_train.shape[0], n_features))
+        errors = np.zeros((idx_train.shape[0], n_features))
     for fold in folds:
         trf = model.copy()
         # TODO: how to handle the multiple trials?
@@ -53,8 +98,12 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
                   fs, tmin, tmax, regularization)
         models.append(trf)
         _, fold_correlation, fold_error = trf.predict(
-            stimulus[idx_test[fold]], response[idx_test[fold]])
+                stimulus[idx_test[fold]], response[idx_test[fold]],
+                average_features=average_features)
         correlations[fold], errors[fold] = fold_correlation, fold_error
+    if average_splits:
+        models = sum(models) / len(models)
+        correlations, errors = correlations.mean(0), errors.mean(0)
     return models, correlations, errors
 
 
@@ -270,9 +319,9 @@ class TRF:
             correlation = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
             error = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
         elif self.direction == -1:
-            prediction = np.zeros(response.shape[0:2]+(self.weights.shape[-1]))
+            prediction = np.zeros(response.shape[:2]+(self.weights.shape[-1],))
             correlation = np.zeros((response.shape[0], self.weights.shape[-1]))
-            error = np.zeros(response.shape[0])
+            error = np.zeros((response.shape[0], self.weights.shape[-1]))
         # predict y for each trial:
         for i_trial in range(stimulus.shape[0]):
             if self.direction == 1:
@@ -318,8 +367,7 @@ class TRF:
                 correlation[i_trial], error[i_trial] = r, err
             prediction[i_trial] = y_pred
         if prediction.shape[0] == 1:  # remove empty dimension
-            prediction, correlation, error = \
-                prediction[0], correlation[0], error[0]
+            prediction = prediction[0]
         if y is not None:
             if average_trials is True:
                 correlation, error = correlation.mean(0), error.mean(0)
