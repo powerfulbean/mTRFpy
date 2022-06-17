@@ -68,6 +68,8 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         idx_train = idx_test[1:] - (idx_test[:, None] >= idx_test[1:])
     else:
         n_test = int(stimulus.shape[0] * test_size)
+        if n_test == 0:
+            n_test = 1
         n_train = stimulus.shape[0] - n_test
         idx_test = np.zeros((splits, n_test))
         idx_train = np.zeros((splits, n_train))
@@ -137,8 +139,10 @@ class TRF:
                  method='ridge'):
         self.weights = None
         self.bias = bias
+        self.accuracy = None
         self.times = None
-        self.fs = -1
+        self.fs = None
+        self.regularization = None
         if direction in [1, -1]:
             self.direction = direction
         else:
@@ -183,26 +187,61 @@ class TRF:
         return copy.deepcopy(self)
 
     def fit(self, stimulus, response, fs, tmin, tmax, regularization,
-            splits=5, random_state=42):
+            splits=5, test_size=0.1, seed=None):
+        """
+        Fit TRF model using n-fold cross validation.
+        Arguments:
+            stimulus (np.ndarray | None): Stimulus matrix of shape
+                trials x samples x features.
+            response (np.ndarray | None):  Response matrix of shape
+                trials x samples x features.
+            fs (int): Sample rate of stimulus and response in hertz.
+            tmin (float): Minimum time lag in seconds
+            tmax (float): Maximum time lag in seconds
+            regularization (list, float, int): The regularization paramter
+                (lambda). If a list with multiple values is supplied, the
+                model is fitted separately for each value. The model with the
+                highest accuracy (correlation of prediction and actual output)
+                is selected and the correlation and error for every tested
+                regularization value are returned.
+            splits (int): Number of randomized split for cross validation.
+                If -1, do leave-one-out cross-validation.
+            test_size (float): Percentage of the data that is used to estimate
+                the trained model's predcitions.
+            seed (int): Seed for the random number generator.
+        Returns:
+            correlation (list): Correlation of prediction and actual output
+                per value when using multiple regularization values.
+            error (list): Error between prediction and output per value
+                when using multiple regularization values.
+        """
+
         if not stimulus.ndim == 3 and response.ndim == 3:
             raise ValueError('TRF fitting requires 3-dimensional arrays'
                              'for stimulus and response with the shape'
                              'n_stimuli x n_sammples x n_features.')
         if np.isscalar(regularization):
-            correlation, error = cross_validate(
-                stimulus, response, self.direction, fs, tmin, tmax,
-                regularization, splits, random_state)
+            model, correlation, error = cross_validate(
+                self.copy(), stimulus, response, fs, tmin, tmax,
+                regularization, splits, test_size, seed=seed)
+            self.weights, self.bias, self.times = \
+                model.weights, model.bias, model.times
+            self.accuracy = correlation
         else:  # run cross-validation once per regularization parameter
-            correlation, error = [], []
+            models, correlation, error = [], [], []
             if tqdm is not False:
                 regularization = tqdm(regularization, leave=False,
                                       desc='fitting regularization parameter')
             for r in regularization:
-                reg_correlation, reg_error = cross_validate(
-                        stimulus, response, self.direction, fs, tmin, tmax, r,
-                        splits, random_state)
+                reg_model, reg_correlation, reg_error = cross_validate(
+                    self.copy(), stimulus, response, fs, tmin, tmax, r,
+                    splits, test_size, seed=seed)
+                models.append(reg_model)
                 correlation.append(reg_correlation)
                 error.append(reg_error)
+            model = models[np.argmax(correlation)]
+            self.weights, self.bias, self.times = \
+                model.weights, model.bias, model.times
             return correlation, error
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):

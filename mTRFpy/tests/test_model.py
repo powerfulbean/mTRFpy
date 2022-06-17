@@ -97,3 +97,25 @@ def test_crossval():
         average_features=False)
     assert correlations.ndim == 1
     assert len(correlations) == models.weights.shape[-1]
+
+
+def test_fit():
+    speech_response = loadmat(str(root/'data'/'speech_data.mat'))
+    fs = speech_response['fs'][0][0]
+    response = np.stack([speech_response['resp'][0:100] for _ in range(20)])
+    stimulus = np.stack([speech_response['stim'][0:100] for _ in range(20)])
+    tmin = np.random.uniform(-0.1, 0.05)
+    tmax = np.random.uniform(0.1, 0.4)
+    direction = np.random.choice([1, -1])
+    reg = np.random.uniform(0, 10)
+    trf = TRF(direction=direction)
+    trf.fit(stimulus, response, fs, tmin, tmax, reg)
+    reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
+    trf = TRF(direction=direction)
+    correlations, error = trf.fit(stimulus, response, fs, tmin, tmax, reg)
+    assert len(correlations) == len(error) == len(reg)
+
+
+
+
+
