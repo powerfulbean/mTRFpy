@@ -4,11 +4,12 @@ Created on Thu Jul 16 14:42:40 2020
 
 @author: Jin Dou
 """
+from pathlib import Path
+import pickle
 import copy
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
-from . import Tools
 try:
     from tqdm import tqdm
 except ImportError:
@@ -182,9 +183,6 @@ class TRF:
         trf_new.weights /= num
         trf_new.bias /= num
         return trf_new
-
-    def __copy__(self):
-        return copy.deepcopy(self)
 
     def fit(self, stimulus, response, fs, tmin, tmax, regularization,
             splits=5, test_size=0.1, seed=None):
@@ -416,26 +414,30 @@ class TRF:
         else:
             return prediction
 
-    def save(self, path, name):
-        output = dict()
-        for i in self.__dict__:
-            output[i] = self.__dict__[i]
-
-        Tools.saveObject(output, path, name, '.mtrf')
+    def save(self, path):
+        path = Path(path)
+        if not path.parent.exists():
+            raise FileNotFoundError(
+                f'The directory {path.parent} does not exist!')
+        with open(path, 'wb') as fname:
+            pickle.dump(self, fname, pickle.HIGHEST_PROTOCOL)
 
     def load(self, path):
-        temp = Tools.loadObject(path)
-        for i in temp:
-            setattr(self, i, temp[i])
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f'The file {path} does not exist!')
+        with open(path, 'rb') as fname:
+            trf = pickle.load(fname)
+        self.__dict__ = trf.__dict__
 
     def copy(self):
-        oTRF = TRF()
+        trf = TRF()
         for k, v in self.__dict__.items():
             value = v
             if getattr(v, 'copy', None) is not None:
                 value = v.copy()
-            setattr(oTRF, k, value)
-        return oTRF
+            setattr(trf, k, value)
+        return trf
 
     def plot_forward_weights(self, tmin=None, tmax=None, channels=None,
                              axes=None, show=True, mode='avg', kind='line'):

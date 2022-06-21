@@ -1,4 +1,5 @@
 from pathlib import Path
+import tempfile
 import numpy as np
 from numpy.random import randint
 from scipy.io import loadmat
@@ -11,25 +12,24 @@ def test_train():
     fs = speech_response['fs'][0][0]
     response = speech_response['resp'][0:100]
     stimulus = speech_response['stim'][0:100]
-    for i in range(5):
-        reps = np.random.randint(2, 10)
-        stimuli = np.stack([stimulus for _ in range(reps)])
-        responses = np.stack([response for _ in range(reps)])
-        tmin = np.random.uniform(-0.1, 0.05)
-        tmax = np.random.uniform(0.1, 0.4)
-        direction = np.random.choice([1, -1])
-        regularization = np.random.uniform(0, 10)
-        trf1 = TRF(direction=direction)
-        trf1.train(stimuli, responses, fs, tmin, tmax, regularization)
-        trf2 = TRF(direction=direction)
-        trf2.train(stimuli[0], responses[0], fs, tmin, tmax, regularization)
-        if direction == 1:
-            assert trf1.weights.shape[0] == stimuli.shape[-1]
-            assert trf1.weights.shape[-1] == response.shape[-1]
-        if direction == -1:
-            assert trf1.weights.shape[-1] == stimuli.shape[-1]
-            assert trf1.weights.shape[0] == response.shape[-1]
-        np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
+    reps = np.random.randint(2, 10)
+    stimuli = np.stack([stimulus for _ in range(reps)])
+    responses = np.stack([response for _ in range(reps)])
+    tmin = np.random.uniform(-0.1, 0.05)
+    tmax = np.random.uniform(0.1, 0.4)
+    direction = np.random.choice([1, -1])
+    regularization = np.random.uniform(0, 10)
+    trf1 = TRF(direction=direction)
+    trf1.train(stimuli, responses, fs, tmin, tmax, regularization)
+    trf2 = TRF(direction=direction)
+    trf2.train(stimuli[0], responses[0], fs, tmin, tmax, regularization)
+    if direction == 1:
+        assert trf1.weights.shape[0] == stimuli.shape[-1]
+        assert trf1.weights.shape[-1] == response.shape[-1]
+    if direction == -1:
+        assert trf1.weights.shape[-1] == stimuli.shape[-1]
+        assert trf1.weights.shape[0] == response.shape[-1]
+    np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
 
 
 def test_predict():
@@ -116,6 +116,20 @@ def test_fit():
     assert len(correlations) == len(error) == len(reg)
 
 
-
-
+def test_save_load():
+    tmpdir = Path(tempfile.gettempdir())
+    speech_response = loadmat(str(root/'data'/'speech_data.mat'))
+    fs = speech_response['fs'][0][0]
+    response = np.stack([speech_response['resp'][0:100] for _ in range(20)])
+    stimulus = np.stack([speech_response['stim'][0:100] for _ in range(20)])
+    tmin = np.random.uniform(-0.1, 0.05)
+    tmax = np.random.uniform(0.1, 0.4)
+    direction = np.random.choice([1, -1])
+    reg = np.random.uniform(0, 10)
+    trf1 = TRF(direction=direction)
+    trf1.fit(stimulus, response, fs, tmin, tmax, reg)
+    trf1.save(tmpdir/'test.trf')
+    trf2 = TRF()
+    trf2.load(tmpdir/'test.trf')
+    np.testing.assert_equal(trf1.weights, trf2.weights)
 
