@@ -261,7 +261,6 @@ class TRF:
         if stimulus.ndim == 2 and response.ndim == 2:
             stimulus = np.expand_dims(stimulus, axis=0)
             response = np.expand_dims(response, axis=0)
-        lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
         delta = 1/fs
         for i_trial in range(stimulus.shape[0]):
             if self.direction == 1:
@@ -270,6 +269,7 @@ class TRF:
                 x, y = response[i_trial], stimulus[i_trial]
                 tmin, tmax = -1 * tmax, -1 * tmin
             assert x.ndim == 2 and y.ndim == 2
+            lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
             # sum covariances matrices across observations
             cov_xx_trial, cov_xy_trial = covariance_matrices(
                 x, y, lags, self.zeropad, self.bias)
