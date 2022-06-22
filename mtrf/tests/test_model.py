@@ -3,7 +3,7 @@ import tempfile
 import numpy as np
 from numpy.random import randint
 from scipy.io import loadmat
-from mTRFpy.Model import TRF, cross_validate
+from mtrf.model import TRF, cross_validate
 root = Path(__file__).parent.absolute()
 
 

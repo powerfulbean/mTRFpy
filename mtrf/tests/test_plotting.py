@@ -1,6 +1,6 @@
 from pathlib import Path
 from scipy.io import loadmat
-from mTRFpy.Model import TRF
+from mtrf.model import TRF
 root = Path(__file__).parent.absolute()
 
 

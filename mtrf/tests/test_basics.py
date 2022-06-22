@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 from scipy.io import loadmat
-from mTRFpy.Model import lag_matrix
+from mtrf.model import lag_matrix
 root = Path(__file__).parent.absolute()
 
 
