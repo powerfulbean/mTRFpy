@@ -22,7 +22,7 @@ setup(name='mtrf',
       license='MIT',
       python_requires='>=3.8',
       install_requires=['numpy'],
-      extras_require={'testing': ['pytest', 'tqdm', 'matplotlib']},
+      extras_require={'testing': ['pytest', 'tqdm', 'matplotlib', 'scipy']},
       packages=find_packages(),
       zip_safe=False,
       classifiers=[
