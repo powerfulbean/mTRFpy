@@ -6,7 +6,6 @@ Created on Thu Jul 16 14:42:40 2020
 """
 from pathlib import Path
 import pickle
-import copy
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
@@ -240,6 +239,7 @@ class TRF:
             model = models[np.argmax(correlation)]
             self.weights, self.bias, self.times = \
                 model.weights, model.bias, model.times
+            self.fs, self.regularization = model.fs, model.regularization
             return correlation, error
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
@@ -262,6 +262,8 @@ class TRF:
             stimulus = np.expand_dims(stimulus, axis=0)
             response = np.expand_dims(response, axis=0)
         delta = 1/fs
+        self.fs = fs
+        self.regularization = regularization
         for i_trial in range(stimulus.shape[0]):
             if self.direction == 1:
                 x, y = stimulus[i_trial], response[i_trial]
