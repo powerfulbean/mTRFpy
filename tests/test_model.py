@@ -7,7 +7,7 @@ from mtrf.model import TRF, cross_validate
 root = Path(__file__).parent.absolute()
 
 
-def test_train():
+def test_train(direction = None):
     speech_response = loadmat(str(root/'data'/'speech_data.mat'))
     fs = speech_response['fs'][0][0]
     response = speech_response['resp'][0:100]
@@ -17,7 +17,10 @@ def test_train():
     responses = np.stack([response for _ in range(reps)])
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.4)
-    direction = np.random.choice([1, -1])
+    if direction is None:
+        direction = np.random.choice([1, -1])
+    else:
+        pass
     regularization = np.random.uniform(0, 10)
     trf1 = TRF(direction=direction)
     trf1.train(stimuli, responses, fs, tmin, tmax, regularization)
@@ -29,7 +32,13 @@ def test_train():
     if direction == -1:
         assert trf1.weights.shape[-1] == stimuli.shape[-1]
         assert trf1.weights.shape[0] == response.shape[-1]
-    np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
+    
+    try:
+        np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
+    except:
+        print(f"direction:{direction},regularization:{regularization},tmin:{tmin}, tmax:{tmax}, reps:{reps}")
+        raise
+    
 
 
 def test_predict():
