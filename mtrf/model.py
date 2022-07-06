@@ -265,22 +265,23 @@ class TRF:
         delta = 1/fs
         self.fs = fs
         self.regularization = regularization
+        cov_xx = 0
+        cov_xy = 0
+        if self.direction == 1:
+            xs, ys = stimulus, response
+        if self.direction == -1:
+            xs, ys = response, stimulus
+            tmin, tmax = -1 * tmax, -1 * tmin
         for i_trial in range(stimulus.shape[0]):
-            if self.direction == 1:
-                x, y = stimulus[i_trial], response[i_trial]
-            elif self.direction == -1:
-                x, y = response[i_trial], stimulus[i_trial]
-                tmin, tmax = -1 * tmax, -1 * tmin
+            x, y = xs[i_trial], ys[i_trial]
             assert x.ndim == 2 and y.ndim == 2
-            lags = list(range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
+            lags = list(
+                range(int(np.floor(tmin*fs)), int(np.ceil(tmax*fs)) + 1))
             # sum covariances matrices across observations
             cov_xx_trial, cov_xy_trial = covariance_matrices(
                 x, y, lags, self.zeropad, self.bias)
-            if i_trial == 0:
-                cov_xx, cov_xy = cov_xx_trial.copy(), cov_xy_trial.copy()
-            else:
-                cov_xx += cov_xx_trial
-                cov_xy += cov_xy_trial
+            cov_xx += cov_xx_trial
+            cov_xy += cov_xy_trial
         cov_xx /= stimulus.shape[0]
         cov_xy /= stimulus.shape[0]
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
