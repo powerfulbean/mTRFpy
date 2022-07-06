@@ -223,6 +223,7 @@ class TRF:
                 regularization, splits, test_size, seed=seed)
             self.weights, self.bias, self.times = \
                 model.weights, model.bias, model.times
+            self.fs, self.regularization = model.fs, model.regularization
             self.accuracy = correlation
         else:  # run cross-validation once per regularization parameter
             models, correlation, error = [], [], []
