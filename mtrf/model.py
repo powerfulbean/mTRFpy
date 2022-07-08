@@ -30,11 +30,12 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         fs (int): Sample rate of stimulus and response in hertz.
         tmin (float): Minimum time lag in seconds
         tmax (float): Maximum time lag in seconds
-        regularization (float, int): The regularization paramter (lambda).
+        regularization (float | int): The regularization paramter (lambda).
         splits (int): Number of randomized split for cross validation.
             If -1, do leave-one-out cross-validation.
-        test_size (float): Percentage of the data that is used to estimate
-            the trained model's predcitions.
+        test_size (float | int): Amount of data used to estimate the trained
+            model's predcitions. A float will be interpreted as percentage,
+            an integer as a number of trials of the provided data.
         seed (int): Seed for the random number generator.
         average_features (bool): If True (default), average correlations
             and scores across all predicted features. Else, return one
@@ -67,9 +68,12 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         idx_test = observations
         idx_train = idx_test[1:] - (idx_test[:, None] >= idx_test[1:])
     else:
-        n_test = int(stimulus.shape[0] * test_size)
-        if n_test == 0:
-            n_test = 1
+        if isinstance(test_size, int):
+            n_test = test_size
+        else:
+            n_test = int(stimulus.shape[0] * test_size)
+            if n_test == 0:
+                n_test = 1
         n_train = stimulus.shape[0] - n_test
         idx_test = np.zeros((splits, n_test))
         idx_train = np.zeros((splits, n_train))
@@ -203,8 +207,9 @@ class TRF:
                 regularization value are returned.
             splits (int): Number of randomized split for cross validation.
                 If -1, do leave-one-out cross-validation.
-            test_size (float): Percentage of the data that is used to estimate
-                the trained model's predcitions.
+            test_size (float | int): Amount of data used to estimate the trained
+                model's predcitions. A float will be interpreted as percentage,
+                an integer as a number of trials of the provided data.
             seed (int): Seed for the random number generator.
         Returns:
             correlation (list): Correlation of prediction and actual output
