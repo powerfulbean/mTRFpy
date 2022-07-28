@@ -16,10 +16,12 @@ except ImportError:
 
 
 def cross_validate(model, stimulus, response, fs, tmin, tmax,
-                   regularization, splits=5, test_size=0.1, seed=None,
+                   regularization, k=5, seed=None,
                    average_features=True, average_splits=True):
     """
-    Train and test a model using n-fold cross-validation.
+    Train and test a model using k-fold cross-validation. The input data
+    is randomly shuffled and separated into k equally large parts, k-1
+    parts are used for training and the kth path is used for testing the model.
     Arguments:
         model (instance of TRF): The model that is fit to the data.
             For every iteration of cross-validation a new copy is created.
@@ -31,11 +33,8 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         tmin (float): Minimum time lag in seconds
         tmax (float): Maximum time lag in seconds
         regularization (float | int): The regularization paramter (lambda).
-        splits (int): Number of randomized split for cross validation.
-            If -1, do leave-one-out cross-validation.
-        test_size (float | int): Amount of data used to estimate the trained
-            model's predcitions. A float will be interpreted as percentage,
-            an integer as a number of trials of the provided data.
+        k (int): Number of data splits for cross validation.
+                     If -1, do leave-one-out cross-validation.
         seed (int): Seed for the random number generator.
         average_features (bool): If True (default), average correlations
             and scores across all predicted features. Else, return one
@@ -64,47 +63,45 @@ def cross_validate(model, stimulus, response, fs, tmin, tmax,
         raise ValueError('Stimulus and response must have same number of'
                          'samples and observations!')
     observations = np.arange(stimulus.shape[0])
-    if splits == -1:  # do leave-one-out cross validation
-        idx_test = observations
-        idx_train = idx_test[1:] - (idx_test[:, None] >= idx_test[1:])
+    if k == -1:  # do leave-one-out cross validation
+        splits_test = observations
+        splits_train = \
+            splits_test[1:] - (splits_test[:, None] >= splits_test[1:])
     else:
-        if isinstance(test_size, int):
-            n_test = test_size
-        else:
-            n_test = int(stimulus.shape[0] * test_size)
-            if n_test == 0:
-                n_test = 1
-        n_train = stimulus.shape[0] - n_test
-        idx_test = np.zeros((splits, n_test))
-        idx_train = np.zeros((splits, n_train))
-        for i in range(splits):
-            train = np.random.choice(observations, n_train, replace=False)
-            test = np.array(list(set(observations) - set(train)))
-            idx_test[i], idx_train[i] = test, train
-    idx_test, idx_train = idx_test.astype(int), idx_train.astype(int)
+        rest = len(observations) % k
+        if rest != 0:  # drop random trials so the data can be split evenly
+            print(f'dropping {rest} trials because {len(observations)} trials'
+                  'cant be split evenly into {folds} parts!')
+        # remove trials that cant be evenly split and randomize
+        observations = np.random.choice(
+            observations, len(observations)-rest, replace=False)
+        splits = np.split(observations, k)
     if tqdm is not False:
-        folds = tqdm(range(idx_train.shape[0]))
+        folds = tqdm(range(k))
     else:
-        folds = range(idx_train.shape[0])
+        folds = range(k)
     models = []
     if average_features is True:
-        correlations = np.zeros(idx_train.shape[0])
-        errors = np.zeros(idx_train.shape[0])
+        errors, correlations = np.zeros(k), np.zeros(k)
     else:
         if model.direction == 1:
             n_features = response.shape[-1]
         elif model.direction == -1:
             n_features = stimulus.shape[-1]
-        correlations = np.zeros((idx_train.shape[0], n_features))
-        errors = np.zeros((idx_train.shape[0], n_features))
+        correlations = np.zeros((k, n_features))
+        errors = np.zeros((k, n_features))
     for fold in folds:
+        if k == -1:
+            idx_test, idx_train = splits_test[fold], splits_train[fold]
+        else:
+            idx_test = splits[fold]
+            idx_train = np.concatenate(splits[:fold]+splits[fold+1:])
         trf = model.copy()
-        # TODO: how to handle the multiple trials?
-        trf.train(stimulus[idx_train[fold]], response[idx_train[fold]],
+        trf.train(stimulus[idx_train], response[idx_train],
                   fs, tmin, tmax, regularization)
         models.append(trf)
         _, fold_correlation, fold_error = trf.predict(
-                stimulus[idx_test[fold]], response[idx_test[fold]],
+                stimulus[idx_test], response[idx_test],
                 average_features=average_features)
         correlations[fold], errors[fold] = fold_correlation, fold_error
     if average_splits:
@@ -188,7 +185,7 @@ class TRF:
         return trf_new
 
     def fit(self, stimulus, response, fs, tmin, tmax, regularization,
-            splits=5, test_size=0.1, seed=None):
+            k=5, seed=None):
         """
         Fit TRF model using n-fold cross validation.
         Arguments:
@@ -205,11 +202,8 @@ class TRF:
                 highest accuracy (correlation of prediction and actual output)
                 is selected and the correlation and error for every tested
                 regularization value are returned.
-            splits (int): Number of randomized split for cross validation.
-                If -1, do leave-one-out cross-validation.
-            test_size (float | int): Amount of data used to estimate the trained
-                model's predcitions. A float will be interpreted as percentage,
-                an integer as a number of trials of the provided data.
+            k (int): Number of data splits for cross validation.
+                         If -1, do leave-one-out cross-validation.
             seed (int): Seed for the random number generator.
         Returns:
             correlation (list): Correlation of prediction and actual output
@@ -225,7 +219,7 @@ class TRF:
         if np.isscalar(regularization):
             model, correlation, error = cross_validate(
                 self.copy(), stimulus, response, fs, tmin, tmax,
-                regularization, splits, test_size, seed=seed)
+                regularization, k, seed=seed)
             self.weights, self.bias, self.times = \
                 model.weights, model.bias, model.times
             self.fs, self.regularization = model.fs, model.regularization
@@ -238,7 +232,7 @@ class TRF:
             for r in regularization:
                 reg_model, reg_correlation, reg_error = cross_validate(
                     self.copy(), stimulus, response, fs, tmin, tmax, r,
-                    splits, test_size, seed=seed)
+                    k, seed=seed)
                 models.append(reg_model)
                 correlation.append(reg_correlation)
                 error.append(reg_error)
