@@ -80,22 +80,24 @@ def cross_validate(
     if k == -1:  # do leave-one-out cross validation
         splits_test = observations
         splits_train = splits_test[1:] - (splits_test[:, None] >= splits_test[1:])
+        n_splits = len(splits_test)
     else:
         splits = np.array_split(observations, k)
+        n_splits = len(splits)
     if tqdm is not False:
         folds = tqdm(range(k))
     else:
         folds = range(k)
     models = []
     if average_features is True:
-        errors, correlations = np.zeros(k), np.zeros(k)
+        errors, correlations = np.zeros(n_splits), np.zeros(n_splits)
     else:
         if model.direction == 1:
             n_features = response.shape[-1]
         elif model.direction == -1:
             n_features = stimulus.shape[-1]
-        correlations = np.zeros((k, n_features))
-        errors = np.zeros((k, n_features))
+        correlations = np.zeros((n_splits, n_features))
+        errors = np.zeros((n_splits, n_features))
     for fold in folds:
         if k == -1:
             idx_test, idx_train = splits_test[fold], splits_train[fold]
