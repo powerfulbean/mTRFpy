@@ -32,7 +32,9 @@ def cross_validate(
     """
     Train and test a model using k-fold cross-validation. The input data
     is randomly shuffled and separated into k equally large parts, k-1
-    parts are used for training and the kth path is used for testing the model.
+    parts are used for training and the kth part is used for testing the model.
+    If the data can't be divided evenly among splits, some splits will have one
+    trial more as to not waste any data.
     Arguments:
         model (instance of TRF): The model that is fit to the data.
             For every iteration of cross-validation a new copy is created.
@@ -74,22 +76,12 @@ def cross_validate(
             "Stimulus and response must have same number of" "samples and observations!"
         )
     observations = np.arange(stimulus.shape[0])
+    np.random.shuffle(observations)  # randomize trial indices
     if k == -1:  # do leave-one-out cross validation
         splits_test = observations
         splits_train = splits_test[1:] - (splits_test[:, None] >= splits_test[1:])
     else:
-        # TODO: instead of dropping trials, make the last split smaller
-        rest = len(observations) % k
-        if rest != 0:  # drop random trials so the data can be split evenly
-            print(
-                f"dropping {rest} trials because {len(observations)} trials"
-                "cant be split evenly into {folds} parts!"
-            )
-        # remove trials that cant be evenly split and randomize
-        observations = np.random.choice(
-            observations, len(observations) - rest, replace=False
-        )
-        splits = np.split(observations, k)
+        splits = np.array_split(observations, k)
     if tqdm is not False:
         folds = tqdm(range(k))
     else:
