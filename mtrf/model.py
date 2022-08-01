@@ -78,6 +78,7 @@ def cross_validate(
         splits_test = observations
         splits_train = splits_test[1:] - (splits_test[:, None] >= splits_test[1:])
     else:
+        # TODO: instead of dropping trials, make the last split smaller
         rest = len(observations) % k
         if rest != 0:  # drop random trials so the data can be split evenly
             print(
@@ -108,7 +109,7 @@ def cross_validate(
             idx_test, idx_train = splits_test[fold], splits_train[fold]
         else:
             idx_test = splits[fold]
-            idx_train = np.concatenate(splits[:fold] + splits[fold + 1 :])
+            idx_train = np.concatenate(splits[:fold] + splits[fold + 1:])
         trf = model.copy()
         trf.train(
             stimulus[idx_train], response[idx_train], fs, tmin, tmax, regularization
