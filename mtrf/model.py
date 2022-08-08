@@ -84,10 +84,6 @@ def cross_validate(
     else:
         splits = np.array_split(observations, k)
         n_splits = len(splits)
-    if tqdm is not False:
-        folds = tqdm(range(k))
-    else:
-        folds = range(k)
     models = []
     if average_features is True:
         errors, correlations = np.zeros(n_splits), np.zeros(n_splits)
@@ -98,7 +94,7 @@ def cross_validate(
             n_features = stimulus.shape[-1]
         correlations = np.zeros((n_splits, n_features))
         errors = np.zeros((n_splits, n_features))
-    for fold in folds:
+    for fold in range(k):
         if k == -1:
             idx_test, idx_train = splits_test[fold], splits_train[fold]
         else:
@@ -151,7 +147,6 @@ class TRF:
     ):
         self.weights = None
         self.bias = bias
-        self.accuracy = None
         self.times = None
         self.fs = None
         self.regularization = None
