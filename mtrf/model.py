@@ -103,7 +103,7 @@ def cross_validate(
             idx_test, idx_train = splits_test[fold], splits_train[fold]
         else:
             idx_test = splits[fold]
-            idx_train = np.concatenate(splits[:fold] + splits[fold + 1:])
+            idx_train = np.concatenate(splits[:fold] + splits[fold + 1 :])
         trf = model.copy()
         trf.train(
             stimulus[idx_train], response[idx_train], fs, tmin, tmax, regularization
@@ -196,7 +196,10 @@ class TRF:
 
     def fit(self, stimulus, response, fs, tmin, tmax, regularization, k=5, seed=None):
         """
-        Fit TRF model using n-fold cross validation.
+        Fit TRF model. If a regularization is just a single scalar, this method
+        will simply call `TRF.train`, when given a list of regularization values,
+        this method will find the best value (i.e. the one that yields the
+        highest prediction accuracy) and train a TRF with the selected regularization value.
         Arguments:
             stimulus (np.ndarray | None): Stimulus matrix of shape
                 trials x samples x features.
@@ -212,7 +215,7 @@ class TRF:
                 is selected and the correlation and error for every tested
                 regularization value are returned.
             k (int): Number of data splits for cross validation.
-                         If -1, do leave-one-out cross-validation.
+                     If -1, do leave-one-out cross-validation.
             seed (int): Seed for the random number generator.
         Returns:
             correlation (list): Correlation of prediction and actual output
@@ -228,20 +231,7 @@ class TRF:
                 "n_stimuli x n_sammples x n_features."
             )
         if np.isscalar(regularization):
-            model, correlation, error = cross_validate(
-                self.copy(),
-                stimulus,
-                response,
-                fs,
-                tmin,
-                tmax,
-                regularization,
-                k,
-                seed=seed,
-            )
-            self.weights, self.bias, self.times = model.weights, model.bias, model.times
-            self.fs, self.regularization = model.fs, model.regularization
-            self.accuracy = correlation
+            self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
             models, correlation, error = [], [], []
             if tqdm is not False:
@@ -256,9 +246,8 @@ class TRF:
                 correlation.append(reg_correlation)
                 error.append(reg_error)
             model = models[np.argmax(correlation)]
-            self.weights, self.bias, self.times = model.weights, model.bias, model.times
-            self.fs, self.regularization = model.fs, model.regularization
-            return correlation, error
+            regularization = model.regularization
+            self.train(stimulus, response, fs, tmin, tmax, regularization)
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """

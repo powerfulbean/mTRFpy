@@ -147,8 +147,7 @@ def test_fit():
     trf.fit(stimulus, response, fs, tmin, tmax, reg)
     reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
     trf = TRF(direction=direction)
-    correlations, error = trf.fit(stimulus, response, fs, tmin, tmax, reg)
-    assert len(correlations) == len(error) == len(reg)
+    trf.fit(stimulus, response, fs, tmin, tmax, reg)
 
 
 def test_save_load():
