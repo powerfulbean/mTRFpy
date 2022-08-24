@@ -186,7 +186,18 @@ class TRF:
         trf_new.bias /= num
         return trf_new
 
-    def fit(self, stimulus, response, fs, tmin, tmax, regularization, k=5, seed=None):
+    def fit(
+        self,
+        stimulus,
+        response,
+        fs,
+        tmin,
+        tmax,
+        regularization,
+        k=5,
+        seed=None,
+        verbose=True,
+    ):
         """
         Fit TRF model. If a regularization is just a single scalar, this method
         will simply call `TRF.train`, when given a list of regularization values,
@@ -226,7 +237,7 @@ class TRF:
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
             correlation, error = [], []
-            if tqdm is not False:
+            if (tqdm is not False) and (verbose is True):
                 regularization = tqdm(
                     regularization, leave=False, desc="fitting regularization parameter"
                 )
@@ -238,8 +249,9 @@ class TRF:
                 )
                 correlation[ir] = reg_correlation
                 error[ir] = reg_error
-            regularization = regularization[np.argmax(correlation)]
+            regularization = list(regularization)[np.argmax(correlation)]
             self.train(stimulus, response, fs, tmin, tmax, regularization)
+        return correlation, error
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
