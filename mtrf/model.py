@@ -84,7 +84,6 @@ def cross_validate(
     else:
         splits = np.array_split(observations, k)
         n_splits = len(splits)
-    models = []
     if average_features is True:
         errors, correlations = np.zeros(n_splits), np.zeros(n_splits)
     else:
@@ -104,15 +103,13 @@ def cross_validate(
         trf.train(
             stimulus[idx_train], response[idx_train], fs, tmin, tmax, regularization
         )
-        models.append(trf)
         _, fold_correlation, fold_error = trf.predict(
             stimulus[idx_test], response[idx_test], average_features=average_features
         )
         correlations[fold], errors[fold] = fold_correlation, fold_error
     if average_splits:
-        models = sum(models) / len(models)
         correlations, errors = correlations.mean(0), errors.mean(0)
-    return models, correlations, errors
+    return correlations, errors
 
 
 class TRF:
@@ -228,20 +225,20 @@ class TRF:
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
-            models, correlation, error = [], [], []
+            correlation, error = [], []
             if tqdm is not False:
                 regularization = tqdm(
                     regularization, leave=False, desc="fitting regularization parameter"
                 )
-            for r in regularization:
-                reg_model, reg_correlation, reg_error = cross_validate(
+            correlation = np.zeros(len(regularization))
+            error = np.zeros(len(regularization))
+            for ir, r in enumerate(regularization):
+                reg_correlation, reg_error = cross_validate(
                     self.copy(), stimulus, response, fs, tmin, tmax, r, k, seed=seed
                 )
-                models.append(reg_model)
-                correlation.append(reg_correlation)
-                error.append(reg_error)
-            model = models[np.argmax(correlation)]
-            regularization = model.regularization
+                correlation[ir] = reg_correlation
+                error[ir] = reg_error
+            regularization = regularization[np.argmax(correlation)]
             self.train(stimulus, response, fs, tmin, tmax, regularization)
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
