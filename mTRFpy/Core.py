@@ -151,6 +151,29 @@ def calOlsCovMat(x,y,lags,Type = 'multi',Zeropad = True):
             Cxy = oCuda.calCovariance(xLag,y)
     return Cxx, Cxy
 
+def calOlsCovMat_PartFeatsLag(x,y,lags,xIdxNoLag,Type = 'multi',Zeropad = True):
+    assert Type in TypeEnum
+    
+    if not Zeropad:
+        y = truncate(y,lags[0],lags[-1])
+    
+    nFeat = x.shape[1]
+    fullList = [i for i in range(nFeat)]
+    xIdxToLag = np.array([i for i in fullList if i not in xIdxNoLag])
+    xIdxNoLag = np.array(xIdxNoLag)
+    
+    if Type == 'multi':
+        xLag = genLagMat(x[:,xIdxToLag],lags,Zeropad)
+        xNoLag = x[:,xIdxNoLag]
+        xLag = np.concatenate([xNoLag,xLag],axis = 1)
+        if oCuda is None:
+            Cxx = calSelfCovariance(xLag)
+            Cxy = calCovariance(xLag,y)
+        else:
+            Cxx = oCuda.calSelfCovariance(xLag)
+            Cxy = oCuda.calCovariance(xLag,y)
+    return Cxx, Cxy
+
 def msec2Idxs(msecRange,fs):
     '''
     convert a millisecond range to a list of sample indexes

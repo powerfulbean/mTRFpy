@@ -19,8 +19,12 @@ def truncFloat(a,digits):
     return np.trunc(stepper * a) / stepper
 
 # @profile
-def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True ,Verbose = True):
-    output = ds.DataListOp(Core.calOlsCovMat)(x,y,lags,Type,Zeropad)
+def olscovmat(x:ds.CDataList,y:ds.CDataList,lags,Type = 'multi',Zeropad = True,
+              Verbose = True, xIdxNoLag = []):
+    if len(xIdxNoLag) == 0:
+        output = ds.DataListOp(Core.calOlsCovMat)(x,y,lags,Type,Zeropad)
+    else:
+        output = ds.DataListOp(Core.calOlsCovMat_PartFeatsLag)(x,y,lags,xIdxNoLag,Type,Zeropad)
     Cxx = output[0]
     Cxy = output[1]
     return Cxx, Cxy
@@ -59,13 +63,18 @@ def train(x,y,fs,tmin_ms,tmax_ms,Lambda,oCuda = None,**kwarg):
     # print(type(wori),wori.shape)
     wori = np.asarray(wori)
     # wori = wori.toarray()
-    b = wori[0:1]
-    w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
+    if 'xIdxNoLag' in kwarg:
+        xIdxNoLag = kwarg['xIdxNoLag']
+        b = wori[0:1 + len(xIdxNoLag)]
+        w = wori[1 + len(xIdxNoLag):].reshape((x.nVar - len(xIdxNoLag),len(lags),y.nVar),order = 'F')
+    else:
+        b = wori[0:1]   
+        w = wori[1:].reshape((x.nVar,len(lags),y.nVar),order = 'F')
     # print('tls train finish')
     return w,b,lags
 
 
-def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0, specifyLag:int = -1, specifyChan:int = -1):
+def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim = 0, specifyLag:int = -1, specifyChan:int = -1,**kwarg):
     # assert windowSize >= 0
     # if windowSize:
     #     nWin = sum(np.floor([len(n)/windowSize for n in nYObs/windowSize]))
@@ -106,7 +115,11 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
             x = x.getChan(specifyChan)
             # print(x[0].shape,w.shape)
         # print(nXVar,lags)
-        w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
+        if len(model.b) > 1:
+            nNoLag = len(model.b) - 1
+            w = np.concatenate([model.b,w.reshape(((nXVar-nNoLag)*len(lags),nYVar),order = 'F')])*delta
+        else:
+            w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
     else:
         w = 1
     
@@ -114,7 +127,17 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
     r = list()
     err = list()
     for i in range(x.fold):
-        xLag = Core.genLagMat(x[i],lags,model.Zeropad)
+        if 'xIdxNoLag' in kwarg:
+            xIdxNoLag = kwarg['xIdxNoLag']
+            nFeat = x[i].shape[1]
+            fullList = [i for i in range(nFeat)]
+            xIdxToLag = np.array([i for i in fullList if i not in xIdxNoLag])
+            xIdxNoLag = np.array(xIdxNoLag)
+            xLag = Core.genLagMat(x[i][:,xIdxToLag],lags,zeropad)
+            xNoLag = x[i][:,xIdxNoLag]
+            xLag = np.concatenate([xNoLag,xLag],axis = 1)
+        else:
+            xLag = Core.genLagMat(x[i],lags,model.Zeropad)
         # print('\rtest fold: ',i,end='\r')
         if Type == 'multi':
             # print(xLag.shape,w.shape)

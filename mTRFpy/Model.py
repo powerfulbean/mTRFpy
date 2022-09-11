@@ -118,7 +118,7 @@ def crossValPerLambda(stim:ds.CDataList,resp:ds.CDataList,
             
             stimTest = stim.selectByIndices(testIdx)
             respTest = resp.selectByIndices(testIdx)
-            _,r,err = oTRF.predict(stimTest,respTest)
+            _,r,err = oTRF.predict(stimTest,respTest,**kwargs)
             finalR.append(r)
             finalErr.append(err)
     else:
@@ -333,8 +333,9 @@ class CTRF:
             times = 'auto'
         else:
             times = np.array(self.t) / 1000
-            slide = len(times) //20
+            slide = int(np.ceil(len(self.t) / 20))
             times = times[1:-1:slide]
+            # print(len(times))
             
         fig = mneW.plot_topomap(times = times,res = 256,sensors=False,
                         cmap='jet',outlines='head',time_unit='s',scalings = 1,

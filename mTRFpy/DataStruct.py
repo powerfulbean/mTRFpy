@@ -4,6 +4,7 @@ Created on Thu Jul 16 01:50:12 2020
 
 @author: Jin Dou
 """
+from StimRespFlow.DataStruct.DataSet import CDataSet
 from collections.abc import Iterable
 from . import Protocols as pt
 import numpy as np
@@ -90,17 +91,59 @@ class CDataList(list):
         for idx in indicies:
             out.append(self.__getitem__(idx))
         return out
-            
-    
+
+
+def align(*signal):
+    sharedLen = min([len(i) for i in signal])
+    return np.concatenate([i[:sharedLen,:] for i in signal],axis = 1)
+
+def cropToAlign(*signal):
+    sharedLen = min([len(i) for i in signal])
+    return [i[:sharedLen,:] for i in signal]
+         
+def buildListFromSRFDataset(dataset:CDataSet,zscore = True):
+    oldMode = dataset.ifOldFetchMode
+    dataset.ifOldFetchMode = False
+    resp = list()
+    stim = list()
+    srate = dataset.srate
+    for i in dataset:
+        s,r,info = i
+        keys = [k for k in s]
+        newS = []
+        for k in s:
+            if k == 'vector':
+                timeInfo = s['tIntvl']
+                nchan = s[k].shape[0]
+                vecImpulse = np.zeros((nchan,int(np.ceil(srate * timeInfo[-1,-1]))))
+                startTimeIdx = np.round(timeInfo[0,:] * srate).astype(int)
+                vecImpulse[:,startTimeIdx] = s[k]
+                # print(vecImpulse.shape)
+                newS.append(vecImpulse.T)
+            elif k == 'tIntvl':
+                continue
+            else:
+                newS.append(s[k].T)
+        s = newS
+        s = align(*s)
+        r = r.T
+        s,r = cropToAlign(s,r)
+        stim.append(s)
+        resp.append(r)
+
+    resp = CDataList(resp)
+    stim = CDataList(stim)
+    if zscore:
+        stim = stim.zscored(0)
+    dataset.ifOldFetchMode = oldMode
+    return stim,resp,keys
+        
 class CDataset:
-    
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    pass    
     
 class CDatasetDiskSave(CDataset):    
     
     def __init__(self,dataset,indicesConfig,x = True,*args,**kwargs):
-        super().__init__(*args,**kwargs)
         self.dataset = dataset
         self.indicesConfig = indicesConfig
         self.x = x
