@@ -91,9 +91,8 @@ def test_crossval():
     correlations, errors = cross_validate(
         trf, stimulus, response, fs, tmin, tmax, reg, splits
     )
-    assert isinstance(models, TRF)
     assert np.isscalar(correlations) and np.isscalar(errors)
-    models, correlations, errors = cross_validate(
+    correlations, errors = cross_validate(
         trf,
         stimulus,
         response,
@@ -105,8 +104,7 @@ def test_crossval():
         average_splits=False,
     )
     assert correlations.ndim == 1 and len(correlations) == splits
-    assert len(models) == splits
-    models, correlations, errors = cross_validate(
+    correlations, errors = cross_validate(
         trf,
         stimulus,
         response,
@@ -118,8 +116,7 @@ def test_crossval():
         average_splits=False,
     )
     assert correlations.ndim == 1 and len(correlations) == splits
-    assert len(models) == splits
-    models, correlations, errors = cross_validate(
+    correlations, errors = cross_validate(
         trf,
         stimulus,
         response,
@@ -131,7 +128,6 @@ def test_crossval():
         average_features=False,
     )
     assert correlations.ndim == 1
-    assert len(correlations) == models.weights.shape[-1]
 
 
 def test_fit():
