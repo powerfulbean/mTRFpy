@@ -5,111 +5,24 @@ Created on Thu Jul 16 14:42:40 2020
 @author: Jin Dou
 """
 from pathlib import Path
+from itertools import product
 import pickle
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
+from mtrf.crossval import cross_validate
+from mtrf.matrices import (
+    covariance_matrices,
+    banded_regularization_coefficients,
+    regularization_matrix,
+    lag_matrix,
+    truncate,
+)
 
 try:
     from tqdm import tqdm
 except ImportError:
     tqdm = False
-
-
-def cross_validate(
-    model,
-    stimulus,
-    response,
-    fs,
-    tmin,
-    tmax,
-    regularization,
-    k=5,
-    seed=None,
-    average_features=True,
-    average_splits=True,
-):
-    """
-    Train and test a model using k-fold cross-validation. The input data
-    is randomly shuffled and separated into k equally large parts, k-1
-    parts are used for training and the kth part is used for testing the model.
-    If the data can't be divided evenly among splits, some splits will have one
-    trial more as to not waste any data.
-    Arguments:
-        model (instance of TRF): The model that is fit to the data.
-            For every iteration of cross-validation a new copy is created.
-        stimulus (np.ndarray | None): Stimulus matrix of shape
-            trials x samples x features.
-        response (np.ndarray | None):  Response matrix of shape
-            trials x samples x features.
-        fs (int): Sample rate of stimulus and response in hertz.
-        tmin (float): Minimum time lag in seconds
-        tmax (float): Maximum time lag in seconds
-        regularization (float | int): The regularization paramter (lambda).
-        k (int): Number of data splits for cross validation.
-                     If -1, do leave-one-out cross-validation.
-        seed (int): Seed for the random number generator.
-        average_features (bool): If True (default), average correlations
-            and scores across all predicted features. Else, return one
-            value for every feature.
-        average_splits (bool): If true, average models, the correlations and
-            erros across all cross-validation splits. Else, return one
-            value for each split.
-    Returns:
-        models (list | instance of TRF): The fitted models(s). If
-            average_splits is False, a list with one model for each split
-            is returned. Else, the weights are averaged across splits
-            and a single model is retruned (default).
-        correlations (np.ndarray | float): Correlation between the actual
-            and predicted output. If average_features or average_splits
-            is False, a separate value for each feature / split is returned
-        errors (np.array | float): Mean squared error between the actual
-            and predicted output. If average_features or average_splits
-            is False, a separate value for each feature / split is returned
-    """
-    if seed is not None:
-        np.random.seed(seed)
-    if not stimulus.ndim == 3 and response.ndim == 3:
-        raise ValueError("Arrays must be 3D with" "observations x samples x features!")
-    if stimulus.shape[0:2] != response.shape[0:2]:
-        raise ValueError(
-            "Stimulus and response must have same number of" "samples and observations!"
-        )
-    observations = np.arange(stimulus.shape[0])
-    np.random.shuffle(observations)  # randomize trial indices
-    if k == -1:  # do leave-one-out cross validation
-        splits_test = observations
-        splits_train = splits_test[1:] - (splits_test[:, None] >= splits_test[1:])
-        n_splits = len(splits_test)
-    else:
-        splits = np.array_split(observations, k)
-        n_splits = len(splits)
-    if average_features is True:
-        errors, correlations = np.zeros(n_splits), np.zeros(n_splits)
-    else:
-        if model.direction == 1:
-            n_features = response.shape[-1]
-        elif model.direction == -1:
-            n_features = stimulus.shape[-1]
-        correlations = np.zeros((n_splits, n_features))
-        errors = np.zeros((n_splits, n_features))
-    for fold in range(k):
-        if k == -1:
-            idx_test, idx_train = splits_test[fold], splits_train[fold]
-        else:
-            idx_test = splits[fold]
-            idx_train = np.concatenate(splits[:fold] + splits[fold + 1 :])
-        trf = model.copy()
-        trf.train(
-            stimulus[idx_train], response[idx_train], fs, tmin, tmax, regularization
-        )
-        _, fold_correlation, fold_error = trf.predict(
-            stimulus[idx_test], response[idx_test], average_features=average_features
-        )
-        correlations[fold], errors[fold] = fold_correlation, fold_error
-    if average_splits:
-        correlations, errors = correlations.mean(0), errors.mean(0)
-    return correlations, errors
 
 
 class TRF:
@@ -159,10 +72,10 @@ class TRF:
             self.zeropad = zeropad
         else:
             raise ValueError("Parameter zeropad must be boolean!")
-        if method in ["ridge", "tikhonov"]:
+        if method in ["ridge", "tikhonov", "banded"]:
             self.method = method
         else:
-            raise ValueError('Method must be either "ridge" or "tikhonov"!')
+            raise ValueError('Method must be either "ridge", "tikhonov" or "banded"!')
 
     def __radd__(self, trf):
         if trf == 0:
@@ -194,6 +107,7 @@ class TRF:
         tmin,
         tmax,
         regularization,
+        features=None,
         k=5,
         seed=None,
         verbose=True,
@@ -217,6 +131,11 @@ class TRF:
                 highest accuracy (correlation of prediction and actual output)
                 is selected and the correlation and error for every tested
                 regularization value are returned.
+            features (list | None): Must only be provided when using banded ridge regression.
+                Size of the features for which a regularization parameter is fitted, in the order
+                they appear in the stimulus matrix. For example, when the stimulus consists of an
+                envelope vector and a 16-band spectrogram, features would be [1, 16].
+                List with indices marking the borders between bands.
             k (int): Number of data splits for cross validation.
                      If -1, do leave-one-out cross-validation.
             seed (int): Seed for the random number generator.
@@ -231,8 +150,20 @@ class TRF:
             raise ValueError(
                 "TRF fitting requires 3-dimensional arrays"
                 "for stimulus and response with the shape"
-                "n_stimuli x n_sammples x n_features."
+                "n_stimuli x n_samples x n_features."
             )
+        if self.method == "banded":
+            if features is None:
+                raise ValueError(
+                    "Must provide feature sizes when using banded ridge regression!"
+                )
+            else:  # make a list of diagonal matrices, one for each combination
+                n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
+                coefficients = list(product(regularization, repeat=2))
+                regularization = [
+                    banded_regularization_coefficients(n_lags, c, features, self.bias)
+                    for c in coefficients
+                ]
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
@@ -272,6 +203,14 @@ class TRF:
         if stimulus.ndim == 2 and response.ndim == 2:
             stimulus = np.expand_dims(stimulus, axis=0)
             response = np.expand_dims(response, axis=0)
+        if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
+            if (
+                np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
+                > 0
+            ):
+                raise ValueError(
+                    "Regularization parameter must be a single number or a diagonal matrix!"
+                )
         delta = 1 / fs
         self.fs = fs
         self.regularization = regularization
@@ -557,87 +496,3 @@ class TRF:
         else:
             weights = self.weights[stimulus_feature, :, :]
         plot_topomap(weights, info)
-
-
-# define matrix operations
-def truncate(x, tminIdx, tmaxIdx):
-    """
-    the left and right ranges will both be included
-    """
-    rowSlice = slice(max(0, tmaxIdx), min(0, tminIdx) + len(x))
-    output = x[rowSlice]
-    return output
-
-
-def covariance_matrices(x, y, lags, zeropad=True, bias=True):
-    if zeropad is False:
-        y = truncate(y, lags[0], lags[-1])
-    x_lag = lag_matrix(x, lags, zeropad, bias)
-    cov_xx = x_lag.T @ x_lag
-    cov_xy = x_lag.T @ y
-    return cov_xx, cov_xy
-
-
-def lag_matrix(x, lags, zeropad=True, bias=True):
-    """
-    Construct a matrix with time lagged input features.
-    See also 'lagGen' in mTRF-Toolbox github.com/mickcrosse/mTRF-Toolbox.
-    Arguments:
-        x (np.ndarray): Input data matrix of shape time x features
-        lags (list): Time lags in samples
-    lags: a list (or list like supporting len() method) of integers,
-         each of them should indicate the time lag in samples.
-    zeropad (bool): If True (default) apply zero paddinf to the colums
-        with non-zero time lags to ensure causality. Otherwise,
-        truncate the matrix.
-    bias (bool): If True (default), concatenate an array of ones to
-        the left of the array to include a constant bias term in the
-        regression.
-    Returns:
-        lag_matrix (np.ndarray): Matrix of time lagged inputs with shape
-            times x number of lags * number of features (+1 if bias==True).
-            If zeropad is False, the first dimension is truncated.
-    """
-    n_lags = len(lags)
-    n_samples, n_variables = x.shape
-    if max(lags) > n_samples:
-        raise ValueError("The maximum lag can't be longer than the signal!")
-    lag_matrix = np.zeros((n_samples, n_variables * n_lags))
-
-    for idx, lag in enumerate(lags):
-        col_slice = slice(idx * n_variables, (idx + 1) * n_variables)
-        if lag < 0:
-            lag_matrix[0 : n_samples + lag, col_slice] = x[-lag:, :]
-        elif lag > 0:
-            lag_matrix[lag:n_samples, col_slice] = x[0 : n_samples - lag, :]
-        else:
-            lag_matrix[:, col_slice] = x
-
-    if zeropad is False:
-        lag_matrix = truncate(lag_matrix, lags[0], lags[-1])
-
-    if bias:
-        lag_matrix = np.concatenate([np.ones((lag_matrix.shape[0], 1)), lag_matrix], 1)
-
-    return lag_matrix
-
-
-def regularization_matrix(size, method="ridge"):
-    """
-    generates a sparse regularization matrix for the specified method.
-    see also regmat.m in https://github.com/mickcrosse/mTRF-Toolbox.
-    """
-    if method == "ridge":
-        regmat = np.identity(size)
-        regmat[0, 0] = 0
-    elif method == "tikhonov":
-        regmat = np.identity(size)
-        regmat -= 0.5 * (np.diag(np.ones(size - 1), 1) + np.diag(np.ones(size - 1), -1))
-        regmat[1, 1] = 0.5
-        regmat[size - 1, size - 1] = 0.5
-        regmat[0, 0] = 0
-        regmat[0, 1] = 0
-        regmat[1, 0] = 0
-    else:
-        regmat = np.zeros((size, size))
-    return regmat

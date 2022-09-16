@@ -91,7 +91,6 @@ def test_crossval():
     correlations, errors = cross_validate(
         trf, stimulus, response, fs, tmin, tmax, reg, splits
     )
-    assert isinstance(models, TRF)
     assert np.isscalar(correlations) and np.isscalar(errors)
     models, correlations, errors = cross_validate(
         trf,
