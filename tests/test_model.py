@@ -88,7 +88,7 @@ def test_crossval():
     trf = TRF(direction=direction)
     splits = np.random.randint(2, 10)
     test_size = np.random.uniform(0.05, 0.3)
-    models, correlations, errors = cross_validate(
+    correlations, errors = cross_validate(
         trf, stimulus, response, fs, tmin, tmax, reg, splits
     )
     assert isinstance(models, TRF)
