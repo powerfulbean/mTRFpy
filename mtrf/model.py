@@ -157,13 +157,16 @@ class TRF:
                 raise ValueError(
                     "Must provide feature sizes when using banded ridge regression!"
                 )
-            else:  # make a list of diagonal matrices, one for each combination
-                n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
-                coefficients = list(product(regularization, repeat=2))
-                regularization = [
-                    banded_regularization_coefficients(n_lags, c, features, self.bias)
-                    for c in coefficients
-                ]
+            if not sum(features) == stimulus.shape[-1]:
+                raise ValueError(
+                    "Sum of the specified feature sizes must match number of stimulus features!"
+                )
+            n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
+            coefficients = list(product(regularization, repeat=2))
+            regularization = [
+                banded_regularization_coefficients(n_lags, c, features, self.bias)
+                for c in coefficients
+            ]
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
