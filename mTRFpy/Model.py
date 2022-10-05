@@ -102,7 +102,7 @@ def crossValPerLambda(stim:ds.CDataList,resp:ds.CDataList,
         finalErr = []
         idx = 0
         
-        for trainIdx,testIdx in tqdm(rs.split(stim),desc = 'cv',leave = False):
+        for trainIdx,testIdx in rs.split(stim): # tqdm(rs.split(stim),desc = 'cv',leave = False):
             # print('def\rabc')
             # sys.stdout.write(f"cross validation >>>>>..... split {idx+1}/{nStim}")
             # sys.stdout.flush()
@@ -174,6 +174,20 @@ class CTRF:
         oTRFNew.w /= num
         oTRFNew.b /= num
         return oTRFNew
+    
+    def cropWeights(self,tmin_ms,tmax_ms):
+        #in-place
+        t = np.array(self.t)
+        idx = np.arange(0,len(self.t))
+        idx_min = idx[t >= tmin_ms][0]
+        idx_max = idx[t <= tmax_ms][-1]
+        
+        self.t = self.t[idx_min:idx_max]
+        self.w = self.w[:,idx_min:idx_max,:]
+        
+        return self
+        
+        
     
     def train(self,stim,resp,Dir,fs,tmin_ms,tmax_ms,Lambda,**kwargs):
         
@@ -286,6 +300,9 @@ class CTRF:
             plt.title(vecNames[i] if vecNames is not None else '')
             plt.xlabel("time (ms)")
             plt.ylabel("a.u.")
+            plt.xlim(self.t[0] - 50,self.t[-1] + 50)
+            ax = fig1.axes[0]
+            plt.xticks([self.t[0]] + list(ax.get_xticks())[1:-2] + [self.t[-1]])
             if ylim:
                 plt.ylim(ylim)
             if fig1:
@@ -324,6 +341,14 @@ class CTRF:
         time = np.array(self.t)
         mneW.times = time / 1000
         return mneW
+    
+    def plot_joint(self,chanIdx,chanlocs,title):
+        fig = self.weightsMneObj(chanIdx,chanlocs[0],chanlocs[1]).plot_joint(
+            title = title,
+            topomap_args = {'scalings':1}, 
+            ts_args = {'units':'a.u.','scalings':dict(eeg=1)})
+        fig.axes[0].set_ylabel('a.u.')
+        return fig
     
     def topoplot(self,tarStimChanIdx, chNames,montage,figpath = None,title = '',**kwargs):
         
