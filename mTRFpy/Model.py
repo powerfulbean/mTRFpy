@@ -236,15 +236,20 @@ class CTRF:
         
         return bs.predict(self,x,y,zeropad = self.Zeropad,**kwargs)
     
-    def save(self,path,name):
+    def save(self,path=None,name= None):
         output = dict()
         for i in self.__dict__:
             output[i] = self.__dict__[i]
         
-        Tools.saveObject(output, path,name, '.mtrf')
+        if path is not None and name is not None:
+            Tools.saveObject(output, path,name, '.mtrf')
+        return output
         
     def load(self,path):
-        temp = Tools.loadObject(path)
+        if isinstance(path,str):
+            temp = Tools.loadObject(path)
+        else:
+            temp = path
         for i in temp:
             setattr(self, i, temp[i])
         return self
