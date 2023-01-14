@@ -499,3 +499,14 @@ class TRF:
         else:
             weights = self.weights[stimulus_feature, :, :]
         plot_topomap(weights, info)
+
+
+def load_sample_data(path=None):
+    if Path == None: # use default path
+        path = Path.home()/'mtrf_data'
+        if not path.exists():
+            path.mkdir()
+    if not (path/'speech_data.mat').exists(): # download the data
+        url = ''
+        response = requests.get(url)
+        open(path, "wb").write(response.content)
