@@ -7,6 +7,7 @@ Created on Thu Jul 16 14:42:40 2020
 from pathlib import Path
 from itertools import product
 import pickle
+import requests
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
@@ -502,11 +503,13 @@ class TRF:
 
 
 def load_sample_data(path=None):
-    if Path == None: # use default path
+    if path == None: # use default path
         path = Path.home()/'mtrf_data'
         if not path.exists():
             path.mkdir()
-    if not (path/'speech_data.mat').exists(): # download the data
-        url = ''
-        response = requests.get(url)
-        open(path, "wb").write(response.content)
+    if not (path/'speech_data.npy').exists(): # download the data
+        url = 'https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy'
+        response = requests.get(url, allow_redirects=True)
+        open(path/'speech_data.npy', "wb").write(response.content)
+    data = np.load(str(path/'speech_data.npy'), allow_pickle=True).item()
+    return data['stimulus'], data['response'], data['samplerate']
