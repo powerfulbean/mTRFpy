@@ -7,6 +7,7 @@ Created on Thu Jul 16 14:42:40 2020
 from pathlib import Path
 from itertools import product
 import pickle
+import requests
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
