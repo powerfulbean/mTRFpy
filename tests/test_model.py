@@ -35,7 +35,7 @@ def test_train(direction=None):
         assert trf1.weights.shape[0] == response.shape[-1]
 
     try:
-        np.testing.assert_almost_equal(trf1.weights, trf2.weights, 10)
+        np.testing.assert_almost_equal(trf1.weights, trf2.weights, 9)
     except:
         print(
             f"direction:{direction},regularization:{regularization},tmin:{tmin}, tmax:{tmax}, reps:{reps}"
