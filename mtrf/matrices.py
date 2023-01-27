@@ -1,6 +1,33 @@
 import numpy as np
 
 
+def _check_data(data):
+    """
+    Check wheter data (stimulus or response) are formatted correctly.
+    Arguments:
+        data (list | np.ndarray): Either a two-dimensional samples-by-features array
+            or a list of such arrays. If the arrays are only one-dimensional, it is
+            assumed that they contain only one feature and a singleton dimension added.
+    Returns:
+        data (list): Data in a list of arrays with added singelton dimension if the arrays
+            were 1-dimensional.
+    """
+    if isinstance(data, list):
+        if all([isinstance(d, np.ndarray) for d in data]):
+            for i in range(len(data)):
+                if data[i].ndim == 1:
+                    data[i] = np.expand_dims(data, axis=-1)
+            return data
+    elif isinstance(data, np.ndarray):
+        if data.ndim < 3:
+            if data.ndim == 1:
+                data = np.expand_dims(data, axis=-1)
+            return [data]
+    raise ValueError(
+        "Stimulus and response must either be a single 2-D samples-by-features array if the data contains one trial or a list of such arrays if the data contains multiple trials)!"
+    )
+
+
 # define matrix operations
 def truncate(x, tminIdx, tmaxIdx):
     """

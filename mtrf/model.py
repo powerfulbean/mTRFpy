@@ -18,6 +18,7 @@ from mtrf.matrices import (
     regularization_matrix,
     lag_matrix,
     truncate,
+    _check_data,
 )
 
 try:
@@ -50,7 +51,6 @@ class TRF:
             response feature.
         times (list): Model time lags, estimated based on the training time
             window and sampling rate.
-
     """
 
     def __init__(
@@ -119,10 +119,11 @@ class TRF:
         this method will find the best value (i.e. the one that yields the
         highest prediction accuracy) and train a TRF with the selected regularization value.
         Arguments:
-            stimulus (np.ndarray | None): Stimulus matrix of shape
-                trials x samples x features.
-            response (np.ndarray | None):  Response matrix of shape
-                trials x samples x features.
+            stimulus (list): List where each element is a 2-D samples-by-features array,
+                corresponding to one trial. The second dimension can be omitted if
+                there only is a single stimulus feature (e.g. envelope).
+            response (list): List where each element is a 2-D samples-by-channels array,
+                corresponding to one trial.
             fs (int): Sample rate of stimulus and response in hertz.
             tmin (float): Minimum time lag in seconds
             tmax (float): Maximum time lag in seconds
@@ -146,13 +147,13 @@ class TRF:
             error (list): Error between prediction and output per value
                 when using multiple regularization values.
         """
-
-        if not stimulus.ndim == 3 and response.ndim == 3:
+        if not (isinstance(stimulus, list) and isinstance(response, list)):
             raise ValueError(
-                "TRF fitting requires 3-dimensional arrays"
-                "for stimulus and response with the shape"
-                "n_stimuli x n_samples x n_features."
+                "Model fitting requires a list of multiple trials for stimulus and response!"
             )
+        else:
+            stimulus, response = _check_data(stimulus), _check_data(response)
+
         if self.method == "banded":
             if features is None:
                 raise ValueError(
@@ -193,20 +194,25 @@ class TRF:
         Compute the TRF weights that minimze the mean squared error between the
         actual and predicted neural response.
         Arguments:
-            stimulus (np.ndarray): Stimulus data, has to be of shape
-                samples x features.
-            response (np.ndarray): Neural response, must be of shape
-                samples x fetures. Must have the same number of samples
-                as the stimulus.
+            stimulus (list | np.ndarray): Either a 2-D samples-by-features array, if
+                the data contains only one trial or a list of such arrays of it
+                contains multiple trials. The second dimension can be omitted if
+                there only is a single stimulus feature (e.g. envelope).
+            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
+                the data contains only one trial or a list of such arrays of it
+                contains multiple trials.
             fs (int): Sample rate of stimulus and response in hertz.
             tmin (float): Minimum time lag in seconds
             tmax (float): Maximum time lag in seconds
             regularization (float, int): The regularization paramter (lambda).
         """
-        # If the data contains only a single observation, add empty dimension
-        if stimulus.ndim == 2 and response.ndim == 2:
-            stimulus = np.expand_dims(stimulus, axis=0)
-            response = np.expand_dims(response, axis=0)
+        if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
+            self.bias = True
+        stimulus, response = _check_data(stimulus), _check_data(response)
+        if not len(stimulus) == len(response):
+            valueError("Respone and stimulus must have the same length!")
+        else:
+            ntrials = len(stimulus)
         if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
             if (
                 np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
@@ -225,8 +231,7 @@ class TRF:
         if self.direction == -1:
             xs, ys = response, stimulus
             tmin, tmax = -1 * tmax, -1 * tmin
-        for i_trial in range(stimulus.shape[0]):
-            x, y = xs[i_trial], ys[i_trial]
+        for x, y in zip(xs, ys):
             assert x.ndim == 2 and y.ndim == 2
             lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
             # sum covariances matrices across observations
@@ -235,8 +240,7 @@ class TRF:
             )
             cov_xx += cov_xx_trial
             cov_xy += cov_xy_trial
-        cov_xx /= stimulus.shape[0]
-        cov_xy /= stimulus.shape[0]
+        cov_xx, cov_xy = cov_xx / ntrials, cov_xy / ntrials  # normalize
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= regularization / delta
         # calculate reverse correlation:
@@ -253,48 +257,37 @@ class TRF:
         stimulus=None,
         response=None,
         lag=None,
-        feature=None,
-        average_trials=True,
-        average_features=True,
+        average=True,
     ):
         """
         Use the trained model to predict the response from the stimulus
         (or vice versa) and optionally estimate the prediction's accuracy.
         Arguments:
-            stimulus (np.ndarray | None): stimulus matrix of shape
-                trials x samples x features. The first dimension can be
-                omitted if there is only a single trial. When using a forward
-                model, this must be specified. When using a backward model
-                it can be provided to estimate the prediction's error and
-                correlation with the actual response.
-            response (np.ndarray | None):  response matrix of shape
-                trials x samples x features. The first dimension can be omitted
-                if there is only a single trial. When using a backward model,
-                this must be specified. When using a forward model it can be
-                provided to estimate the prediction's error and correlation
-                with the actual response.
+            stimulus (None | list | np.ndarray): Either a 2-D samples-by-features
+                array, if the data contains only one trial or a list of such arrays
+                of it contains multiple trials. The second dimension can be omitted if
+                there only is a single stimulus feature (e.g. envelope). When using a
+                forward model, this must be specified. When using a backward model it
+                can be provided to return the prediction's error and correlation with
+                the actual response.
+            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
+                the data contains only one trial or a list of such arrays of it contains
+                multiple trials. When using a forward model it can be provided to
+                return the prediction's error and correlation with the actual response.
             lag (int | list of int | None): If not None (default), only use the
                 specified lags for prediction. The provided integers are used
                 for indexing the elements in self.times.
-            feature (int | list of int | None): If not None (default), only use
-                the specified features of the stimulus or response for
-                prediction. The provided integeres are used to index the
-                inputs in the first dimension of self.weights.
-            average_trials (bool): If True (default), average correlation
-                and error across all trials.
-            average_features (bool): If True (default), average correlation
-                and error across all prediction features (e.g. channels in
-                the case of forward modelling).
+            average (bool): If True (default), average correlation
+                and error across all predictions (e.g. channels in
+                the case of forward modelling) to get a single score.
         Returns:
             prediction (np.ndarray): Predicted output. Has the same shape as
                 the input size of the last dimension (i.e. features) is equal
                 to the last dimension in self.weights.
-            correlation (float, np.ndarray): If average_trials and
-                average_features are True, this is a scalar. Otherwise it's an
-                array with one value per trial and feature.
-            error (float, np.ndarray):If average_trials and average_features
-                are True, this is a scalar. Otherwise it's an array with one
-                value per trial and feature.
+            correlation (float, np.ndarray): Scalar if average is True,
+                1-dimensioal array otherwise.
+            error (float, np.ndarray):Scalar if average is True, 1-dimensional
+                array otherwise.
         """
         # check that inputs are valid
         if self.weights is None:
@@ -303,33 +296,22 @@ class TRF:
             raise ValueError("Need stimulus to predict with a forward model!")
         elif self.direction == -1 and response is None:
             raise ValueError("Need response to predict with a backward model!")
-        # if only a single observation, add an empty dimension
         if stimulus is not None:
-            if stimulus.ndim == 2:
-                stimulus = np.expand_dims(stimulus, axis=0)
+            stimulus = _check_data(stimulus)
+            ntrials = len(stimulus)
         if response is not None:
-            if response.ndim == 2:
-                response = np.expand_dims(response, axis=0)
+            response = _check_data(response)
+            ntrial = len(stimulus)
         if stimulus is None:
-            stimulus = np.repeat(None, response.shape[0])
+            stimulus = [None for _ in range(ntrials)]
         if response is None:
-            response = np.repeat(None, stimulus.shape[0])
-        # create output arrays:
-        if self.direction == 1:
-            prediction = np.zeros(stimulus.shape[:2] + (self.weights.shape[-1],))
-            correlation = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
-            error = np.zeros((stimulus.shape[0], self.weights.shape[-1]))
-        elif self.direction == -1:
-            prediction = np.zeros(response.shape[:2] + (self.weights.shape[-1],))
-            correlation = np.zeros((response.shape[0], self.weights.shape[-1]))
-            error = np.zeros((response.shape[0], self.weights.shape[-1]))
-        # predict y for each trial:
-        for i_trial in range(stimulus.shape[0]):
+            response = [None for _ in range(ntrials)]
+        prediction, correlation, error = [], [], []  # output lists
+        for stim, resp in zip(stimulus, response):
             if self.direction == 1:
-                x, y = stimulus[i_trial], response[i_trial]
+                x, y = stim, resp
             elif self.direction == -1:
-                x, y = response[i_trial], stimulus[i_trial]
-
+                x, y = resp, stim
             x_samples, x_features = x.shape
             if y is None:
                 y_samples = x_samples
@@ -351,12 +333,6 @@ class TRF:
                     lag = [lag]
                 lags = list(np.array(lags)[lag])
                 w = w[:, lag, :]
-            if feature is not None:
-                if not isinstance(feature, Iterable):
-                    feature = [feature]
-                w = w[feature, :, :]
-                x_features = len(feature)
-                x = x[:, feature]
             w = (
                 np.concatenate(
                     [
@@ -375,15 +351,16 @@ class TRF:
                 r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
                     y.std(0) * y_pred.std(0)
                 )
-                correlation[i_trial], error[i_trial] = r, err
-            prediction[i_trial] = y_pred
-        if prediction.shape[0] == 1:  # remove empty dimension
-            prediction = prediction[0]
+                correlation.append(r)
+                error.append(r)
+            prediction.append(y_pred)
         if y is not None:
-            if average_trials is True:
-                correlation, error = correlation.mean(0), error.mean(0)
-            if average_features is True:
-                correlation, error = correlation.mean(-1), error.mean(-1)
+            if average is True:
+                correlation, error = np.mean(correlation), np.mean(error)
+            else:  # only average across trials, not across channels/features
+                correlation, error = np.mean(correlation, axis=0), np.mean(
+                    error, axis=0
+                )
             return prediction, correlation, error
         else:
             return prediction
@@ -412,35 +389,28 @@ class TRF:
             setattr(trf, k, value)
         return trf
 
-    def plot_forward_weights(
+    def plot(
         self,
-        tmin=None,
-        tmax=None,
-        channels=None,
+        channel=None,
+        feature=None,
         axes=None,
         show=True,
-        mode="avg",
         kind="line",
     ):
         """
-        Plot the weights of a forward model, indicating how strongly the
-        neural response is affected by stimulus features at different time
-        lags.
+        Plot the weights of the (forward) model across time for
+        a select channel or feature.
         Arguments:
-            tmin (None | float): Start of the time window for plotting in
-                seconds. If None (default) this is set to 0.05 seconds
-                after beginning of self.times.
-            tmax (None | float): End of the time window for plotting in
-                seconds. If None (default) this is set to 0.05 before
-                the end of self.times.
-            channels (None | list | int): If an integer or a list of integers,
-                only use those channels. If None (default), use all.
+            channel (None | int | str): Channel selection. If None, all channels
+                will be used. If an integer, the channel at that index will be used.
+                If 'avg' or 'gfp' , the average or standard deviation across channels
+                will be computed.
+            feature (None | int | str): Feature selection. If None, all features
+                will be used. If an integer, the feature at that index will be used.
+                If 'avg' , the average across features will be computed.
             axes (matplotlib.axes.Axes): Axis to plot to. If None is
                 provided (default) generate a new plot.
             show (bool): If True (default), show the plot after drawing.
-            mode (str): Mode for combining information across channels.
-                Can be 'avg' to use the mean or 'gfp' to use global
-                field power (i.e. standard deviation across channels).
             kind (str): Type of plot to draw. If 'line' (default), average
                 the weights across all stimulus features, if 'image' draw
                 a features-by-times plot where the weights are color-coded.
@@ -449,67 +419,88 @@ class TRF:
                 a new figure is created, it is returned.
         """
         if self.direction == -1:
-            raise ValueError("Not possible for decoding models!")
+            # TODO: implement backward to forward transformation
+            raise ValueError("Not implemented for decoding models!")
         if axes is None:
             fig, ax = plt.subplots(figsize=(6, 6))
         else:
-            fig = None  # dont create a new figure
-        # select time window
-        if tmin is None:
-            tmin = self.times[0] + 0.05
-        if tmax is None:
-            tmax = self.times[-1] - 0.05
-        start = np.argmin(np.abs(self.times - tmin))
-        stop = np.argmin(np.abs(self.times - tmax))
-        weights = self.weights[:, start:stop, :]
-        # select channels and average if there are multiple
-        if isinstance(channels, int):
-            weights = weights[:, :, channels]
-        else:
-            if isinstance(channels, list):
-                weights = weights[:, :, channels]
+            fig, ax = None, axes  # dont create a new figure
+        weights = self.weights
+        # select channel and or feature
+        if channel is None and feature is None:
+            raise ValueError("You must specify a subset of channels or features!")
+        if feature is not None:
+            image_ylabel = "channel"
+            if isinstance(feature, int):
+                weights = weights[feature, :, :]
+            elif feature == "avg":
+                weights = weights.mean(axis=0)
             else:
-                weights = weights
-            if mode == "avg":
-                weights = weights.sum(axis=-1)
-            elif mode == "gfp":
+                raise ValueError('Argument `feature` must be an integer or "avg"!')
+        if channel is not None:
+            image_ylabel = "feature"
+            if isinstance(channel, int):
+                weights = weights.T[channel].T
+            elif channel == "avg":
+                weights = weights.mean(axis=-1)
+            elif channel == "gfp":
                 weights = weights.std(axis=-1)
+            else:
+                raise ValueError(
+                    'Argument `channel` must be an integer, "avg" or "gfp"'
+                )
+            weights = weights.T  # transpose so first dimension is time
+        # plot the result
         if kind == "line":
-            ax.plot(self.times[start:stop], weights.mean(axis=0))
+            ax.plot(
+                self.times.flatten(), weights, linewidth=2 - 0.01 * weights.shape[-1]
+            )
+            ax.set(
+                xlabel="Time lag[s]",
+                ylabel="Amplitude [a.u.]",
+                xlim=(self.times.min(), self.times.max()),
+            )
         elif kind == "image":
-            ax.imshow(
-                weights,
+            scale = self.times.max() / len(self.times)
+            im = ax.imshow(
+                weights.T,
                 origin="lower",
                 aspect="auto",
-                extent=[tmin, tmax, 0, weights.shape[0]],
+                extent=[0, weights.shape[0], 0, weights.shape[1]],
             )
-        ax.set(xlabel="Time lag [s]")
+            extent = np.asarray(im.get_extent(), dtype=float)
+            extent[:2] *= scale
+            im.set_extent(extent)
+            ax.set(
+                xlabel="Time lag [s]",
+                ylabel=image_ylabel,
+                xlim=(self.times.min(), self.times.max()),
+            )
         if show is True:
             plt.show()
         if fig is not None:
             return fig
 
-    def plot_topography(self, info, stimulus_feature=None):
-        try:
-            from mne.viz import plot_topomap
-        except ImportError:
-            print("Topographical plots require MNE-Python!")
-
-        if stimulus_feature is None:
-            weights = self.weights.mean(axis=0)
-        else:
-            weights = self.weights[stimulus_feature, :, :]
-        plot_topomap(weights, info)
-
 
 def load_sample_data(path=None):
-    if path == None: # use default path
-        path = Path.home()/'mtrf_data'
+    """
+    Load the sample data containing a small snippet of brain responses to naturalstic
+    speech and the 16-band spectrogram of that speech. The data will be
+    automatically downloaded the first time.
+    Arguments:
+        path (str | inst of Path | None): Full path to the folder where the sample
+            data will be stored. If None (default), a folder called mtrf_data in the
+            users home directory is assumed and created if it does not exist.
+    """
+    if path == None:  # use default path
+        path = Path.home() / "mtrf_data"
         if not path.exists():
             path.mkdir()
-    if not (path/'speech_data.npy').exists(): # download the data
-        url = 'https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy'
+    else:
+        path = Path(path)
+    if not (path / "speech_data.npy").exists():  # download the data
+        url = "https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy"
         response = requests.get(url, allow_redirects=True)
-        open(path/'speech_data.npy', "wb").write(response.content)
-    data = np.load(str(path/'speech_data.npy'), allow_pickle=True).item()
-    return data['stimulus'], data['response'], data['samplerate']
+        open(path / "speech_data.npy", "wb").write(response.content)
+    data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
+    return data["stimulus"], data["response"], data["samplerate"][0]
