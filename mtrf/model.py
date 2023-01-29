@@ -42,7 +42,7 @@ class TRF:
         zeropad (bool): If True (defaul), pad the outer rows of the design
             matrix with zeros. If False, delete them.
         method (str): Regularization method. Can be 'ridge' (default) or
-            'tikhonov'.
+            'tikhonov' or 'banded'.
     Attributes:
        weights (np.ndarray): Model weights which are estimated by fitting the
            model to the data using the train() method. The weight matrix should
@@ -108,7 +108,7 @@ class TRF:
         tmin,
         tmax,
         regularization,
-        features=None,
+        bands=None,
         k=5,
         seed=None,
         verbose=True,
@@ -133,7 +133,7 @@ class TRF:
                 highest accuracy (correlation of prediction and actual output)
                 is selected and the correlation and error for every tested
                 regularization value are returned.
-            features (list | None): Must only be provided when using banded ridge regression.
+            bands (list | None): Must only be provided when using banded ridge regression.
                 Size of the features for which a regularization parameter is fitted, in the order
                 they appear in the stimulus matrix. For example, when the stimulus consists of an
                 envelope vector and a 16-band spectrogram, features would be [1, 16].
@@ -155,18 +155,18 @@ class TRF:
             stimulus, response = _check_data(stimulus), _check_data(response)
 
         if self.method == "banded":
-            if features is None:
+            if bands is None:
                 raise ValueError(
-                    "Must provide feature sizes when using banded ridge regression!"
+                    "Must provide band sizes when using banded ridge regression!"
                 )
-            if not sum(features) == stimulus.shape[-1]:
+            if not sum(bands) == stimulus[0].shape[-1]:
                 raise ValueError(
-                    "Sum of the specified feature sizes must match number of stimulus features!"
+                    "Sum of the bands must match the total number of stimulus features!"
                 )
             n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
             coefficients = list(product(regularization, repeat=2))
             regularization = [
-                banded_regularization_coefficients(n_lags, c, features, self.bias)
+                banded_regularization_coefficients(n_lags, c, bands, self.bias)
                 for c in coefficients
             ]
         if np.isscalar(regularization):
@@ -352,7 +352,7 @@ class TRF:
                     y.std(0) * y_pred.std(0)
                 )
                 correlation.append(r)
-                error.append(r)
+                error.append(err)
             prediction.append(y_pred)
         if y is not None:
             if average is True:
