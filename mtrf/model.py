@@ -11,7 +11,7 @@ import requests
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
-from mtrf.crossval import cross_validate
+from mtrf.crossval import cross_validate, _progressbar
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization_coefficients,
@@ -20,11 +20,6 @@ from mtrf.matrices import (
     truncate,
     _check_data,
 )
-
-try:
-    from tqdm import tqdm
-except ImportError:
-    tqdm = False
 
 
 class TRF:
@@ -172,14 +167,12 @@ class TRF:
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
-            correlation, error = [], []
-            if (tqdm is not False) and (verbose is True):
-                regularization = tqdm(
-                    regularization, leave=False, desc="fitting regularization parameter"
-                )
             correlation = np.zeros(len(regularization))
             error = np.zeros(len(regularization))
-            for ir, r in enumerate(regularization):
+            for ir in _progressbar(
+                range(len(regularization)), "Hyperparameter optimization"
+            ):
+                r = regularization[ir]
                 reg_correlation, reg_error = cross_validate(
                     self.copy(), stimulus, response, fs, tmin, tmax, r, k, seed=seed
                 )

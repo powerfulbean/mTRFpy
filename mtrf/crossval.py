@@ -1,4 +1,6 @@
 import random
+import time
+import sys
 import numpy as np
 from mtrf.matrices import _check_data
 
@@ -57,7 +59,9 @@ def cross_validate(
         splits = np.array_split(splits, k)
         splits = [list(s) for s in splits]
     correlations, errors = [], []
-    for isplit, split in enumerate(splits):
+    print("\n")
+    for isplit in _progressbar(range(len(splits)), "Cross-validation", size=61):
+        split = splits[isplit]
         idx_test = list(split)
         idx_train = splits[:isplit] + splits[isplit + 1 :]
         if all(isinstance(x, list) for x in idx_train):
@@ -80,3 +84,22 @@ def cross_validate(
         correlations.append(correlation)
         errors.append(error)
     return np.mean(correlations, axis=0), np.mean(errors, axis=0)
+
+
+def _progressbar(it, prefix="", size=50, out=sys.stdout):  # Python3.3+
+    count = len(it)
+
+    def show(j):
+        x = int(size * j / count)
+        print(
+            "{}[{}{}] {}/{}".format(prefix, "#" * x, "." * (size - x), j, count),
+            end="\r",
+            file=out,
+            flush=True,
+        )
+
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i + 1)
+    print("\n", flush=True, file=out)
