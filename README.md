@@ -107,7 +107,7 @@ If you want to report a bug or request the implementation of a feature, please t
 * [Pull requests](CONTRIBUTING.md#pull-requests)
 
 # License
-The project is licensed under the MIT license.
+The project is licensed under the BSD 3-Clause License.
 
 [![forthebadge made-with-python](http://ForTheBadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 
