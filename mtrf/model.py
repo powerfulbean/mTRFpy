@@ -203,7 +203,7 @@ class TRF:
             self.bias = True
         stimulus, response = _check_data(stimulus), _check_data(response)
         if not len(stimulus) == len(response):
-            valueError("Respone and stimulus must have the same length!")
+            ValueError("Respone and stimulus must have the same length!")
         else:
             ntrials = len(stimulus)
         if isinstance(regularization, np.ndarray):  # check if matrix is diagonal

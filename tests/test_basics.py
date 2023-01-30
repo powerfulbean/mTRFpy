@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from mtrf.model import lag_matrix
+from mtrf.model import lag_matrix, TRF
 
 root = Path(__file__).parent.absolute()
 
