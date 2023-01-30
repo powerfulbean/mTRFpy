@@ -48,6 +48,10 @@ def cross_validate(
             and predicted output. If average_features or average_splits
             is False, a separate value for each feature / split is returned
     """
+    if not (isinstance(stimulus, list) and isinstance(response, list)):
+        raise ValueError(
+            "Cross validation requires a list of multiple trials for stimulus and response!"
+        )
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
