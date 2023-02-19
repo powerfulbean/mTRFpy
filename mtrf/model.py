@@ -474,6 +474,13 @@ class TRF:
         if fig is not None:
             return fig
 
+    @property
+    def ftc_weights(self):
+        if self.direction == -1:
+            weights = self.weights.T
+        else:
+            weights = self.weights
+        return weights
 
 def load_sample_data(path=None):
     """
