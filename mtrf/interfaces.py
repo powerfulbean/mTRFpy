@@ -5,6 +5,7 @@ Created on Fri Feb 17 11:05:29 2023
 @author: powerfulbean
 """
 import logging
+from packaging import version
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,14 +33,20 @@ def _check_mne_info(mne_info = None,ch_names = None,sfreq = None,
             montage = mne.channels.make_standard_montage('biosemi128')
         if ch_names is None:
             ch_names = montage.ch_names
-        return mne.create_info(ch_names = ch_names,sfreq = sfreq,
-                               ch_types = ch_types,montage = montage)             
+        if version.parse(mne.__version__) < version.parse("0.20.0"):
+            return mne.create_info(ch_names = ch_names,sfreq = sfreq,
+                                   ch_types = ch_types,montage = montage)  
+        else:
+            mne_info = mne.create_info(ch_names = ch_names,sfreq = sfreq,
+                                   ch_types = ch_types)
+            mne_info.set_montage(montage)
+            return mne_info
     else:
         raise ValueError('not enough information provided for creating a mne array')
                             
     
 def to_mne_evoked(data,mne_info = None, ch_names = None, sfreq = None,
-                      ch_types = None, montage = None,times = None,**kwargs):
+                      ch_types = None, montage = None,**kwargs):
     """
     generate a mne.EvokedArray
     Arguments:
@@ -54,22 +61,20 @@ def to_mne_evoked(data,mne_info = None, ch_names = None, sfreq = None,
     """
     mne_info = _check_mne_info(mne_info,ch_names,sfreq,ch_types,montage)
     
-    def _to_EvokedArray(data,times):
+    def _to_EvokedArray(data):
         #transpose the data
         evokedArray = mne.EvokedArray(data.T,mne_info,**kwargs)
-        if times is not None:
-            evokedArray.times = times
         return evokedArray
     
     if isinstance(data, TRF):
-        w = [_to_EvokedArray(w,data.times) for w in data.ftc_weights]
+        w = [_to_EvokedArray(w) for w in data.ftc_weights]
         # b = [_to_EvokedArray(data.bias,times)]
         return w
     elif isinstance(data,np.ndarray):
-        return _to_EvokedArray(data,times)
+        return _to_EvokedArray(data)
     else:
         data = np.asarray(data)
-        return _to_EvokedArray(data,times)
+        return _to_EvokedArray(data)
 
 
 def kwargs_trf_mne_joint(trf = None):
@@ -84,6 +89,6 @@ def kwargs_trf_mne_topo(trf = None):
     return kwargs
 
 def kwargs_r_mne_topo(trf = None):
-    kwargs = {'times':[0], 'cmap':'jet','outlines':'skirt','time_unit':'s',
+    kwargs = {'times':[0], 'cmap':'jet','time_unit':'s',
         'scalings' : 1, 'units' : 'r','cbar_fmt':'%3.3f'}
     return kwargs
