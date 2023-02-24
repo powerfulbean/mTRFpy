@@ -484,6 +484,10 @@ def load_sample_data(path=None):
         path (str | inst of Path | None): Full path to the folder where the sample
             data will be stored. If None (default), a folder called mtrf_data in the
             users home directory is assumed and created if it does not exist.
+    Returns:
+        stimulus (np.ndarray): 16-bands spectrogram of the presented speech.
+        response (np.ndarray): 128-channel EEG recording.
+        fs (int): sampling rate in Hz.
     """
     if path == None:  # use default path
         path = Path.home() / "mtrf_data"
@@ -496,4 +500,4 @@ def load_sample_data(path=None):
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
-    return data["stimulus"], data["response"], data["samplerate"][0]
+    return data["stimulus"], data["response"], data["samplerate"][0][0]
