@@ -180,7 +180,7 @@ class TRF:
                 error[ir] = reg_error
             regularization = list(regularization)[np.argmax(correlation)]
             self.train(stimulus, response, fs, tmin, tmax, regularization)
-            return correlation, error
+            return correlation, error #why not also return the regularization chosen?
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
