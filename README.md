@@ -8,12 +8,12 @@ This is an adaptation of the [matlab mTRF-toolbox](https://github.com/mickcrosse
 ) implemented in basic Python and Numpy. It aims to provide the same functionalities as the original toolbox and eventually advance them. The package is written and maintained by Jin Dou and Ole Bialas at the University of Rochester.
 
 # Installation
-You can get the stable release from PyPI:\
+You can get the stable release from PyPI:
 ``` 
 pip install mtrf 
 ```
 
-Or get the latest version from this repo:\
+Or get the latest version from this repo:
 ```
 pip install git+https://github.com/powerfulbean/mTRFpy.git 
 ```
