@@ -187,7 +187,7 @@ class TRF:
                 error[ir] = reg_error
             regularization = list(regularization)[np.argmax(correlation)]
             self.train(stimulus, response, fs, tmin, tmax, regularization)
-            return correlation, error #why not also return the regularization chosen?
+            return correlation, error
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
@@ -231,9 +231,9 @@ class TRF:
         if self.direction == -1:
             xs, ys = response, stimulus
             tmin, tmax = -1 * tmax, -1 * tmin
+        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         for x, y in zip(xs, ys):
             assert x.ndim == 2 and y.ndim == 2
-            lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
             # sum covariances matrices across observations
             cov_xx_trial, cov_xy_trial = covariance_matrices(
                 x, y, lags, self.zeropad, self.bias
@@ -301,7 +301,7 @@ class TRF:
             ntrials = len(stimulus)
         if response is not None:
             response = _check_data(response)
-            ntrial = len(stimulus)
+            ntrials = len(stimulus)
         if stimulus is None:
             stimulus = [None for _ in range(ntrials)]
         if response is None:
