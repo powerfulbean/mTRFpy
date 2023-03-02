@@ -8,6 +8,7 @@ from pathlib import Path
 from itertools import product
 import pickle
 import requests
+import logging
 from collections.abc import Iterable
 import numpy as np
 from matplotlib import pyplot as plt
@@ -21,6 +22,12 @@ from mtrf.matrices import (
     _check_data,
 )
 
+try:
+    import mne
+except:
+    logging.warn('mne is not installed, \
+                 the functionality based on mne is not avaiable')
+    mne = None
 
 class TRF:
     """
@@ -476,11 +483,32 @@ class TRF:
 
     @property
     def ftc_weights(self):
+        """
+        generate a list of mne.EvokedArray for TRF of different features
+        Returns:
+             weights (numpy.ndarray): the TRF weights with the shape always be
+            (n_input_features/channels, n_time_lags, n_output_features/channels)
+        """
         if self.direction == -1:
             weights = self.weights.T
         else:
             weights = self.weights
         return weights
+    
+    def to_mne_evoked(self,mne_info,**kwargs):
+        """
+        generate a list of mne.EvokedArray for TRF of different features
+        Arguments:
+            mne_info (mne.Info): the mne.Info object provide necessary information
+                to build the evoked array
+            kwargs: other arguments that the user want to feed to the 
+                mne.EvokedArray
+        Returns:
+            single or a list of the constructed evokedArray
+        """
+        w = [mne.EvokedArray(w.T,mne_info,tmin = self.times[0],**kwargs) for w in self.ftc_weights]
+        return w
+
 
 def load_sample_data(path=None):
     """
@@ -504,3 +532,31 @@ def load_sample_data(path=None):
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
     return data["stimulus"], data["response"], data["samplerate"][0]
+
+def kwargs_trf_mne_joint(trf = None):
+    """
+    Returns:
+        kwargs (dict): the suggested kwargs for the mne plot_joint funciton
+    """
+    kwargs = {}
+    kwargs['topomap_args'] = {'scalings':1}
+    kwargs['ts_args'] = {'units':'a.u.','scalings':dict(eeg=1)}
+    return kwargs    
+
+def kwargs_trf_mne_topo(trf = None):
+    """
+    Returns:
+        kwargs (dict): the suggested kwargs for mne topomap (series)
+    """
+    kwargs = { 'cmap':'jet','time_unit':'s',
+        'scalings' : 1, 'units' : 'a.u.','cbar_fmt':'%3.3f'}
+    return kwargs
+
+def kwargs_r_mne_topo(trf = None):
+    """
+    Returns:
+        kwargs (dict): the suggested kwargs for mne topomap (single)
+    """
+    kwargs = {'times':[0], 'cmap':'jet','time_unit':'s',
+        'scalings' : 1, 'units' : 'r','cbar_fmt':'%3.3f'}
+    return kwargs
