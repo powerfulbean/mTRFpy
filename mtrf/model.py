@@ -228,9 +228,11 @@ class TRF:
         cov_xy = 0
         if self.direction == 1:
             xs, ys = stimulus, response
-        if self.direction == -1:
+        elif self.direction == -1:
             xs, ys = response, stimulus
             tmin, tmax = -1 * tmax, -1 * tmin
+        else:
+            raise ValueError(f'trf direction value: {self.direction} is not supported.')
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         for x, y in zip(xs, ys):
             assert x.ndim == 2 and y.ndim == 2
@@ -306,12 +308,17 @@ class TRF:
             stimulus = [None for _ in range(ntrials)]
         if response is None:
             response = [None for _ in range(ntrials)]
+        
+        xs,ys = None, None
+        if self.direction == 1:
+            xs, ys = stimulus, response
+        elif self.direction == -1:
+            xs, ys = response, stimulus
+        else:
+            raise ValueError(f'trf direction value: {self.direction} is not supported.')
+            
         prediction, correlation, error = [], [], []  # output lists
-        for stim, resp in zip(stimulus, response):
-            if self.direction == 1:
-                x, y = stim, resp
-            elif self.direction == -1:
-                x, y = resp, stim
+        for x, y in zip(xs, ys):
             x_samples, x_features = x.shape
             if y is None:
                 y_samples = x_samples
@@ -354,7 +361,7 @@ class TRF:
                 correlation.append(r)
                 error.append(err)
             prediction.append(y_pred)
-        if y is not None:
+        if ys is not None:
             if average is True:
                 correlation, error = np.mean(correlation), np.mean(error)
             else:  # only average across trials, not across channels/features
