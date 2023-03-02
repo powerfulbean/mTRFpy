@@ -61,20 +61,14 @@ def to_mne_evoked(data,mne_info = None, ch_names = None, sfreq = None,
     """
     mne_info = _check_mne_info(mne_info,ch_names,sfreq,ch_types,montage)
     
-    def _to_EvokedArray(data):
-        #transpose the data
-        evokedArray = mne.EvokedArray(data.T,mne_info,**kwargs)
-        return evokedArray
-    
     if isinstance(data, TRF):
-        w = [_to_EvokedArray(w) for w in data.ftc_weights]
-        # b = [_to_EvokedArray(data.bias,times)]
+        w = [mne.EvokedArray(w.T,mne_info,tmin = data.times[0],**kwargs) for w in data.ftc_weights]
         return w
     elif isinstance(data,np.ndarray):
-        return _to_EvokedArray(data)
+        return mne.EvokedArray(data.T,mne_info,**kwargs)
     else:
         data = np.asarray(data)
-        return _to_EvokedArray(data)
+        return mne.EvokedArray(data.T,mne_info,**kwargs)
 
 
 def kwargs_trf_mne_joint(trf = None):
