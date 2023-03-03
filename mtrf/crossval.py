@@ -48,38 +48,35 @@ def cross_validate(
             and predicted output. If average_features or average_splits
             is False, a separate value for each feature / split is returned
     """
-    if not (isinstance(stimulus, list) and isinstance(response, list)):
-        raise ValueError(
-            "Cross validation requires a list of multiple trials for stimulus and response!"
-        )
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
+    models = []  # compute the TRF for each trial
+    for s, r in zip(stimulus, response):
+        trf = model.copy()
+        trf.train(s, r, fs, tmin, tmax, regularization)
+        models.append(trf)
     ntrials = len(response)
-
+    if not ntrials > 1:
+        raise ValueError(
+            "Cross validation requires a list of multiple trials for stimulus and response!"
+        )
     splits = list(range(ntrials))
     random.shuffle(splits)
     if k != -1:
         splits = np.array_split(splits, k)
         splits = [list(s) for s in splits]
+    else:
+        splits = [[s] for s in splits]
     correlations, errors = [], []
     print("\n")
     for isplit in _progressbar(range(len(splits)), "Cross-validation", size=61):
-        split = splits[isplit]
-        idx_test = list(split)
+        idx_test = splits[isplit]
         idx_train = splits[:isplit] + splits[isplit + 1 :]
-        if all(isinstance(x, list) for x in idx_train):
+        if all(isinstance(x, list) for x in idx_train):  # flatten list of lists
             idx_train = [idx for split in idx_train for idx in split]
 
-        trf = model.copy()
-        trf.train(
-            [stimulus[i] for i in idx_train],
-            [response[i] for i in idx_train],
-            fs,
-            tmin,
-            tmax,
-            regularization,
-        )
+        trf = sum([models[i] for i in idx_train]) / len(idx_train)
         _, correlation, error = trf.predict(
             [stimulus[i] for i in idx_test],
             [response[i] for i in idx_test],
