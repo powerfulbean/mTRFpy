@@ -25,9 +25,12 @@ from mtrf.matrices import (
 try:
     import mne
 except:
-    logging.warn('mne is not installed, \
-                 the functionality based on mne is not avaiable')
+    logging.warn(
+        "mne is not installed, \
+                 the functionality based on mne is not avaiable"
+    )
     mne = None
+
 
 class TRF:
     """
@@ -232,7 +235,7 @@ class TRF:
             xs, ys = response, stimulus
             tmin, tmax = -1 * tmax, -1 * tmin
         else:
-            raise ValueError(f'trf direction value: {self.direction} is not supported.')
+            raise ValueError(f"trf direction value: {self.direction} is not supported.")
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         for x, y in zip(xs, ys):
             assert x.ndim == 2 and y.ndim == 2
@@ -308,15 +311,15 @@ class TRF:
             stimulus = [None for _ in range(ntrials)]
         if response is None:
             response = [None for _ in range(ntrials)]
-        
-        xs,ys = None, None
+
+        xs, ys = None, None
         if self.direction == 1:
             xs, ys = stimulus, response
         elif self.direction == -1:
             xs, ys = response, stimulus
         else:
-            raise ValueError(f'trf direction value: {self.direction} is not supported.')
-            
+            raise ValueError(f"trf direction value: {self.direction} is not supported.")
+
         prediction, correlation, error = [], [], []  # output lists
         for x, y in zip(xs, ys):
             x_samples, x_features = x.shape
@@ -501,19 +504,22 @@ class TRF:
         else:
             weights = self.weights
         return weights
-    
-    def to_mne_evoked(self,mne_info,**kwargs):
+
+    def to_mne_evoked(self, mne_info, **kwargs):
         """
         generate a list of mne.EvokedArray for TRF of different features
         Arguments:
             mne_info (mne.Info): the mne.Info object provide necessary information
                 to build the evoked array
-            kwargs: other arguments that the user want to feed to the 
+            kwargs: other arguments that the user want to feed to the
                 mne.EvokedArray
         Returns:
             single or a list of the constructed evokedArray
         """
-        w = [mne.EvokedArray(w.T,mne_info,tmin = self.times[0],**kwargs) for w in self.ftc_weights]
+        w = [
+            mne.EvokedArray(w.T, mne_info, tmin=self.times[0], **kwargs)
+            for w in self.ftc_weights
+        ]
         return w
 
 
@@ -544,30 +550,44 @@ def load_sample_data(path=None):
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
     return data["stimulus"], data["response"], data["samplerate"][0][0]
 
-def kwargs_trf_mne_joint(trf = None):
+
+def kwargs_trf_mne_joint(trf=None):
     """
     Returns:
         kwargs (dict): the suggested kwargs for the mne plot_joint funciton
     """
     kwargs = {}
-    kwargs['topomap_args'] = {'scalings':1}
-    kwargs['ts_args'] = {'units':'a.u.','scalings':dict(eeg=1)}
-    return kwargs    
+    kwargs["topomap_args"] = {"scalings": 1}
+    kwargs["ts_args"] = {"units": "a.u.", "scalings": dict(eeg=1)}
+    return kwargs
 
-def kwargs_trf_mne_topo(trf = None):
+
+def kwargs_trf_mne_topo(trf=None):
     """
     Returns:
         kwargs (dict): the suggested kwargs for mne topomap (series)
     """
-    kwargs = { 'cmap':'jet','time_unit':'s',
-        'scalings' : 1, 'units' : 'a.u.','cbar_fmt':'%3.3f'}
+    kwargs = {
+        "cmap": "jet",
+        "time_unit": "s",
+        "scalings": 1,
+        "units": "a.u.",
+        "cbar_fmt": "%3.3f",
+    }
     return kwargs
 
-def kwargs_r_mne_topo(trf = None):
+
+def kwargs_r_mne_topo(trf=None):
     """
     Returns:
         kwargs (dict): the suggested kwargs for mne topomap (single)
     """
-    kwargs = {'times':[0], 'cmap':'jet','time_unit':'s',
-        'scalings' : 1, 'units' : 'r','cbar_fmt':'%3.3f'}
+    kwargs = {
+        "times": [0],
+        "cmap": "jet",
+        "time_unit": "s",
+        "scalings": 1,
+        "units": "r",
+        "cbar_fmt": "%3.3f",
+    }
     return kwargs

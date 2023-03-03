@@ -51,16 +51,18 @@ def cross_validate(
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
-    models = []  # compute the TRF for each trial
-    for s, r in zip(stimulus, response):
-        trf = model.copy()
-        trf.train(s, r, fs, tmin, tmax, regularization)
-        models.append(trf)
     ntrials = len(response)
     if not ntrials > 1:
         raise ValueError(
             "Cross validation requires a list of multiple trials for stimulus and response!"
         )
+    models = []  # compute the TRF for each trial
+    print("\n")
+    for itrial in _progressbar(range(ntrials), "Preparing models", size=61):
+        s, r = stimulus[itrial], response[itrial]
+        trf = model.copy()
+        trf.train(s, r, fs, tmin, tmax, regularization)
+        models.append(trf)
     splits = list(range(ntrials))
     random.shuffle(splits)
     if k != -1:
@@ -70,7 +72,7 @@ def cross_validate(
         splits = [[s] for s in splits]
     correlations, errors = [], []
     print("\n")
-    for isplit in _progressbar(range(len(splits)), "Cross-validation", size=61):
+    for isplit in _progressbar(range(len(splits)), "Cross-validating", size=61):
         idx_test = splits[isplit]
         idx_train = splits[:isplit] + splits[isplit + 1 :]
         if all(isinstance(x, list) for x in idx_train):  # flatten list of lists
