@@ -1,15 +1,9 @@
-from pathlib import Path
 import tempfile
 import numpy as np
 from numpy.random import randint
-from mtrf.model import TRF, cross_validate
+from mtrf.model import TRF, cross_validate, load_sample_data
 
-root = Path(__file__).parent.absolute()
-
-speech_response = np.load(root / "data" / "speech_data.npy", allow_pickle=True).item()
-fs = speech_response["samplerate"][0][0]
-response = speech_response["response"]
-stimulus = speech_response["stimulus"]
+stimulus, response, fs = load_sample_data()
 
 
 def test_train():
@@ -59,7 +53,7 @@ def test_crossval():
     direction = np.random.choice([1, -1])
     reg = np.random.uniform(0, 10)
     trf = TRF(direction=direction)
-    splits = np.random.randint(2, 10)
+    splits = np.random.randint(2, 5)
     test_size = np.random.uniform(0.05, 0.3)
     correlations, errors = cross_validate(
         trf, stimuli, responses, fs, tmin, tmax, reg, splits

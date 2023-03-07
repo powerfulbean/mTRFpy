@@ -53,9 +53,11 @@ def cross_validate(
     stimulus, response = _check_data(stimulus), _check_data(response)
     ntrials = len(response)
     if not ntrials > 1:
-        raise ValueError(
-            "Cross validation requires a list of multiple trials for stimulus and response!"
-        )
+        raise ValueError("Cross validation requires multiple trials!")
+    if ntrials < k:
+        raise ValueError("Number of splits can't be greater than number of trials!")
+    if ntrials == k:  # do leave-one-out cross-validation
+        k = -1
     models = []  # compute the TRF for each trial
     print("\n")
     for itrial in _progressbar(range(ntrials), "Preparing models", size=61):
