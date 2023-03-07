@@ -13,7 +13,7 @@ authors:
     equal-contrib: true
     affiliation: 1 # (Multiple affiliations must be quoted)
   - name: Ole Bialas
-	orcid: 0000-0000-0000-0000
+    orcid: 0000-0000-0000-0000
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
   - name: Edmund C. Lalor
