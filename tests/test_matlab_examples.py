@@ -80,3 +80,24 @@ def test_decoding():
     np.testing.assert_almost_equal(prediction1, prediction2[0], decimal=11)
     np.testing.assert_almost_equal(correlation1, correlation2, decimal=11)
     np.testing.assert_almost_equal(error1, error2, decimal=11)
+
+
+def test_transform():
+    transform_results = np.load(  # expected results
+        root / "results" / "transform_results.npy", allow_pickle=True
+    ).item()
+    
+    t = transform_results['t']
+    w = transform_results['w']
+    direction = transform_results['dir'][0,0]
+    
+    trf_decoder = TRF(direction=-1)
+    tmin, tmax = -0.1, 0.2
+    trf_decoder.train(stimulus, response, fs, tmin, tmax, 100)
+    trf_trans_enc = trf_decoder.transform_to_forward(response)
+    
+    scale = 1e-5
+    np.testing.assert_almost_equal(trf_trans_enc.weights * scale, w * scale, decimal=11)
+    np.testing.assert_equal(trf_trans_enc.times, t[0] / 1e3)
+    assert trf_trans_enc.direction == direction
+    
