@@ -16,8 +16,8 @@ authors:
     orcid: 0000-0000-0000-0000
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
+	corresponding: true # (This is how to denote the corresponding author)
   - name: Edmund C. Lalor
-    corresponding: true # (This is how to denote the corresponding author)
     affiliation: "1, 2"
 affiliations:
  - name: Department of Biomedical Engineering, University of Rochester, USA
