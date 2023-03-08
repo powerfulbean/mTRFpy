@@ -306,7 +306,7 @@ class TRF:
             ntrials = len(stimulus)
         if response is not None:
             response = _check_data(response)
-            ntrials = len(stimulus)
+            ntrials = len(response)
         if stimulus is None:
             stimulus = [None for _ in range(ntrials)]
         if response is None:
@@ -364,7 +364,7 @@ class TRF:
                 correlation.append(r)
                 error.append(err)
             prediction.append(y_pred)
-        if ys is not None:
+        if ys[0] is not None:
             if average is True:
                 correlation, error = np.mean(correlation), np.mean(error)
             else:  # only average across trials, not across channels/features
@@ -374,6 +374,42 @@ class TRF:
             return prediction, correlation, error
         else:
             return prediction
+
+    def transform_to_forward(self,response):
+        """
+        If self is a backward TRF model, create a forward model transformed from
+            self.
+        Arguments:
+            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
+                the data contains only one trial or a list of such arrays of it contains
+                multiple trials. When using a forward model it can be provided to
+                return the prediction's error and correlation with the actual response.
+        Returns:
+            b2fTRF (mtrf.TRF): The forward TRF transformed from the backward TRF
+        """
+        assert self.direction == -1
+        
+        response = _check_data(response)
+        ntrials = len(response)
+        stim_pred = self.predict(response = response)
+        
+        Cxx = 0
+        Css = 0
+        b2fTRF = self.copy()
+        b2fTRF.times = [- i for i in reversed(b2fTRF.times)]
+        b2fTRF.direction = 1
+        for i in range(ntrials):
+            Cxx = Cxx + response[i].T @ response[i]
+            Css = Css + stim_pred[i].T @ stim_pred[i]
+        nStimChan = b2fTRF.weights.shape[-1]
+        for i in range(nStimChan):
+            b2fTRF.weights[...,i] = Cxx @ self.weights[...,i] / Css[i,i]
+            
+        b2fTRF.weights = np.flip(b2fTRF.weights.T, axis = 1)
+        b2fTRF.bias = np.zeros(b2fTRF.weights.shape[-1]) #need to explore
+        return b2fTRF
+        
+        
 
     def save(self, path):
         path = Path(path)
