@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 16 14:42:40 2020
-
-@author: Jin Dou
-"""
 from pathlib import Path
 from itertools import product
 import pickle
@@ -34,28 +28,17 @@ except:
 
 class TRF:
     """
-    Class for the (multivariate) temporal response function.
-    Can be used as a forward encoding model (stimulus to neural response)
-    or backward decoding model (neural response to stimulus) using time lagged
-    input features as per Crosse et al. (2016).
+    Class for the (multivariate) temporal response function. Can be used as a forward encoding model (stimulus to neural response) or backward decoding model (neural response to stimulus) using time lagged input features as per Crosse et al. (2016).
+
     Arguments:
-        direction (int): Direction of the model. Can be 1 to fit a forward
-            model (default) or -1 to fit a backward model.
-        kind (str): Kind of model to fit. Can be 'multi' (default) to fit
-            a multi-lag model using all time lags simulatneously or
-            'single' to fit separate sigle-lag models for each individual lag.
-        zeropad (bool): If True (defaul), pad the outer rows of the design
-            matrix with zeros. If False, delete them.
-        method (str): Regularization method. Can be 'ridge' (default) or
-            'tikhonov' or 'banded'.
+        :direction (int): Direction of the model. Can be 1 to fit a forward model (default) or -1 to fit a backward model. kind (str): Kind of model to fit. Can be 'multi' (default) to fit a multi-lag model using all time lags simulatneously or 'single' to fit separate sigle-lag models for each individual lag.
+        :zeropad (bool): If True (defaul), pad the outer rows of the design matrix with zeros. If False, delete them.
+        :method (str): Regularization method. Can be 'ridge' (default) or 'tikhonov' or 'banded'.
+
     Attributes:
-       weights (np.ndarray): Model weights which are estimated by fitting the
-           model to the data using the train() method. The weight matrix should
-           have the shape stimulus features x time lags x response features.
-        bias (np.ndarray): Vector containing the bias term for every
-            response feature.
-        times (list): Model time lags, estimated based on the training time
-            window and sampling rate.
+       :weights (np.ndarray): Model weights which are estimated by fitting the model to the data using the train() method. The weight matrix should have the shape stimulus features x time lags x response features.
+        :bias (np.ndarray): Vector containing the bias term for every response feature.
+        :times (list): Model time lags, estimated based on the training time window and sampling rate.
     """
 
     def __init__(
@@ -119,38 +102,22 @@ class TRF:
         verbose=True,
     ):
         """
-        Fit TRF model. If a regularization is just a single scalar, this method
-        will simply call `TRF.train`, when given a list of regularization values,
-        this method will find the best value (i.e. the one that yields the
-        highest prediction accuracy) and train a TRF with the selected regularization value.
+        Fit TRF model. If a regularization is just a single scalar, this method will simply call `TRF.train`, when given a list of regularization values, this method will find the best value (i.e. the one that yields the highest prediction accuracy) and train a TRF with the selected regularization value.
+
         Arguments:
-            stimulus (list): List where each element is a 2-D samples-by-features array,
-                corresponding to one trial. The second dimension can be omitted if
-                there only is a single stimulus feature (e.g. envelope).
-            response (list): List where each element is a 2-D samples-by-channels array,
-                corresponding to one trial.
-            fs (int): Sample rate of stimulus and response in hertz.
-            tmin (float): Minimum time lag in seconds
-            tmax (float): Maximum time lag in seconds
-            regularization (list, float, int): The regularization paramter
-                (lambda). If a list with multiple values is supplied, the
-                model is fitted separately for each value. The model with the
-                highest accuracy (correlation of prediction and actual output)
-                is selected and the correlation and error for every tested
-                regularization value are returned.
-            bands (list | None): Must only be provided when using banded ridge regression.
-                Size of the features for which a regularization parameter is fitted, in the order
-                they appear in the stimulus matrix. For example, when the stimulus consists of an
-                envelope vector and a 16-band spectrogram, features would be [1, 16].
-                List with indices marking the borders between bands.
-            k (int): Number of data splits for cross validation.
-                     If -1, do leave-one-out cross-validation.
-            seed (int): Seed for the random number generator.
+            :stimulus (list): List where each element is a 2-D samples-by-features array, corresponding to one trial. The second dimension can be omitted if there only is a single stimulus feature (e.g. envelope).
+            :response (list): List where each element is a 2-D samples-by-channels array corresponding to one trial.
+            :fs (int): Sample rate of stimulus and response in hertz.
+            :tmin (float): Minimum time lag in seconds.
+            :tmax (float): Maximum time lag in seconds.
+            :regularization (list, float, int): The regularization paramter (lambda). If a list with multiple values is supplied, the model is fitted separately for each value. The model with the highest accuracy (correlation of prediction and actual output) is selected and the correlation and error for every tested regularization value are returned.
+            :bands (list | None): Must only be provided when using banded ridge regression. Size of the features for which a regularization parameter is fitted, in the order they appear in the stimulus matrix. For example, when the stimulus consists of an envelope vector and a 16-band spectrogram, features would be [1, 16]. List with indices marking the borders between bands.
+            :k (int): Number of data splits for cross validation. If -1, do leave-one-out cross-validation.
+            :seed (int): Seed for the random number generator.
+
         Returns:
-            correlation (list): Correlation of prediction and actual output
-                per value when using multiple regularization values.
-            error (list): Error between prediction and output per value
-                when using multiple regularization values.
+            :correlation (list): Correlation of prediction and actual output per value when using multiple regularization values.
+            :error (list): Error between prediction and output per value when using multiple regularization values.
         """
         if not (isinstance(stimulus, list) and isinstance(response, list)):
             raise ValueError(
@@ -194,16 +161,11 @@ class TRF:
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
-        Compute the TRF weights that minimze the mean squared error between the
-        actual and predicted neural response.
+        Compute the TRF weights that minimze the mean squared error between the actual and predicted neural response.
+
         Arguments:
-            stimulus (list | np.ndarray): Either a 2-D samples-by-features array, if
-                the data contains only one trial or a list of such arrays of it
-                contains multiple trials. The second dimension can be omitted if
-                there only is a single stimulus feature (e.g. envelope).
-            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
-                the data contains only one trial or a list of such arrays of it
-                contains multiple trials.
+            stimulus (list | np.ndarray): Either a 2-D samples-by-features array, if the data contains only one trial or a list of such arrays of it contains multiple trials. The second dimension can be omitted if there only is a single stimulus feature (e.g. envelope).
+            response (list | np.ndarray): Either a 2-D samples-by-channels array, if the data contains only one trial or a list of such arrays of it contains multiple trials.
             fs (int): Sample rate of stimulus and response in hertz.
             tmin (float): Minimum time lag in seconds
             tmax (float): Maximum time lag in seconds
@@ -265,34 +227,18 @@ class TRF:
         average=True,
     ):
         """
-        Use the trained model to predict the response from the stimulus
-        (or vice versa) and optionally estimate the prediction's accuracy.
+        Use the trained model to predict the response from the stimulus (or vice versa) and optionally estimate the prediction's accuracy.
+
         Arguments:
-            stimulus (None | list | np.ndarray): Either a 2-D samples-by-features
-                array, if the data contains only one trial or a list of such arrays
-                of it contains multiple trials. The second dimension can be omitted if
-                there only is a single stimulus feature (e.g. envelope). When using a
-                forward model, this must be specified. When using a backward model it
-                can be provided to return the prediction's error and correlation with
-                the actual response.
-            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
-                the data contains only one trial or a list of such arrays of it contains
-                multiple trials. When using a forward model it can be provided to
-                return the prediction's error and correlation with the actual response.
-            lag (int | list of int | None): If not None (default), only use the
-                specified lags for prediction. The provided integers are used
-                for indexing the elements in self.times.
-            average (bool): If True (default), average correlation
-                and error across all predictions (e.g. channels in
-                the case of forward modelling) to get a single score.
+            stimulus (None | list | np.ndarray): Either a 2-D samples-by-features array, if the data contains only one trial or a list of such arrays of it contains multiple trials. The second dimension can be omitted if there only is a single stimulus feature (e.g. envelope). When using a forward model, this must be specified. When using a backward model it can be provided to return the prediction's error and correlation with the actual response.
+            response (list | np.ndarray): Either a 2-D samples-by-channels array, if the data contains only one trial or a list of such arrays of it contains multiple trials. When using a forward model it can be provided to return the prediction's error and correlation with the actual response.
+            lag (int | list of int | None): If not None (default), only use the specified lags for prediction. The provided integers are used for indexing the elements in self.times.
+            average (bool): If True (default), average correlation and error across all predictions (e.g. channels in the case of forward modelling) to get a single score.
+
         Returns:
-            prediction (np.ndarray): Predicted output. Has the same shape as
-                the input size of the last dimension (i.e. features) is equal
-                to the last dimension in self.weights.
-            correlation (float, np.ndarray): Scalar if average is True,
-                1-dimensioal array otherwise.
-            error (float, np.ndarray):Scalar if average is True, 1-dimensional
-                array otherwise.
+            prediction (np.ndarray): Predicted output. Has the same shape as the input size of the last dimension (i.e. features) is equal to the last dimension in self.weights.
+            correlation (float, np.ndarray): Scalar if average is True, 1-dimensioal array otherwise.
+            error (float, np.ndarray):Scalar if average is True, 1-dimensional array otherwise.
         """
         # check that inputs are valid
         if self.weights is None:
@@ -408,25 +354,17 @@ class TRF:
         kind="line",
     ):
         """
-        Plot the weights of the (forward) model across time for
-        a select channel or feature.
+        Plot the weights of the (forward) model across time for a select channel or feature.
+
         Arguments:
-            channel (None | int | str): Channel selection. If None, all channels
-                will be used. If an integer, the channel at that index will be used.
-                If 'avg' or 'gfp' , the average or standard deviation across channels
-                will be computed.
-            feature (None | int | str): Feature selection. If None, all features
-                will be used. If an integer, the feature at that index will be used.
-                If 'avg' , the average across features will be computed.
-            axes (matplotlib.axes.Axes): Axis to plot to. If None is
-                provided (default) generate a new plot.
+            channel (None | int | str): Channel selection. If None, all channels will be used. If an integer, the channel at that index will be used. If 'avg' or 'gfp' , the average or standard deviation across channels will be computed.
+            feature (None | int | str): Feature selection. If None, all features will be used. If an integer, the feature at that index will be used. If 'avg' , the average across features will be computed.
+            axes (matplotlib.axes.Axes): Axis to plot to. If None is provided (default) generate a new plot.
             show (bool): If True (default), show the plot after drawing.
-            kind (str): Type of plot to draw. If 'line' (default), average
-                the weights across all stimulus features, if 'image' draw
-                a features-by-times plot where the weights are color-coded.
+            kind (str): Type of plot to draw. If 'line' (default), average the weights across all stimulus features, if 'image' draw a features-by-times plot where the weights are color-coded.
+
         Returns:
-            fig (matplotlib.figure.Figure): If now axes was provided and
-                a new figure is created, it is returned.
+            fig (matplotlib.figure.Figure): If now axes was provided and a new figure is created, it is returned.
         """
         if self.direction == -1:
             # TODO: implement backward to forward transformation
@@ -494,10 +432,10 @@ class TRF:
     @property
     def ftc_weights(self):
         """
-        generate a list of mne.EvokedArray for TRF of different features
+        Generate a list of mne.EvokedArray for TRF of different features.
+
         Returns:
-             weights (numpy.ndarray): the TRF weights with the shape always be
-            (n_input_features/channels, n_time_lags, n_output_features/channels)
+             weights (numpy.ndarray): the TRF weights with the shape always be (n_input_features/channels, n_time_lags, n_output_features/channels).
         """
         if self.direction == -1:
             weights = self.weights.T
@@ -507,12 +445,12 @@ class TRF:
 
     def to_mne_evoked(self, mne_info, **kwargs):
         """
-        generate a list of mne.EvokedArray for TRF of different features
+        Generate a list of mne.EvokedArray for TRF of different features.
+
         Arguments:
-            mne_info (mne.Info): the mne.Info object provide necessary information
-                to build the evoked array
-            kwargs: other arguments that the user want to feed to the
-                mne.EvokedArray
+            mne_info (mne.Info): the mne.Info object provide necessary information to build the evoked array
+            kwargs: other arguments that the user want to feed to the mne.EvokedArray
+
         Returns:
             single or a list of the constructed evokedArray
         """
@@ -525,17 +463,16 @@ class TRF:
 
 def load_sample_data(path=None):
     """
-    Load the sample data containing a small snippet of brain responses to naturalstic
-    speech and the 16-band spectrogram of that speech. The data will be
-    automatically downloaded the first time.
+    Load the sample data containing a small snippet of brain responses to naturalistic
+    speech and the 16-band spectrogram of that speech. If necessary, the data will be automatically downloaded.
+
     Arguments:
-        path (str | inst of Path | None): Full path to the folder where the sample
-            data will be stored. If None (default), a folder called mtrf_data in the
-            users home directory is assumed and created if it does not exist.
+        :path (str | inst of Path | None): full path to the folder where the sample data will be stored. If None (default), a folder called mtrf_data in the users home directory is assumed and created if it does not exist.
+
     Returns:
-        stimulus (np.ndarray): 16-bands spectrogram of the presented speech.
-        response (np.ndarray): 128-channel EEG recording.
-        fs (int): sampling rate in Hz.
+        :stimulus (np.ndarray): 16-bands spectrogram of the presented speech.
+        :response (np.ndarray): 128-channel EEG recording.
+        :fs (int): sampling rate in Hz.
     """
     if path == None:  # use default path
         path = Path.home() / "mtrf_data"
@@ -591,3 +528,19 @@ def kwargs_r_mne_topo(trf=None):
         "cbar_fmt": "%3.3f",
     }
     return kwargs
+
+
+def foo(
+    flab_nickers,
+    has_polka_dots=False,
+    needs_pressing=False,
+):
+    """foo
+
+    :param flab_nickers: a series of under garments to process
+    :type flab_nickers: list or tuple
+    :param has_polka_dots: default False
+    :type has_polka_dots: bool
+    :param needs_pressing: default False, Whether the list of garments should all be pressed
+    :type needs_pressing: bool
+    """
