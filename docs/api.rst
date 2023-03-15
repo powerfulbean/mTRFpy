@@ -1,7 +1,6 @@
 API
 ===
 
-
 .. autoclass:: mtrf.model.TRF
    :members:
    :member-order: bysource
@@ -10,7 +9,4 @@ API
 
 .. autofunction:: mtrf.model.foo
 
-.. autosummary::
-   :toctree: generated
 
-   lumache

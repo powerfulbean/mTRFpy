@@ -285,15 +285,15 @@ class TRF:
         """
         Predict response from stimulus (or vice versa) using the trained model.
 
-        The TRF is convolved with the input to predict the output. If the output is
-        provided, this method will estimate the correlation and mean squared error of
-        the prediction and actual output.
+        The matrix of TRF weights is multiplied with the time-lagged input to predict
+        the output. If the actual output is provided, this method will estimate the
+        correlation and mean squared error of the predicted and actual output.
 
         Parameters
         ----------
         stimulus: None or list or numpy.ndarray
             Either a 2-D samples-by-features array, if the data contains only one trial
-            or a list of such arrays of it contains multiple trials. The second
+            or a li ffst of such arrays of it contains multiple trials. The second
             dimension can be omitted if there only is a single stimulus feature
             (e.g. envelope). When using a forward model, this must be specified.
         response: None or list or numpy.ndarray
@@ -307,12 +307,16 @@ class TRF:
             If True (default), correlation and mean squared error are averaged
             across all predicted features.
 
-        Returns # continue here
+        Returns
         -------
-        prediction: np.ndarray
-        Predicted output. Has the same shape as the input size of the last dimension (i.e. features) is equal to the last dimension in self.weights.
-        correlation (float, np.ndarray): Scalar if average is True, 1-dimensioal array otherwise.
-        error (float, np.ndarray):Scalar if average is True, 1-dimensional array otherwise.
+        prediction: numpy.ndarray
+            Predicted stimulus or response
+        correlation: float or numpy.ndarray
+            When the actual output is provided, correlation is computed per trial or
+            averaged, depending on the `average` parameter.
+        error: float or numpy.ndarray
+            When the actual output is provided, mean squared error is computed per
+            trial or averaged, depending on the `average` parameter.
         """
         # check that inputs are valid
         if self.weights is None:
@@ -396,6 +400,14 @@ class TRF:
             return prediction
 
     def save(self, path):
+        """
+        Save class instance using the pickle format.
+
+        Parameters
+        ----------
+        path: str or pathlib.Path
+            File destination.
+        """
         path = Path(path)
         if not path.parent.exists():
             raise FileNotFoundError(f"The directory {path.parent} does not exist!")
@@ -403,6 +415,14 @@ class TRF:
             pickle.dump(self, fname, pickle.HIGHEST_PROTOCOL)
 
     def load(self, path):
+        """
+        Load pickle file - instance variables will be overwritten with file content.
+
+        Parameters
+        ----------
+        path: str or pathlib.Path
+            File destination.
+        """
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"The file {path} does not exist!")
@@ -411,6 +431,7 @@ class TRF:
         self.__dict__ = trf.__dict__
 
     def copy(self):
+        """Return a copy of the TRF instance"""
         trf = TRF()
         for k, v in self.__dict__.items():
             value = v
