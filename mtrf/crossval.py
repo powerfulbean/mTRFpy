@@ -18,35 +18,47 @@ def cross_validate(
     average=True,
 ):
     """
-    Train and test a model using k-fold cross-validation. The input data
-    is randomly shuffled and separated into k equally large parts, k-1
-    parts are used for training and the kth part is used for testing the model.
-    If the data can't be divided evenly among splits, some splits will have one
-    trial more as to not waste any data.
-    Arguments:
-        model (instance of TRF): The model that is fit to the data.
-            For every iteration of cross-validation a new copy is created.
-        stimulus (np.ndarray | None): Stimulus matrix of shape
-            trials x samples x features.
-        response (np.ndarray | None):  Response matrix of shape
-            trials x samples x features.
-        fs (int): Sample rate of stimulus and response in hertz.
-        tmin (float): Minimum time lag in seconds
-        tmax (float): Maximum time lag in seconds
-        regularization (float | int): The regularization paramter (lambda).
-        k (int): Number of data splits for cross validation.
-                     If -1, do leave-one-out cross-validation.
-        seed (int): Seed for the random number generator.
-        average (bool): If True (default), average correlation
-            and error across all predictions (e.g. channels in
-            the case of forward modelling) to get a single score.
-    Returns:
-        correlations (np.ndarray | float): Correlation between the actual
-            and predicted output. If average_features or average_splits
-            is False, a separate value for each feature / split is returned
-        errors (np.array | float): Mean squared error between the actual
-            and predicted output. If average_features or average_splits
-            is False, a separate value for each feature / split is returned
+    Test model accuracy using k-fold cross-validation.
+
+    Input data is randomly shuffled and separated into k parts of with approximately
+    the same number of trials. The first k-1 parts are used for training and the kth
+    part for testing the model.
+
+    Parameters
+    ----------
+    model: model.TRF
+        Base model used for cross-validation.
+    stimulus: list
+        Each element must contain one trial's stimulus in a two-dimensional
+        samples-by-features array (second dimension can be omitted if there is
+        only a single feature.
+    response: list
+        Each element must contain one trial's response in a two-dimensional
+        samples-by-channels array.
+    fs: int
+        Sample rate of stimulus and response in hertz.
+    tmin: float
+        Minimum time lag in seconds.
+    tmax: float
+        Maximum time lag in seconds.
+    regularization: float or int
+        Value for the lambda parameter regularizing the regression.
+    k: int
+        Number of data splits, if -1, do leave-one-out cross-validation.
+    seed: int
+        Seed for the random number generator.
+    average: bool
+        If True (default), average correlation and mean squared error across all
+        predictions (e.g. channels in the case of forward modelling).
+
+    Returns
+    -------
+    correlation: float or numpy.ndarray
+        When the actual output is provided, correlation is computed per trial or
+        averaged, depending on the `average` parameter.
+    error: float or numpy.ndarray
+        When the actual output is provided, mean squared error is computed per
+        trial or averaged, depending on the `average` parameter.
     """
     if seed is not None:
         random.seed(seed)

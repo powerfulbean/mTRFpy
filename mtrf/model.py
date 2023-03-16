@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from mtrf.crossval import cross_validate, _progressbar
 from mtrf.matrices import (
     covariance_matrices,
-    banded_regularization_coefficients,
+    banded_regularization,
     regularization_matrix,
     lag_matrix,
     truncate,
@@ -131,7 +131,7 @@ class TRF:
             only a single feature.
         response: list
             Each element must contain one trial's response in a two-dimensional
-            samples-by-features array.
+            samples-by-channels array.
         fs: int
             Sample rate of stimulus and response in hertz.
         tmin: float
@@ -139,8 +139,8 @@ class TRF:
         tmax: float
             Maximum time lag in seconds.
         regularization: list or float or int
-            Lambda parameter for regularization. If a list is supplied, the model is
-            fitted separately for each value and the one yielding the highest accuracy
+            Values for the regularization parameter lambda. The model is fitted
+            separately for each value and the one yielding the highest accuracy
             is chosen (correlation and mean squared error of each model are returned).
         bands: list or None
             Must only be provided when using banded ridge regression. Size of the
@@ -179,8 +179,7 @@ class TRF:
             n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
             coefficients = list(product(regularization, repeat=2))
             regularization = [
-                banded_regularization_coefficients(n_lags, c, bands, self.bias)
-                for c in coefficients
+                banded_regularization(n_lags, c, bands, self.bias) for c in coefficients
             ]
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
@@ -225,7 +224,8 @@ class TRF:
         tmax: float
             Maximum time lag in seconds
         regularization: float or int
-            The regularization parameter (lambda).
+            The regularization parameter (lambda). If `regularization` is 0, orfinary least
+            squares regression will be performed.
         """
         if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
             self.bias = True
@@ -293,7 +293,7 @@ class TRF:
         ----------
         stimulus: None or list or numpy.ndarray
             Either a 2-D samples-by-features array, if the data contains only one trial
-            or a li ffst of such arrays of it contains multiple trials. The second
+            or a list of such arrays of it contains multiple trials. The second
             dimension can be omitted if there only is a single stimulus feature
             (e.g. envelope). When using a forward model, this must be specified.
         response: None or list or numpy.ndarray
@@ -399,41 +399,46 @@ class TRF:
         else:
             return prediction
 
-    def transform_to_forward(self,response):
+    def to_forward(self, response):
         """
-        If self is a backward TRF model, create a forward model transformed from
-            self.
-        Arguments:
-            response (list | np.ndarray): Either a 2-D samples-by-channels array, if
-                the data contains only one trial or a list of such arrays of it contains
-                multiple trials. When using a forward model it can be provided to
-                return the prediction's error and correlation with the actual response.
-        Returns:
-            b2fTRF (mtrf.TRF): The forward TRF transformed from the backward TRF
+        Transform a backward to a forward model.
+
+        Use the method described in Haufe et al. 2014 to transform the weights of
+        a backward model into coefficients reflecting forward activation patterns
+        which have a clearer physiological interpretation.
+
+        Parameters
+        ----------
+        response: list or numpy.ndarray
+            response data which was used to train the backward model as single
+            trial in a samples-by-channels array or list of multiple trials.
+
+        Returns
+        -------
+        trf: model.TRF
+            New TRF instance with the transformed forward weights
         """
         assert self.direction == -1
-        
+
         response = _check_data(response)
         ntrials = len(response)
-        stim_pred = self.predict(response = response)
-        
+        stim_pred = self.predict(response=response)
+
         Cxx = 0
         Css = 0
-        b2fTRF = self.copy()
-        b2fTRF.times = [- i for i in reversed(b2fTRF.times)]
-        b2fTRF.direction = 1
+        trf = self.copy()
+        trf.times = [-i for i in reversed(trf.times)]
+        trf.direction = 1
         for i in range(ntrials):
             Cxx = Cxx + response[i].T @ response[i]
             Css = Css + stim_pred[i].T @ stim_pred[i]
-        nStimChan = b2fTRF.weights.shape[-1]
+        nStimChan = trf.weights.shape[-1]
         for i in range(nStimChan):
-            b2fTRF.weights[...,i] = Cxx @ self.weights[...,i] / Css[i,i]
-            
-        b2fTRF.weights = np.flip(b2fTRF.weights.T, axis = 1)
-        b2fTRF.bias = np.zeros(b2fTRF.weights.shape[-1]) #need to explore
-        return b2fTRF
-        
-        
+            trf.weights[..., i] = Cxx @ self.weights[..., i] / Css[i, i]
+
+        trf.weights = np.flip(trf.weights.T, axis=1)
+        trf.bias = np.zeros(trf.weights.shape[-1])  # need to explore
+        return trf
 
     def save(self, path):
         """
@@ -560,52 +565,65 @@ class TRF:
         if fig is not None:
             return fig
 
-    @property
-    def ftc_weights(self):
+    def to_mne_evoked(self, mne_info, **kwargs):
         """
-        Generate a list of mne.EvokedArray for TRF of different features.
+        Output TRF weights as instance(s) of MNE-Python's EvokedArray.
 
-        Returns:
-             weights (numpy.ndarray): the TRF weights with the shape always be (n_input_features/channels, n_time_lags, n_output_features/channels).
+        Create one instance of ``mne.EvokedArray`` for each feature along the first
+        (i.e. input) dimension of ``self.weights``. When using a backward model,
+        the weights are transposed to obtain one EvokedArray per decoded feature.
+        See the MNE-Python documentation for details on the Evoked class.
+
+        Parameters
+        ----------
+        mne_info: mne.Info
+            Information neccessary to build the EvokedArray.
+        kwargs: dict
+            other parameters for constructing the EvokedArray
+
+        Returns
+        -------
+        evokeds: list
+            One evoked response for every feature in the TRF.
         """
+        if mne is False:
+            raise ModuleNotFoundError("To use this function, mne must be installed!")
         if self.direction == -1:
             weights = self.weights.T
         else:
             weights = self.weights
-        return weights
-
-    def to_mne_evoked(self, mne_info, **kwargs):
-        """
-        Generate a list of mne.EvokedArray for TRF of different features.
-
-        Arguments:
-            mne_info (mne.Info): the mne.Info object provide necessary information to build the evoked array
-            kwargs: other arguments that the user want to feed to the mne.EvokedArray
-
-        Returns:
-            single or a list of the constructed evokedArray
-        """
-        w = [
+        evokeds = [
             mne.EvokedArray(w.T, mne_info, tmin=self.times[0], **kwargs)
-            for w in self.ftc_weights
+            for w in weights
         ]
-        return w
+        return evokeds
 
 
 def load_sample_data(path=None):
     """
-    Load the sample data containing a small snippet of brain responses to naturalistic
-    speech and the 16-band spectrogram of that speech. If necessary, the data will be automatically downloaded.
+    Load sample of brain responses to naturalistic speech.
 
-    :param path: full path to the folder where the sample data will be stored. If None (default), a folder called mtrf_data in the users home directory is assumed and created if it does not exist.
-    :type path: str or pathlib.Path or None
+    If no path is provided, the data is assumed to be in a folder called mtrf_data
+    in the users home directory and will be downloaded and stored there if it can't
+    be found. The data contains about 2 minutes of brain responses to naturalistic
+    speech, recorded with a 128-channel Biosemi EEG system and the 16-band spectrogram
+    of that speech.
 
-    :returns
+    Parameters
+    ----------
+    path: str or pathlib.Path
+        Destination where the sample data is stored or will be downloaded to. If None
+        (default), a folder called mtrf_data in the users home directory is assumed
+        and created if it does not exist.
 
-        :path (str | inst of Path | None):     Returns:
-        :stimulus (np.ndarray): 16-bands spectrogram of the presented speech.
-        :response (np.ndarray): 128-channel EEG recording.
-        :fs (int): sampling rate in Hz.
+    Returns
+    -------
+    stimulus: numpy.ndarray
+        Samples-by-features array of the presented speech's spectrogram.
+    response : numpy.ndarray
+        Samples-by-channels array of the recorded neural response.
+    fs: int
+        Sampling rate of stimulus and response in Hz.
     """
     if path == None:  # use default path
         path = Path.home() / "mtrf_data"
@@ -619,61 +637,3 @@ def load_sample_data(path=None):
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
     return data["stimulus"], data["response"], data["samplerate"][0][0]
-
-
-def kwargs_trf_mne_joint(trf=None):
-    """
-    Returns:
-        kwargs (dict): the suggested kwargs for the mne plot_joint funciton
-    """
-    kwargs = {}
-    kwargs["topomap_args"] = {"scalings": 1}
-    kwargs["ts_args"] = {"units": "a.u.", "scalings": dict(eeg=1)}
-    return kwargs
-
-
-def kwargs_trf_mne_topo(trf=None):
-    """
-    Returns:
-        kwargs (dict): the suggested kwargs for mne topomap (series)
-    """
-    kwargs = {
-        "cmap": "jet",
-        "time_unit": "s",
-        "scalings": 1,
-        "units": "a.u.",
-        "cbar_fmt": "%3.3f",
-    }
-    return kwargs
-
-
-def kwargs_r_mne_topo(trf=None):
-    """
-    Returns:
-        kwargs (dict): the suggested kwargs for mne topomap (single)
-    """
-    kwargs = {
-        "times": [0],
-        "cmap": "jet",
-        "time_unit": "s",
-        "scalings": 1,
-        "units": "r",
-        "cbar_fmt": "%3.3f",
-    }
-    return kwargs
-
-
-def foo(a, b):
-    """Function
-
-    Args:
-        a (float): First number
-        b (float): Second number
-
-    Returns:
-        result_sum (float): Sum of numbers
-        result_prod (float): Product of numbers
-    """
-    result_sum = a + b
-    result_prod = a * b
-    return result_sum, result_prod
