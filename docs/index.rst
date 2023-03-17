@@ -23,7 +23,8 @@ We also provide an optional interface to MNE-Python so it might be useful to `in
 .. toctree::
   :caption: Contents
   :maxdepth: 2
-  basic
+
+  basics
   api
 
 
