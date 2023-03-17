@@ -22,10 +22,6 @@ We also provide an optional interface to MNE-Python so it might be useful to `in
 
 Contents
 --------
-.. toctree::
-   Introduction <self>
-   basics
-   api
 
 
 Frequently Asked Questions
