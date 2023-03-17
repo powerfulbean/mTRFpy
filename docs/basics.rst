@@ -33,7 +33,7 @@ Cross-validation
 For cross-validation, data are split into k subsets. All but one of these subsets are used to train the TRF while the last subset is used to test the TRF's prediction. This is repeated k times so that each subset is used for testing once. The average correlation across all splits is an unbiased estimate of the model's accuracy.::
 
     import numpy as np
-    from mtrf.crossval import cross_validate
+    from mtrf.stats import cross_validate
     trf = TRF(direction=-1)
     stimulus, response, fs = load_sample_data() # data will be downloaded
     # split stimulus and response into 10 segments

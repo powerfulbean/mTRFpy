@@ -13,7 +13,7 @@ TRF model
 
 Cross-validation
 ^^^^^^^^^^^^^^^^
-.. autofunction:: mtrf.crossval.cross_validate
+.. autofunction:: mtrf.stats.cross_validate
 
 Matrix operations
 ^^^^^^^^^^^^^^^^^
