@@ -4,7 +4,6 @@ import pickle
 import requests
 from collections.abc import Iterable
 import numpy as np
-from matplotlib import pyplot as plt
 from mtrf.crossval import cross_validate, _progressbar
 from mtrf.matrices import (
     covariance_matrices,
@@ -16,8 +15,12 @@ from mtrf.matrices import (
 )
 
 try:
+    from matplotlib import pyplot as plt
+except ModuleNotFoundError:
+    plt = None
+try:
     import mne
-except:
+except ModuleNotFoundError:
     mne = None
 
 
@@ -502,9 +505,13 @@ class TRF:
         Returns:
             fig (matplotlib.figure.Figure): If now axes was provided and a new figure is created, it is returned.
         """
+        if plt is None:
+            raise ModuleNotFoundError("Need matplotlib to plot TRF!")
         if self.direction == -1:
-            # TODO: implement backward to forward transformation
-            raise ValueError("Not implemented for decoding models!")
+            weights = self.weight.T
+            print(
+                "WARNING: decoder weights are hard to interpret, consider using the `to_forward()` method"
+            )
         if axes is None:
             fig, ax = plt.subplots(figsize=(6, 6))
         else:
@@ -565,7 +572,7 @@ class TRF:
         if fig is not None:
             return fig
 
-    def to_mne_evoked(self, mne_info, **kwargs):
+    def to_mne_evoked(self, info, include=None, **kwargs):
         """
         Output TRF weights as instance(s) of MNE-Python's EvokedArray.
 
@@ -576,15 +583,19 @@ class TRF:
 
         Parameters
         ----------
-        mne_info: mne.Info
+        info: mne.Info or mne.channels.montage.DigMontage
+            Either a basic info or montage containing channel locations
             Information neccessary to build the EvokedArray.
+        include: None or in or list
+            Indices of the stimulus features to include. If None (default),
+            create one Evoked object for each feature.
         kwargs: dict
             other parameters for constructing the EvokedArray
 
         Returns
         -------
         evokeds: list
-            One evoked response for every feature in the TRF.
+            One Evoked instance for each included TRF feature.
         """
         if mne is False:
             raise ModuleNotFoundError("To use this function, mne must be installed!")
@@ -592,10 +603,25 @@ class TRF:
             weights = self.weights.T
         else:
             weights = self.weights
-        evokeds = [
-            mne.EvokedArray(w.T, mne_info, tmin=self.times[0], **kwargs)
-            for w in weights
-        ]
+        if isinstance(info, mne.channels.montage.DigMontage):
+            kinds = [d["kind"] for d in info.copy().remove_fiducials().dig]
+            ch_types = []
+            for k in kinds:
+                if "eeg" in str(k).lower():
+                    ch_types.append("eeg")
+                if "mag" in str(k).lower():
+                    ch_types.append("mag")
+                if "grad" in str(k).lower():
+                    ch_types.append("grad")
+            mne_info = mne.create_info(info.ch_names, self.fs, ch_types)
+        if isinstance(include, list) or isinstance(include, np.ndarray):
+            weights = weights[np.asarray(include), :, :]
+        evokeds = []
+        for w in weights:
+            evoked = mne.EvokedArray(w.T, mne_info, tmin=self.times[0], **kwargs)
+            if isinstance(info, mne.channels.montage.DigMontage):
+                evoked.set_montage(info)
+            evokeds.append(evoked)
         return evokeds
 
 

@@ -18,9 +18,8 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "Basic Sphinx Example Project"
-copyright = "2022, Read the Docs core team"
-author = "Read the Docs core team"
+project = "mTRFpy"
+author = "Ole Bialas, Jin Dou"
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,6 +32,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 intersphinx_mapping = {
@@ -40,6 +40,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
     "numpy": ("http://docs.scipy.org/doc/numpy/", None),
+    "mne": ("https://mne.tools/stable/", None),
 }
 intersphinx_disabled_domains = ["std"]
 
