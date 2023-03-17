@@ -20,8 +20,12 @@ visualize models. It can also be installed via pip::
 
 We also provide an optional interface to MNE-Python so it might be useful to `install mne <https://mne.tools/stable/install/manual_install.html>`_ as well.
 
-Contents
---------
+.. toctree::
+  :caption: Contents
+  :maxdepth: 2
+  Introduction <self>
+  basic
+  api
 
 
 Frequently Asked Questions
