@@ -16,6 +16,7 @@ def cross_validate(
     k=5,
     seed=None,
     average=True,
+    verbose=True,
 ):
     """
     Test model accuracy using k-fold cross-validation.
@@ -71,8 +72,9 @@ def cross_validate(
     if ntrials == k:  # do leave-one-out cross-validation
         k = -1
     models = []  # compute the TRF for each trial
-    print("\n")
-    for itrial in _progressbar(range(ntrials), "Preparing models", size=61):
+    if verbose:
+        print("\n")
+    for itrial in _progressbar(range(ntrials), "Preparing models", verbose=verbose):
         s, r = stimulus[itrial], response[itrial]
         trf = model.copy()
         trf.train(s, r, fs, tmin, tmax, regularization)
@@ -85,8 +87,7 @@ def cross_validate(
     else:
         splits = [[s] for s in splits]
     correlations, errors = [], []
-    print("\n")
-    for isplit in _progressbar(range(len(splits)), "Cross-validating", size=61):
+    for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_test = splits[isplit]
         idx_train = splits[:isplit] + splits[isplit + 1 :]
         if all(isinstance(x, list) for x in idx_train):  # flatten list of lists
@@ -103,20 +104,22 @@ def cross_validate(
     return np.mean(correlations, axis=0), np.mean(errors, axis=0)
 
 
-def _progressbar(it, prefix="", size=50, out=sys.stdout):  # Python3.3+
+def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):  # Python3.3+
     count = len(it)
 
-    def show(j):
+    def show(j, verbose):
         x = int(size * j / count)
-        print(
-            "{}[{}{}] {}/{}".format(prefix, "#" * x, "." * (size - x), j, count),
-            end="\r",
-            file=out,
-            flush=True,
-        )
+        if verbose:
+            print(
+                "{}[{}{}] {}/{}".format(prefix, "#" * x, "." * (size - x), j, count),
+                end="\r",
+                file=out,
+                flush=True,
+            )
 
-    show(0)
+    show(0, verbose)
     for i, item in enumerate(it):
         yield item
-        show(i + 1)
-    print("\n", flush=True, file=out)
+        show(i + 1, verbose)
+    if verbose:
+        print("\n", flush=True, file=out)

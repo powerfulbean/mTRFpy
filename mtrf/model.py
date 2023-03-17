@@ -155,6 +155,8 @@ class TRF:
             If -1, do leave-one-out cross-validation.
         seed: int
             Seed for the random number generator.
+        verbose: bool
+            If True (default), show a progress bar during fitting
 
         Returns
         -------
@@ -190,11 +192,22 @@ class TRF:
             correlation = np.zeros(len(regularization))
             error = np.zeros(len(regularization))
             for ir in _progressbar(
-                range(len(regularization)), "Hyperparameter optimization"
+                range(len(regularization)),
+                "Hyperparameter optimization",
+                verbose=verbose,
             ):
                 r = regularization[ir]
                 reg_correlation, reg_error = cross_validate(
-                    self.copy(), stimulus, response, fs, tmin, tmax, r, k, seed=seed
+                    self.copy(),
+                    stimulus,
+                    response,
+                    fs,
+                    tmin,
+                    tmax,
+                    r,
+                    k,
+                    seed=seed,
+                    verbose=verbose,
                 )
                 correlation[ir] = reg_correlation
                 error[ir] = reg_error
