@@ -49,7 +49,7 @@ def truncate(x, min_idx, max_idx):
     """
     rowSlice = slice(max(0, max_idx), min(0, min_idx) + len(x))
     x_truncated = x[rowSlice]
-    return output
+    return x_truncated
 
 
 def covariance_matrices(x, y, lags, zeropad=True, bias=True):
@@ -156,7 +156,7 @@ def regularization_matrix(size, method="ridge"):
     return regmat
 
 
-def banded_regularization(n_lags, coefficients, bands, bias):
+def banded_regularization(n_lags, coefficients, features, bias):
     """
     Create regularization matrix for banded ridge regression.
 
@@ -165,11 +165,11 @@ def banded_regularization(n_lags, coefficients, bands, bias):
     n_lags: int
         Number of time lags
     coefficients: list
-        Regularization coefficient for each band. Must be of same length as `bands`.
-    bands: list
+        Regularization coefficient for each band. Must be of same length as `features`.
+    features: list
         Size of the feature bands for which a regularization parameter is fitted, in
         the order they appear in the stimulus matrix. For example, when the stimulus
-        is an envelope vector and a 16-band spectrogram, bands would be [1, 16].
+        is an envelope vector and a 16-band spectrogram, `features` would be [1, 16].
     bias: bool
         Whether the TRF model includes a bias term.
     """
