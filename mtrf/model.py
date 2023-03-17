@@ -4,7 +4,7 @@ import pickle
 import requests
 from collections.abc import Iterable
 import numpy as np
-from mtrf.crossval import cross_validate, _progressbar
+from mtrf.stats import cross_validate, _progressbar
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
