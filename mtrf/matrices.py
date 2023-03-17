@@ -47,7 +47,7 @@ def truncate(x, min_idx, max_idx):
         x_truncated: numpy.ndarray
             Truncated version of ``x``.
     """
-    rowSlice = slice(max(0, tmaxIdx), min(0, tminIdx) + len(x))
+    rowSlice = slice(max(0, max_idx), min(0, min_idx) + len(x))
     x_truncated = x[rowSlice]
     return output
 
