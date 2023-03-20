@@ -1,0 +1,8 @@
+# .readthedocs.yml
+build:
+  image: latest
+
+python:
+  version: 3.8
+
+requirements_file: requirements_rtd.txt

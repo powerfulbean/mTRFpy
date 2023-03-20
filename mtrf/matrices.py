@@ -28,17 +28,50 @@ def _check_data(data):
     )
 
 
-# define matrix operations
-def truncate(x, tminIdx, tmaxIdx):
+def truncate(x, min_idx, max_idx):
     """
-    the left and right ranges will both be included
+    Truncate matrix.
+
+    Input matrix is truncated by rows (i.e. the time dimension in a TRF).
+
+    Parameters
+    ----------
+    x: numpy.ndarray
+        Matrix to truncate.
+    min_idx: int
+        Smallest (time) index to include.
+    max_idx: int
+        Smallest (time) index to include.
+
+    Returns:
+        x_truncated: numpy.ndarray
+            Truncated version of ``x``.
     """
-    rowSlice = slice(max(0, tmaxIdx), min(0, tminIdx) + len(x))
-    output = x[rowSlice]
-    return output
+    rowSlice = slice(max(0, max_idx), min(0, min_idx) + len(x))
+    x_truncated = x[rowSlice]
+    return x_truncated
 
 
 def covariance_matrices(x, y, lags, zeropad=True, bias=True):
+    """
+    Compute (auto-)covariance of x and y.
+
+    Compute the autocovariance of the time-lagged input x and the covariance of
+    x and the output y.
+
+    Parameters
+    ----------
+    x: numpy.ndarray
+        Input data in samples-by-features array.
+    y: numpy.ndarray
+        Input data in samples-by-features array.
+    lags: list or numpy.ndarray
+        Time lags in samples.
+    zeropad: bool
+        If True (default), pad the input with zeros, if false, truncate the output.
+    bias: bool
+        Must be True (default) if TRF model includes a bias term.
+    """
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
     x_lag = lag_matrix(x, lags, zeropad, bias)
@@ -93,8 +126,19 @@ def lag_matrix(x, lags, zeropad=True, bias=True):
 
 def regularization_matrix(size, method="ridge"):
     """
-    generates a sparse regularization matrix for the specified method.
-    see also regmat.m in https://github.com/mickcrosse/mTRF-Toolbox.
+    Generates a sparse regularization matrix for the specified method.
+
+    Parameters
+    ----------
+    size: int
+        Size of the regularization matrix.
+    method: str
+        Regularization method. Can be 'ridge', 'banded' or 'tikhonov'.
+
+    Returns
+    -------
+    regmat: numpy.ndarray
+        regularization matrix for specified ``size`` and ``method``.
     """
     if method in ["ridge", "banded"]:
         regmat = np.identity(size)
@@ -112,17 +156,22 @@ def regularization_matrix(size, method="ridge"):
     return regmat
 
 
-def banded_regularization_coefficients(n_lags, coefficients, features, bias):
+def banded_regularization(n_lags, coefficients, features, bias):
     """
-    Create a diagonal matrix with the regularization coefficients for banded ridge regression.
-    Arguments:
-        n_lags (int): Number of time lags
-        coefficients (list): regularization coefficient for each feature type.
-            Must be of same length as `bands`.
-        features (list): Size of feature types in the order that they appear in the
-            stimulus matrix (e.g. if the stimuli would consist of a 16 band spectrogram
-            and an onset vector, features would be [16, 1]).
-        bias (bool): Wether the TRF model includes a bias term.
+    Create regularization matrix for banded ridge regression.
+
+    Parameters
+    ----------
+    n_lags: int
+        Number of time lags
+    coefficients: list
+        Regularization coefficient for each band. Must be of same length as `features`.
+    features: list
+        Size of the feature bands for which a regularization parameter is fitted, in
+        the order they appear in the stimulus matrix. For example, when the stimulus
+        is an envelope vector and a 16-band spectrogram, `features` would be [1, 16].
+    bias: bool
+        Whether the TRF model includes a bias term.
     """
     if not len(features) == len(coefficients):
         raise ValueError("Coefficients and features must be of same size!")

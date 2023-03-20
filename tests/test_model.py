@@ -2,7 +2,8 @@ from pathlib import Path
 import tempfile
 import numpy as np
 from numpy.random import randint
-from mtrf.model import TRF, cross_validate, load_sample_data
+from mtrf.model import TRF, load_sample_data
+from mtrf.stats import cross_validate
 
 stimulus, response, fs = load_sample_data()
 
