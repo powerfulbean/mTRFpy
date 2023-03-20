@@ -23,12 +23,11 @@ visualize models. It can also be installed via pip::
 
     pip install matplotlib
 
-We also provide an optional interface to MNE-Python so it might be useful to `install mne <https://mne.tools/stable/instal/manual_install.html>`_ as well.
+We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/instal/manual_install.html) as well.
 
 Getting Started
 ---------------
-For a little tutorial on the core features of mTRFpy, have a look at our `online documentation` <https://mtrfpy.readthedocs.io>`_
-
+For a little tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io)
 
 
 
