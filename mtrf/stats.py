@@ -2,7 +2,7 @@ import random
 import time
 import sys
 import numpy as np
-from mtrf.matrices import _check_data
+from mtrf.matrices import _check_data, lag_matrix
 
 
 def cross_validate(
@@ -102,6 +102,72 @@ def cross_validate(
         correlations.append(correlation)
         errors.append(error)
     return np.mean(correlations, axis=0), np.mean(errors, axis=0)
+
+
+def permutation_distribution(
+    model,
+    stimulus,
+    response,
+    fs,
+    tmin,
+    tmax,
+    regularization,
+    n_permute=100,
+    k=-1,
+    seed=None,
+    verbose=True,
+):
+    if seed:
+        np.random.seed(seed)
+    stimulus, response = _check_data(stimulus), _check_data(response)
+    if model.direction == 1:
+        x, y = stimulus, response
+    elif model.direction == -1:
+        y, x = response, stimulus
+
+    idx = np.arange(len(stimulus))
+    combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)
+    # only keep the mismatching pairs
+    combinations = combinations[~(combinations[:, 0] == combinations[:, 1])]
+    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+    for i_x in range(len(x)):
+        x_lag = lag_matrix(x[i_x], lags, model.zeropad, model.bias)
+        if i_x == 0:
+            cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
+            cov_xy = np.zeros((len(combinations), x_lag.shape[-1], y[0].shape[-1]))
+        cov_xx[i_x] = x_lag.T @ x_lag
+    delta = 1 / fs
+    regmat = (
+        regularization_matrix(cov_xx.shape[1], model.method) * regularization / delta
+    )
+    for i, (i_x, i_y) in enumerate(combinations):
+        # ensure that x and y have same number of samples
+        if x[i_x].shape[0] > y[i_y].shape[0]:
+            x[i_x] = x[i_x][: len(y[i_y])]
+        elif x[i_x].shape[0] < y[i_y].shape[0]:
+            y[i_y] = y[i_y][: len(x[i_x])]
+        x_lag = lag_matrix(x[i_x], lags, model.zeropad, model.bias)
+        cov_xy[i] = x_lag.T @ y[i_y]
+    del x_lag
+    for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
+        # sample from the covariance matrices
+        idx = [
+            np.random.choice(np.where(combinations[:, 0] == i_x)[0])
+            for i_x in range(len(x))
+        ]
+        idx = np.random.choice(len(combinations), len(x), replace=True)
+        x_idx = combinations[idx][:, 0]
+        perm_cov_xy = cov_xy[idx].mean(axis=0)
+        perm_cov_xx = cov_xx[combinations[idx][:, 0]].mean(axis=0)
+        weight_matrix = (
+            np.matmul(np.linalg.inv(perm_cov_xx + regmat), perm_cov_xy) / delta
+        )
+
+        self.bias = weight_matrix[0:1]
+        self.weights = weight_matrix[1:].reshape(
+            (x.shape[1], len(lags), y.shape[1]), order="F"
+        )
+    return correlations, erros
 
 
 def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):  # Python3.3+
