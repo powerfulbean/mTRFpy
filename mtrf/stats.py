@@ -69,8 +69,8 @@ def cross_validate(
         raise ValueError("Cross validation requires multiple trials!")
     if ntrials < k:
         raise ValueError("Number of splits can't be greater than number of trials!")
-    if ntrials == k:  # do leave-one-out cross-validation
-        k = -1
+    if k == -1: # do leave-one-out cross-validation
+        k = ntrials
     models = []  # compute the TRF for each trial
     if verbose:
         print("\n")
@@ -79,19 +79,14 @@ def cross_validate(
         trf = model.copy()
         trf.train(s, r, fs, tmin, tmax, regularization)
         models.append(trf)
-    splits = list(range(ntrials))
+    splits = np.arange(ntrials)
     random.shuffle(splits)
-    if k != -1:
-        splits = np.array_split(splits, k)
-        splits = [list(s) for s in splits]
-    else:
-        splits = [[s] for s in splits]
+    splits = np.array_split(splits, k)
     correlations, errors = [], []
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_test = splits[isplit]
-        idx_train = splits[:isplit] + splits[isplit + 1 :]
-        if all(isinstance(x, list) for x in idx_train):  # flatten list of lists
-            idx_train = [idx for split in idx_train for idx in split]
+        # flatten list of lists
+        idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
 
         trf = sum([models[i] for i in idx_train]) / len(idx_train)
         _, correlation, error = trf.predict(
