@@ -2,7 +2,7 @@ import random
 import time
 import sys
 import numpy as np
-from mtrf.matrices import _check_data, lag_matrix
+from mtrf.matrices import *
 
 
 def cross_validate(
@@ -64,22 +64,17 @@ def cross_validate(
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
-    ntrials = len(response)
-    if not ntrials > 1:
-        raise ValueError("Cross validation requires multiple trials!")
-    if ntrials < k:
-        raise ValueError("Number of splits can't be greater than number of trials!")
-    if k == -1: # do leave-one-out cross-validation
-        k = ntrials
+    n_trials = len(response)
+    k = _check_k(k, n_trials)
     models = []  # compute the TRF for each trial
     if verbose:
         print("\n")
-    for itrial in _progressbar(range(ntrials), "Preparing models", verbose=verbose):
+    for itrial in _progressbar(range(n_trials), "Preparing models", verbose=verbose):
         s, r = stimulus[itrial], response[itrial]
         trf = model.copy()
         trf.train(s, r, fs, tmin, tmax, regularization)
         models.append(trf)
-    splits = np.arange(ntrials)
+    splits = np.arange(n_trials)
     random.shuffle(splits)
     splits = np.array_split(splits, k)
     correlations, errors = [], []
@@ -109,6 +104,7 @@ def permutation_distribution(
     regularization,
     n_permute=100,
     k=-1,
+    average=True
     seed=None,
     verbose=True,
 ):
@@ -119,11 +115,19 @@ def permutation_distribution(
         x, y = stimulus, response
     elif model.direction == -1:
         y, x = response, stimulus
-
-    idx = np.arange(len(stimulus))
+    n_trials = len(x)
+    k = _check_k(k, n_trials)
+    idx = np.arange(n_trials)
     combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)
     # only keep the mismatching pairs
     combinations = combinations[~(combinations[:, 0] == combinations[:, 1])]
+
+    for itrial in _progressbar(range(n_trials), "Preparing models", verbose=verbose):
+        s, r = stimulus[itrial], response[itrial]
+        trf = model.copy()
+        trf.train(s, r, fs, tmin, tmax, regularization)
+        models.append(trf)
+
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     for i_x in range(len(x)):
         x_lag = lag_matrix(x[i_x], lags, model.zeropad, model.bias)
@@ -144,28 +148,44 @@ def permutation_distribution(
         x_lag = lag_matrix(x[i_x], lags, model.zeropad, model.bias)
         cov_xy[i] = x_lag.T @ y[i_y]
     del x_lag
+    if average is True:
+        correlations, errors = np.zeros(n_permute), np.zeros(n_permute)
+    elif average is False:  # return correlation for each channel/feature
+        correlations = np.zeros((n_permute, y[0].shape[-1]))
+        errors = np.zeros((n_permute, y[0].shape[-1]))
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         # sample from the covariance matrices
-        idx = [
-            np.random.choice(np.where(combinations[:, 0] == i_x)[0])
-            for i_x in range(len(x))
-        ]
         idx = np.random.choice(len(combinations), len(x), replace=True)
-        x_idx = combinations[idx][:, 0]
-        perm_cov_xy = cov_xy[idx].mean(axis=0)
-        perm_cov_xx = cov_xx[combinations[idx][:, 0]].mean(axis=0)
-        weight_matrix = (
-            np.matmul(np.linalg.inv(perm_cov_xx + regmat), perm_cov_xy) / delta
-        )
+        splits = np.array_split(idx, k)
+        perm_corr, perm_err = np.zeros(k), np.zeros(k)
+        for isplit in range(k):  # cross-validation
+            idx_test = splits[isplit]
+            idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
+            # get the sample covariance matrices and average them
+            perm_cov_xy = cov_xy[idx_train].mean(axis=0)
+            perm_cov_xx = cov_xx[combinations[idx_train][:, 0]].mean(axis=0)
+            weight_matrix = (  # compute the regression weights
+                np.matmul(np.linalg.inv(perm_cov_xx + regmat), perm_cov_xy) / delta
+            )
+            x_test = x[combinations[idx_test][0][0]]
+            y_test = y[combinations[idx_test][0][0]]
+            x_lag = lag_matrix(x_test, lags, model.zeropad, model.bias)
+            y_pred = x_lag @ weight_matrix
+            if model.zeropad is False:
+                y_test = truncate(y_test, lags[0], lags[-1])
+            err = np.mean((y_test - y_pred) ** 2, axis=0)
+            r = np.mean((y_test - y_test.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+                y_test.std(0) * y_pred.std(0)
+            )
+            if average is True:
+                err, r = err.mean(), r.mean()
+            correlations[iperm]=r
+            errors[iperm]=err
 
-        self.bias = weight_matrix[0:1]
-        self.weights = weight_matrix[1:].reshape(
-            (x.shape[1], len(lags), y.shape[1]), order="F"
-        )
     return correlations, erros
 
 
-def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):  # Python3.3+
+def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):
     count = len(it)
 
     def show(j, verbose):
@@ -184,3 +204,13 @@ def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):  # Pytho
         show(i + 1, verbose)
     if verbose:
         print("\n", flush=True, file=out)
+
+
+def _check_k(k, n_trials):
+    if not n_trials > 1:
+        raise ValueError("Cross validation requires multiple trials!")
+    if n_trials < k:
+        raise ValueError("Number of splits can't be greater than number of trials!")
+    if k == -1: # do leave-one-out cross-validation
+        k = n_trials
+    return k
