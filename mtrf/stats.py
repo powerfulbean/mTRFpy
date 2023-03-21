@@ -64,34 +64,53 @@ def cross_validate(
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
-    n_trials = len(response)
+    if model.direction == 1:
+        x, y = stimulus, response
+    elif model.direction == -1:
+        x, y = response, stimulus
+        tmin, tmax = -1 * tmax, -1 * tmin
+    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+    cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, model.bias)
+    r, mse = _cross_validate(
+        x, y, cov_xx, cov_xy, fs, model.method, regularization, k, average, verbose
+    )
+    return r, mse
+
+
+def _cross_validate(
+    x, y, cov_xx, cov_xy, fs, method, regularization, k, average=True, verbose=True
+):
+    delta = 1 / fs
+    regmat = regularization_matrix(cov_xx.shape[-1], method)
+    regmat *= regularization / delta
+    n_trials = len(x)
     k = _check_k(k, n_trials)
-    models = []  # compute the TRF for each trial
-    if verbose:
-        print("\n")
-    for itrial in _progressbar(range(n_trials), "Preparing models", verbose=verbose):
-        s, r = stimulus[itrial], response[itrial]
-        trf = model.copy()
-        trf.train(s, r, fs, tmin, tmax, regularization)
-        models.append(trf)
     splits = np.arange(n_trials)
     random.shuffle(splits)
     splits = np.array_split(splits, k)
-    correlations, errors = [], []
+    if average is True:
+        r, mse = np.zeros(k), np.zeros(k)
+    else:
+        r, mse = np.zeros((k, y[0].shape[-1])), np.zeros((k, y[0].shape[-1]))
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_test = splits[isplit]
-        # flatten list of lists
-        idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
-
-        trf = sum([models[i] for i in idx_train]) / len(idx_train)
-        _, correlation, error = trf.predict(
-            [stimulus[i] for i in idx_test],
-            [response[i] for i in idx_test],
-            average=average,
+        idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
+        # compute the model for the training set
+        cov_xx_hat = cov_xx[idx_train].mean(axis=0)
+        cov_xy_hat = cov_xy[idx_train].mean(axis=0)
+        weight_matrix = (
+            np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / delta
         )
-        correlations.append(correlation)
-        errors.append(error)
-    return np.mean(correlations, axis=0), np.mean(errors, axis=0)
+        trf = model.copy()
+        trf.times, trf.bias, trf.fs = np.array(lags) / fs, weight_matrix[0:1], fs
+        trf.weights = weight_matrix[1:].reshape(
+            (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
+        )
+        # use the model to predict the test data
+        x_test, y_test = [x[i] for i in idx_test], [y[i] for i in idx_test]
+        _, r_test, mse_test = trf.predict(x_test, y_test, average=average)
+        r[isplit], mse[isplit] = r_test, mse_test
+    return r.mean(axis=0), mse.mean(axis=0)
 
 
 def permutation_distribution(
@@ -104,7 +123,7 @@ def permutation_distribution(
     regularization,
     n_permute=100,
     k=-1,
-    average=True
+    average=True,
     seed=None,
     verbose=True,
 ):
@@ -179,8 +198,8 @@ def permutation_distribution(
             )
             if average is True:
                 err, r = err.mean(), r.mean()
-            correlations[iperm]=r
-            errors[iperm]=err
+            correlations[iperm] = r
+            errors[iperm] = err
 
     return correlations, erros
 
@@ -211,6 +230,6 @@ def _check_k(k, n_trials):
         raise ValueError("Cross validation requires multiple trials!")
     if n_trials < k:
         raise ValueError("Number of splits can't be greater than number of trials!")
-    if k == -1: # do leave-one-out cross-validation
+    if k == -1:  # do leave-one-out cross-validation
         k = n_trials
     return k
