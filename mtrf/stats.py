@@ -2,7 +2,7 @@ import random
 import time
 import sys
 import numpy as np
-from mtrf.matrices import *
+from mtrf.matrices import regularization_matrix, covariance_matrices, _check_data
 
 
 def cross_validate(
@@ -72,16 +72,16 @@ def cross_validate(
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, model.bias)
     r, mse = _cross_validate(
-        x, y, cov_xx, cov_xy, fs, model.method, regularization, k, average, verbose
+        model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average, verbose
     )
     return r, mse
 
 
 def _cross_validate(
-    x, y, cov_xx, cov_xy, fs, method, regularization, k, average=True, verbose=True
+    model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average=True, verbose=True
 ):
     delta = 1 / fs
-    regmat = regularization_matrix(cov_xx.shape[-1], method)
+    regmat = regularization_matrix(cov_xx.shape[-1], model.method)
     regmat *= regularization / delta
     n_trials = len(x)
     k = _check_k(k, n_trials)
