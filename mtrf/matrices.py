@@ -43,7 +43,8 @@ def truncate(x, min_idx, max_idx):
     max_idx: int
         Smallest (time) index to include.
 
-    Returns:
+    Returns
+    -------
         x_truncated: numpy.ndarray
             Truncated version of ``x``.
     """
@@ -71,6 +72,16 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
         If True (default), pad the input with zeros, if false, truncate the output.
     bias: bool
         Must be True (default) if TRF model includes a bias term.
+
+    Returns
+    -------
+    cov_xx: np.ndarray
+        Autocovariance of x. Size of the square matrix is equal to the number of
+        features in x times the number of time lags (plus one if `bias` is True).
+    cov_xy: nd.ndarray
+        Covariance of x and y. Size of the first dimension is equal to the size of
+        `cov_xx` and size of the second dimension is equal to the number of
+        features in y.
     """
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])

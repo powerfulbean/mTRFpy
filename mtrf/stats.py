@@ -69,7 +69,7 @@ def cross_validate(
         raise ValueError("Cross validation requires multiple trials!")
     if ntrials < k:
         raise ValueError("Number of splits can't be greater than number of trials!")
-    if k == -1: # do leave-one-out cross-validation
+    if k == -1:  # do leave-one-out cross-validation
         k = ntrials
     models = []  # compute the TRF for each trial
     if verbose:
