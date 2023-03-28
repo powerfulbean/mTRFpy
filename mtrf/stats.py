@@ -78,8 +78,21 @@ def cross_validate(
 
 
 def _cross_validate(
-    model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average=True, verbose=True
+    model,
+    x,
+    y,
+    cov_xx,
+    cov_xy,
+    lags,
+    fs,
+    regularization,
+    k,
+    average=True,
+    verbose=True,
+    seed=None,
 ):
+    if seed is not None:
+        random.seed(seed)
     delta = 1 / fs
     regmat = regularization_matrix(cov_xx.shape[-1], model.method)
     regmat *= regularization / delta

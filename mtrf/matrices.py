@@ -31,6 +31,22 @@ def _check_data(data):
     )
 
 
+def _get_xy(stimulus, response, tmin=None, tmax=None, direction=1):
+    if direction == 1:
+        x, y = stimulus, response
+    elif direction == -1:
+        x, y = response, stimulus
+        if tmin is not None and tmax is not None:
+            tmin, tmax = -1 * tmax, -1 * tmin
+    else:
+        raise ValueError("Direction must be 1 or -1.")
+
+    if tmin is not None and tmax is not None:
+        return x, y, tmin, tmax
+    else:
+        return x, y
+
+
 def truncate(x, min_idx, max_idx):
     """
     Truncate matrix.
