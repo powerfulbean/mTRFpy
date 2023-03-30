@@ -4,11 +4,14 @@ import numpy as np
 def _check_data(data):
     """
     Check wheter data (stimulus or response) are formatted correctly.
-    Arguments:
+    Parameters
+    ----------
         data (list | np.ndarray): Either a two-dimensional samples-by-features array
             or a list of such arrays. If the arrays are only one-dimensional, it is
             assumed that they contain only one feature and a singleton dimension added.
-    Returns:
+
+    Returns
+    -------
         data (list): Data in a list of arrays with added singelton dimension if the arrays
             were 1-dimensional.
     """
@@ -26,6 +29,22 @@ def _check_data(data):
     raise ValueError(
         "Stimulus and response must either be a single 2-D samples-by-features array if the data contains one trial or a list of such arrays if the data contains multiple trials)!"
     )
+
+
+def _get_xy(stimulus, response, tmin=None, tmax=None, direction=1):
+    if direction == 1:
+        x, y = stimulus, response
+    elif direction == -1:
+        x, y = response, stimulus
+        if tmin is not None and tmax is not None:
+            tmin, tmax = -1 * tmax, -1 * tmin
+    else:
+        raise ValueError("Direction must be 1 or -1.")
+
+    if tmin is not None and tmax is not None:
+        return x, y, tmin, tmax
+    else:
+        return x, y
 
 
 def truncate(x, min_idx, max_idx):
@@ -58,14 +77,15 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
     Compute (auto-)covariance of x and y.
 
     Compute the autocovariance of the time-lagged input x and the covariance of
-    x and the output y.
+    x and the output y. When passed a list of trials for x, and y, covariance
+    matrices will be computed for each trial.
 
     Parameters
     ----------
-    x: numpy.ndarray
-        Input data in samples-by-features array.
-    y: numpy.ndarray
-        Input data in samples-by-features array.
+    x: numpy.ndarray or list
+        Input data in samples-by-features array or list of such arrays.
+    y: numpy.ndarray or list
+        Output data in samples-by-features array or list of such arrays.
     lags: list or numpy.ndarray
         Time lags in samples.
     zeropad: bool
@@ -75,20 +95,28 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
 
     Returns
     -------
-    cov_xx: np.ndarray
-        Autocovariance of x. Size of the square matrix is equal to the number of
-        features in x times the number of time lags (plus one if `bias` is True).
-    cov_xy: nd.ndarray
-        Covariance of x and y. Size of the first dimension is equal to the size of
-        `cov_xx` and size of the second dimension is equal to the number of
-        features in y.
+    cov_xx: numpy.ndarray
+        Three dimensional autocovariance matrix. 1st dimension's size is the number
+        of trials, 2nd and 3rd dimensions' size is lags times features in x.
+        If x contains only one trial, the first dimension is empty and will be removed.
+    cov_xy: numpy.ndarray
+        Three dimensional x-y-covariance matrix. 1st dimension's size is the number
+        of trials, 2nd dimension's size is lags times features in x and 3rd dimension's
+        size is features in y. If y contains only one trial, the first dimension is
+        empty and will be removed.
     """
+    if not all(isinstance(i, list) for i in (x, y)):
+        x, y = [x], [y]
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
-    x_lag = lag_matrix(x, lags, zeropad, bias)
-    cov_xx = x_lag.T @ x_lag
-    cov_xy = x_lag.T @ y
-    return cov_xx, cov_xy
+    for i_x in range(len(x)):
+        x_lag = lag_matrix(x[i_x], lags, zeropad, bias)
+        if i_x == 0:
+            cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
+            cov_xy = np.zeros((len(y), x_lag.shape[-1], y[0].shape[-1]))
+        cov_xx[i_x] = x_lag.T @ x_lag
+        cov_xy[i_x] = x_lag.T @ y[i_x]
+    return cov_xx.squeeze(), cov_xy.squeeze()
 
 
 def lag_matrix(x, lags, zeropad=True, bias=True):

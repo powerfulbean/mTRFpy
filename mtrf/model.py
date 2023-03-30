@@ -4,7 +4,7 @@ import pickle
 import requests
 from collections.abc import Iterable
 import numpy as np
-from mtrf.stats import cross_validate, _progressbar
+from mtrf.stats import cross_validate, _cross_validate, _progressbar
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
@@ -12,6 +12,7 @@ from mtrf.matrices import (
     lag_matrix,
     truncate,
     _check_data,
+    _get_xy,
 )
 
 try:
@@ -114,7 +115,7 @@ class TRF:
         tmax,
         regularization,
         bands=None,
-        k=5,
+        k=-1,
         seed=None,
         verbose=True,
     ):
@@ -171,7 +172,8 @@ class TRF:
             )
         else:
             stimulus, response = _check_data(stimulus), _check_data(response)
-
+            xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
             if bands is None:
                 raise ValueError(
@@ -181,30 +183,31 @@ class TRF:
                 raise ValueError(
                     "Sum of the bands must match the total number of stimulus features!"
                 )
-            n_lags = int(np.ceil(tmax * fs) - np.floor(tmin * fs) + 1)
             coefficients = list(product(regularization, repeat=2))
             regularization = [
-                banded_regularization(n_lags, c, bands, self.bias) for c in coefficients
+                banded_regularization(len(lags), c, bands, self.bias)
+                for c in coefficients
             ]
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
             correlation = np.zeros(len(regularization))
             error = np.zeros(len(regularization))
+            cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                r = regularization[ir]
-                reg_correlation, reg_error = cross_validate(
+                reg_correlation, reg_error = _cross_validate(
                     self.copy(),
                     stimulus,
                     response,
+                    cov_xx,
+                    cov_xy,
+                    lags,
                     fs,
-                    tmin,
-                    tmax,
-                    r,
+                    regularization[ir],
                     k,
                     seed=seed,
                     verbose=verbose,
@@ -246,6 +249,7 @@ class TRF:
         if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
             self.bias = True
         stimulus, response = _check_data(stimulus), _check_data(response)
+        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         if not len(stimulus) == len(response):
             ValueError("Response and stimulus must have the same length!")
         else:
@@ -263,13 +267,6 @@ class TRF:
         self.regularization = regularization
         cov_xx = 0
         cov_xy = 0
-        if self.direction == 1:
-            xs, ys = stimulus, response
-        elif self.direction == -1:
-            xs, ys = response, stimulus
-            tmin, tmax = -1 * tmax, -1 * tmin
-        else:
-            raise ValueError(f"trf direction value: {self.direction} is not supported.")
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         for x, y in zip(xs, ys):
             assert x.ndim == 2 and y.ndim == 2
@@ -352,13 +349,7 @@ class TRF:
         if response is None:
             response = [None for _ in range(ntrials)]
 
-        xs, ys = None, None
-        if self.direction == 1:
-            xs, ys = stimulus, response
-        elif self.direction == -1:
-            xs, ys = response, stimulus
-        else:
-            raise ValueError(f"trf direction value: {self.direction} is not supported.")
+        xs, ys = _get_xy(stimulus, response, direction=self.direction)
 
         prediction, correlation, error = [], [], []  # output lists
         for x, y in zip(xs, ys):
