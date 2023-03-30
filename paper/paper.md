@@ -9,14 +9,14 @@ tags:
   - TRF
   
 authors:
-  - name: Jin Dou
-    equal-contrib: true
-    affiliation: 1 # (Multiple affiliations must be quoted)
   - name: Ole Bialas
     orcid: 0000-0000-0000-0000
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
 	corresponding: true # (This is how to denote the corresponding author)
+  - name: Jin Dou
+    equal-contrib: true
+    affiliation: 1 # (Multiple affiliations must be quoted)
   - name: Edmund C. Lalor
     affiliation: "1, 2"
 affiliations:
@@ -29,6 +29,8 @@ bibliography: paper.bib
 ---
 
 # Summary
+
+Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks. However, this de
 
 The brain is such a complex system that is hard to be fully understood. 
 A better understanding of how the human brain works will benefit both 
