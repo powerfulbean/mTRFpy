@@ -30,7 +30,7 @@ bibliography: paper.bib
 
 # Summary
 
-Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks. However, this de
+Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks [@hamilton2022]. However, this approach demands statistical tools to account for the different sources of variance that naturally occurr in speech.
 
 The brain is such a complex system that is hard to be fully understood. 
 A better understanding of how the human brain works will benefit both 

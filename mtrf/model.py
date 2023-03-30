@@ -116,6 +116,7 @@ class TRF:
         regularization,
         bands=None,
         k=-1,
+        average=True,
         seed=None,
         verbose=True,
     ):
@@ -154,6 +155,10 @@ class TRF:
         k: int
             Number of data splits for cross validation, defaults to 5.
             If -1, do leave-one-out cross-validation.
+        average: bool or list or numpy.ndarray
+            If True (default), average correlation and mean squared error across all
+            predictions (e.g. channels in the case of forward modelling). If `average`
+            is an array of integers only average the predicted features at those indices.
         seed: int
             Seed for the random number generator.
         verbose: bool
@@ -166,6 +171,12 @@ class TRF:
         error: list
             Mean squared error between prediction and actual output.
         """
+        if (
+            not average is True
+            or isinstance(average, list)
+            or isinstance(average, np.ndarray)
+        ):
+            raise ValueError("Average must be True or a list of indices!")
         if not (isinstance(stimulus, list) and isinstance(response, list)):
             raise ValueError(
                 "Model fitting requires a list of multiple trials for stimulus and response!"
@@ -191,15 +202,15 @@ class TRF:
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
-            correlation = np.zeros(len(regularization))
-            error = np.zeros(len(regularization))
+            r = np.zeros(len(regularization))
+            mse = np.zeros(len(regularization))
             cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                reg_correlation, reg_error = _cross_validate(
+                regularization_r, regularization_mse = _cross_validate(
                     self.copy(),
                     stimulus,
                     response,
@@ -210,13 +221,14 @@ class TRF:
                     regularization[ir],
                     k,
                     seed=seed,
+                    average=average,
                     verbose=verbose,
                 )
-                correlation[ir] = reg_correlation
-                error[ir] = reg_error
-            regularization = list(regularization)[np.argmax(correlation)]
+                r[ir] = regularization_r
+                mse[ir] = regularization_mse
+            regularization = list(regularization)[np.argmin(mse)]
             self.train(stimulus, response, fs, tmin, tmax, regularization)
-            return correlation, error
+            return r, mse
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
@@ -262,9 +274,7 @@ class TRF:
                 raise ValueError(
                     "Regularization parameter must be a single number or a diagonal matrix!"
                 )
-        delta = 1 / fs
-        self.fs = fs
-        self.regularization = regularization
+        self.fs, self.regularization = fs, regularization
         cov_xx = 0
         cov_xy = 0
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
@@ -278,9 +288,10 @@ class TRF:
             cov_xy += cov_xy_trial
         cov_xx, cov_xy = cov_xx / ntrials, cov_xy / ntrials  # normalize
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
-        regmat *= regularization / delta
-        # calculate reverse correlation:
-        weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / delta
+        regmat *= regularization / (1 / self.fs)
+        weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
+            1 / self.fs
+        )
         self.bias = weight_matrix[0:1]
         self.weights = weight_matrix[1:].reshape(
             (x.shape[1], len(lags), y.shape[1]), order="F"
@@ -316,9 +327,11 @@ class TRF:
         lag: None or in or list
             If not None (default), only use the specified lags for prediction.
             The provided values index the elements in self.times.
-        average: bool
-            If True (default), correlation and mean squared error are averaged
-            across all predicted features.
+        average: bool or list or numpy.ndarray
+            If True (default), average correlation and mean squared error across all
+            predictions (e.g. channels in the case of forward modelling). If `average`
+            is an array of integers only average the predicted features at those indices.
+            If `False`, return each predicted feature's accuracy.
 
         Returns
         -------
@@ -350,59 +363,47 @@ class TRF:
             response = [None for _ in range(ntrials)]
 
         xs, ys = _get_xy(stimulus, response, direction=self.direction)
-
-        prediction, correlation, error = [], [], []  # output lists
-        for x, y in zip(xs, ys):
-            x_samples, x_features = x.shape
-            if y is None:
-                y_samples = x_samples
-                y_features = self.weights.shape[-1]
-            else:
-                y_samples, y_features = y.shape
-
+        prediction = [np.zeros((x.shape[0], self.weights.shape[-1])) for x in xs]
+        r, mse = [], []  # output lists
+        for i, (x, y) in enumerate(zip(xs, ys)):
             lags = list(
                 range(
                     int(np.floor(self.times[0] * self.fs)),
                     int(np.ceil(self.times[-1] * self.fs)) + 1,
                 )
             )
-            delta = 1 / self.fs
-
             w = self.weights.copy()
             if lag is not None:  # select lag and corresponding weights
                 if not isinstance(lag, Iterable):
                     lag = [lag]
                 lags = list(np.array(lags)[lag])
                 w = w[:, lag, :]
-            w = (
-                np.concatenate(
-                    [
-                        self.bias,
-                        w.reshape(x_features * len(lags), y_features, order="F"),
-                    ]
-                )
-                * delta
-            )
+            w = np.concatenate(
+                [
+                    self.bias,
+                    w.reshape(
+                        x.shape[-1] * len(lags), self.weights.shape[-1], order="F"
+                    ),
+                ]
+            ) * (1 / self.fs)
             x_lag = lag_matrix(x, lags, self.zeropad)
             y_pred = x_lag @ w
             if y is not None:
                 if self.zeropad is False:
                     y = truncate(y, lags[0], lags[-1])
-                err = np.mean((y - y_pred) ** 2, axis=0)
-                r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
-                    y.std(0) * y_pred.std(0)
+                mse.append(np.mean((y - y_pred) ** 2, axis=0))
+                r.append(
+                    np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0)
+                    / (y.std(0) * y_pred.std(0))
                 )
-                correlation.append(r)
-                error.append(err)
-            prediction.append(y_pred)
+            prediction[i][:] = y_pred
         if ys[0] is not None:
-            if average is True:
-                correlation, error = np.mean(correlation), np.mean(error)
-            else:  # only average across trials, not across channels/features
-                correlation, error = np.mean(correlation, axis=0), np.mean(
-                    error, axis=0
-                )
-            return prediction, correlation, error
+            r, mse = np.mean(r, axis=0), np.mean(mse, axis=0)  # average across trials
+            if isinstance(average, list) or isinstance(average, np.ndarray):
+                r, mse = r[average], mse[average]  # select a subset of predictions
+            if average is not False:
+                r, mse = np.mean(r), np.mean(mse)
+            return prediction, r, mse
         else:
             return prediction
 

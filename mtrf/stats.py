@@ -54,9 +54,11 @@ def cross_validate(
         Number of data splits, if -1, do leave-one-out cross-validation.
     seed: int
         Seed for the random number generator.
-    average: bool
+    average: bool or list or numpy.ndarray
         If True (default), average correlation and mean squared error across all
-        predictions (e.g. channels in the case of forward modelling).
+        predictions (e.g. channels in the case of forward modelling). If `average`
+        is an array of integers only average the predicted features at those indices.
+        If `False`, return each predicted feature's accuracy.
 
     Returns
     -------
@@ -70,11 +72,7 @@ def cross_validate(
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
-    if model.direction == 1:
-        x, y = stimulus, response
-    elif model.direction == -1:
-        x, y = response, stimulus
-        tmin, tmax = -1 * tmax, -1 * tmin
+    x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, model.bias)
     r, mse = _cross_validate(
@@ -107,7 +105,7 @@ def _cross_validate(
     splits = np.arange(n_trials)
     random.shuffle(splits)
     splits = np.array_split(splits, k)
-    if average is True:
+    if average is not False:
         r, mse = np.zeros(k), np.zeros(k)
     else:
         r, mse = np.zeros((k, y[0].shape[-1])), np.zeros((k, y[0].shape[-1]))
@@ -127,7 +125,10 @@ def _cross_validate(
         )
         # use the model to predict the test data
         x_test, y_test = [x[i] for i in idx_val], [y[i] for i in idx_val]
-        _, r_test, mse_test = trf.predict(x_test, y_test, average=average)
+        if model.direction == 1:
+            _, r_test, mse_test = trf.predict(x_test, y_test, average=average)
+        elif model.direction == -1:
+            _, r_test, mse_test = trf.predict(y_test, x_test, average=average)
         r[isplit], mse[isplit] = r_test, mse_test
     return r.mean(axis=0), mse.mean(axis=0)
 
@@ -152,8 +153,10 @@ def permutation_distribution(
     """
     if seed:
         np.random.seed(seed)
+    if np.isscalar(regularization):
+        regularization = [regularization]
     stimulus, response = _check_data(stimulus), _check_data(response)
-    xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+    xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     min_len = min([len(x) for x in xs])
     for i in range(len(xs)):
         xs[i], ys[i] = xs[i][:min_len], ys[i][:min_len]
@@ -229,7 +232,7 @@ def permutation_distribution(
             mse[iperm] += sample_mse.mean()
         r[iperm], mse[iperm] = r[iperm] / len(idx), mse[iperm] / len(idx)
 
-    return correlations, erros
+    return r, mse
 
 
 def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):
