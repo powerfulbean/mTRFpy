@@ -62,10 +62,10 @@ def cross_validate(
 
     Returns
     -------
-    correlation: float or numpy.ndarray
+    r: float or numpy.ndarray
         When the actual output is provided, correlation is computed per trial or
         averaged, depending on the `average` parameter.
-    error: float or numpy.ndarray
+    mse: float or numpy.ndarray
         When the actual output is provided, mean squared error is computed per
         trial or averaged, depending on the `average` parameter.
     """
@@ -97,9 +97,8 @@ def _cross_validate(
 ):
     if seed is not None:
         random.seed(seed)
-    delta = 1 / fs
     regmat = regularization_matrix(cov_xx.shape[-1], model.method)
-    regmat *= regularization / delta
+    regmat *= regularization / (1 / fs)
     n_trials = len(x)
     k = _check_k(k, n_trials)
     splits = np.arange(n_trials)
@@ -115,12 +114,10 @@ def _cross_validate(
         # compute the model for the training set
         cov_xx_hat = cov_xx[idx_train].mean(axis=0)
         cov_xy_hat = cov_xy[idx_train].mean(axis=0)
-        weight_matrix = (
-            np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / delta
-        )
+        w = np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
         trf = model.copy()
-        trf.times, trf.bias, trf.fs = np.array(lags) / fs, weight_matrix[0:1], fs
-        trf.weights = weight_matrix[1:].reshape(
+        trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs
+        trf.weights = w[1:].reshape(
             (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
         )
         # use the model to predict the test data
@@ -143,19 +140,63 @@ def permutation_distribution(
     regularization,
     n_permute,
     k=-1,
-    average=True,
     seed=None,
+    average=True,
     verbose=True,
 ):
     """
     Estimate the distribution of correlation coefficients and mean squared error
     under random permutation.
+
+    For each permutation, stimulus and response trials are randomly shuffled and
+    split into `k` segments. Then `k-1` segments are used to train and the remaining
+    segment is used to test the model. The resulting permutation distribution reflects
+    the expected correlation and error if there is no causal relationship between
+    stimulus and response. To save time, the models are computed for all possible
+    combinations of response and stimulus and then sampled and averaged during
+    permutation.
+
+    Parameters
+    ----------
+    model: model.TRF
+        Base model used for cross-validation.
+    stimulus: list
+        Each element must contain one trial's stimulus in a two-dimensional
+        samples-by-features array (second dimension can be omitted if there is
+        only a single feature.
+    response: list
+        Each element must contain one trial's response in a two-dimensional
+        samples-by-channels array.
+    fs: int
+        Sample rate of stimulus and response in hertz.
+    tmin: float
+        Minimum time lag in seconds.
+    tmax: float
+        Maximum time lag in seconds.
+    regularization: float or int
+        Value for the lambda parameter regularizing the regression.
+    k: int
+        Number of data splits, if -1, do leave-one-out cross-validation.
+    seed: int
+        Seed for the random number generator.
+    average: bool or list or numpy.ndarray
+        If True (default), average correlation and mean squared error across all
+        predictions (e.g. channels in the case of forward modelling). If `average`
+        is an array of integers only average the predicted features at those indices.
+        If `False`, return each predicted feature's accuracy.
+    Returns
+    -------
+    r: float or numpy.ndarray
+       Correlation coefficient for each permutation.
+    mse: float or numpy.ndarray
+        Mean squared error for each permutation.
     """
     if seed:
         np.random.seed(seed)
     if np.isscalar(regularization):
         regularization = [regularization]
-    stimulus, response = _check_data(stimulus), _check_data(response)
+    stimulus = _check_data(stimulus, crop=True)
+    response = _check_data(response, crop=True)
     xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     min_len = min([len(x) for x in xs])
     for i in range(len(xs)):
@@ -164,73 +205,24 @@ def permutation_distribution(
     k = _check_k(k, n_trials)
     idx = np.arange(n_trials)
     combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)
-    # combinations = combinations[combinations[:, 0] != combinations[:, 1]]
-    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-    # precompute the predictor autocovaraince for all trials
-    for i_x in range(len(xs)):
-        x_lag = lag_matrix(xs[i_x], lags, model.zeropad, model.bias)
-        if i_x == 0:
-            cov_xx = np.zeros((len(xs), x_lag.shape[-1], x_lag.shape[-1]))
-        cov_xx[i_x] = x_lag.T @ x_lag
-    # precompute the predictor-estimand covariance for all combinations
-    for i_c, (i_x, i_y) in enumerate(combinations):
-        x_lag = lag_matrix(xs[i_x], lags, model.zeropad, model.bias)
-        if i_c == 0:
-            cov_xy = np.zeros((len(combinations), x_lag.shape[-1], ys[0].shape[-1]))
-        if model.zeropad is False:
-            ys[i_y] = truncate(ys[i_y], lags[0], lags[-1])
-        cov_xy[i_c] = x_lag.T @ ys[i_y]
-    del x_lag
+    models = []
+    for c in _progressbar(combinations, "Preparing models", verbose=verbose):
+        trf = model.copy()
+        trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
+        models.append(trf)
     r, mse = np.zeros(n_permute), np.zeros(n_permute)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
-        # sample from all possible permutation matrices
         idx = []
         for i in range(len(xs)):  # make sure eachx x only appears once
             idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
-        # idx = np.random.choice(len(combinations), len(xs), replace=True)
         idx = np.array_split(idx, k)
-        perm_cov_xy = cov_xy[
-            np.concatenate(idx[1:])
-        ]  # the fist split is used for testing
-        perm_cov_xx = cov_xx[[combinations[i, 0] for i in np.concatenate(idx[1:])]]
-        reg_r, reg_mse = np.zeros(len(regularization)), np.zeros(len(regularization))
-        for ireg, reg in enumerate(regularization):
-            sample_r, sample_mse = _cross_validate(
-                model,
-                [xs[combinations[i, 0]] for i in np.concatenate(idx[1:])],
-                [ys[combinations[i, 1]] for i in np.concatenate(idx[1:])],
-                perm_cov_xx,
-                perm_cov_xy,
-                lags,
-                fs,
-                reg,
-                k - 1,
-                average,
-                False,
-            )
-            reg_r[ireg], reg_mse[ireg] = sample_r, sample_mse
-        # estimate accuracy best best regularization value on test set
-        best_reg = regularization[np.argmin(reg_mse)]
-        regmat = regularization_matrix(cov_xx.shape[-1], model.method) + best_reg
-        weight_matrix = np.matmul(
-            np.linalg.inv(perm_cov_xx.mean(axis=0) + regmat), perm_cov_xy.mean(axis=0)
-        )
-        for i in idx[0]:
-            x, y = xs[combinations[i, 0]], ys[combinations[i, 1]]
-            x_lag = lag_matrix(x, lags, model.zeropad, model.bias)
-            y_pred = x_lag @ weight_matrix
-            if model.zeropad is False:
-                y = truncate(y, lags[0], lags[-1])
-            sample_mse = np.mean((y - y_pred) ** 2, axis=0)
-            sample_r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
-                y.std(0) * y_pred.std(0)
-            )
-            if isinstance(average, list) or isinstance(average, np.ndarray):
-                sample_mse, sample_r = sample_mse[average], sample_r[average]
-            r[iperm] += sample_r.mean()
-            mse[iperm] += sample_mse.mean()
-        r[iperm], mse[iperm] = r[iperm] / len(idx), mse[iperm] / len(idx)
+        idx_train, idx_val = np.concatenate(idx[1:]), idx[0]
+        perm_model = np.mean([models[i] for i in idx_train])
+        stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
+        response_val = [response[combinations[i][1]] for i in idx_val]
+        _, perm_r, perm_mse = perm_model.predict(stimulus_val, response_val)
+        r[iperm], mse[iperm] = perm_r, perm_mse
 
     return r, mse
 

@@ -1,14 +1,18 @@
 import numpy as np
 
 
-def _check_data(data):
+def _check_data(data, crop=False):
     """
     Check wheter data (stimulus or response) are formatted correctly.
     Parameters
     ----------
-        data (list | np.ndarray): Either a two-dimensional samples-by-features array
+        data: list or numpy.ndarray
+            Either a two-dimensional samples-by-features array
             or a list of such arrays. If the arrays are only one-dimensional, it is
             assumed that they contain only one feature and a singleton dimension added.
+        unisize: bool
+            If True, crop all trials to the length of the shortest one to enforce
+            equal size.
 
     Returns
     -------
@@ -20,6 +24,10 @@ def _check_data(data):
             for i in range(len(data)):
                 if data[i].ndim == 1:
                     data[i] = np.expand_dims(data, axis=-1)
+            if crop is True:
+                min_len = min([len(d) for d in data])
+                for i in range(len(data)):
+                    data[i] = data[i][:min_len, :]
             return data
     elif isinstance(data, np.ndarray):
         if data.ndim < 3:
