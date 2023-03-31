@@ -4,7 +4,7 @@ import pickle
 import requests
 from collections.abc import Iterable
 import numpy as np
-from mtrf.stats import cross_validate, _cross_validate, _progressbar
+from mtrf.stats import cross_validate, _cross_validate, _progressbar, _check_k
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
@@ -114,6 +114,7 @@ class TRF:
         tmin,
         tmax,
         regularization,
+        test=False,
         bands=None,
         k=-1,
         average=True,
@@ -183,6 +184,8 @@ class TRF:
             )
         else:
             stimulus, response = _check_data(stimulus), _check_data(response)
+            n_trials = len(stimulus)
+            k = _check_k(k, n_trials)
             xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
@@ -204,7 +207,10 @@ class TRF:
         else:  # run cross-validation once per regularization parameter
             r = np.zeros(len(regularization))
             mse = np.zeros(len(regularization))
+            # pre-compute covariance matrices
             cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+            if test is True:
+                splits = (np.arange(n_trials), k)
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -212,8 +218,8 @@ class TRF:
             ):
                 regularization_r, regularization_mse = _cross_validate(
                     self.copy(),
-                    stimulus,
-                    response,
+                    xs,
+                    ys,
                     cov_xx,
                     cov_xy,
                     lags,
