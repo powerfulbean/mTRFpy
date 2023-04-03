@@ -122,7 +122,12 @@ class TRF:
         verbose=True,
     ):
         """
-        Train TRF model and fit regularization parameter to data.
+        Optimize the regularization parameter and optionally test model performance.
+
+        For each value in `regularization`, a model is trained and validated using
+        k-fold cross validation. Then the best regularization value (i.e. the one
+        that results is the lowest mean squared error between the predicted and
+        actual output) is chosen to train the final model.
 
         Compute a linear mapping between stimulus and response, or vice versa, using
         regularized regression. This method can compare multiple values for the
@@ -172,31 +177,15 @@ class TRF:
         error: list
             Mean squared error between prediction and actual output.
         """
-        if (
-            not average is True
-            or isinstance(average, list)
-            or isinstance(average, np.ndarray)
-        ):
+        if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        if not (isinstance(stimulus, list) and isinstance(response, list)):
-            raise ValueError(
-                "Model fitting requires a list of multiple trials for stimulus and response!"
-            )
-        else:
-            stimulus, response = _check_data(stimulus), _check_data(response)
-            n_trials = len(stimulus)
-            k = _check_k(k, n_trials)
-            xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+        stimulus = _check_data(stimulus, assert_list=True, assert_len=len(response))
+        response = _check_data(response, assert_list=True, assert_len=len(stimulus))
+        n_trials = len(stimulus)
+        k = _check_k(k, n_trials)
+        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
-            if bands is None:
-                raise ValueError(
-                    "Must provide band sizes when using banded ridge regression!"
-                )
-            if not sum(bands) == stimulus[0].shape[-1]:
-                raise ValueError(
-                    "Sum of the bands must match the total number of stimulus features!"
-                )
             coefficients = list(product(regularization, repeat=2))
             regularization = [
                 banded_regularization(len(lags), c, bands, self.bias)
@@ -205,18 +194,16 @@ class TRF:
         if np.isscalar(regularization):
             self.train(stimulus, response, fs, tmin, tmax, regularization)
         else:  # run cross-validation once per regularization parameter
-            r = np.zeros(len(regularization))
-            mse = np.zeros(len(regularization))
             # pre-compute covariance matrices
             cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
-            if test is True:
-                splits = (np.arange(n_trials), k)
+            r = np.zeros(len(regularization))
+            mse = np.zeros(len(regularization))
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                regularization_r, regularization_mse = _cross_validate(
+                r[ir], mse[ir] = _cross_validate(
                     self.copy(),
                     xs,
                     ys,
@@ -230,11 +217,58 @@ class TRF:
                     average=average,
                     verbose=verbose,
                 )
-                r[ir] = regularization_r
-                mse[ir] = regularization_mse
-            regularization = list(regularization)[np.argmin(mse)]
-            self.train(stimulus, response, fs, tmin, tmax, regularization)
+            best_regularization = list(regularization)[np.argmin(mse)]
+            print(best_regularization)
+            self.train(stimulus, response, fs, tmin, tmax, best_regularization)
             return r, mse
+
+    def test():  # finish and test this function
+        if average is False:
+            raise ValueError("Average must be True or a list of indices!")
+        stimulus = _check_data(stimulus, assert_list=True, assert_len=len(response))
+        response = _check_data(response, assert_list=True, assert_len=len(stimulus))
+        n_trials = len(stimulus)
+        k = _check_k(k, n_trials)
+        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+        if self.method == "banded":
+            coefficients = list(product(regularization, repeat=2))
+            regularization = [
+                banded_regularization(len(lags), c, bands, self.bias)
+                for c in coefficients
+            ]
+        splits = np.array_split(np.arange(n_trials), k)
+        n_splits = len(splits)
+        r_test, mse_test, best_regularization = [np.zeros(n_splits) for _ in range(3)]
+        for isplit in range(n_splits):
+            idx_test = splits[isplit]
+            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
+            mse = np.zeros(len(regularization))
+            for ir in _progressbar(
+                range(len(regularization)),
+                "Hyperparameter optimization",
+                verbose=verbose,
+            ):
+                _, mse[ir] = _cross_validate(
+                    self.copy(),
+                    [xs[i] for i in idx_train_val],
+                    [ys[i] for i in idx_train_val],
+                    cov_xx[idx_train_val, :, :],
+                    cov_xy[idx_train_val, :, :],
+                    lags,
+                    fs,
+                    regularization[ir],
+                    k - 1,
+                    seed=seed,
+                    average=average,
+                    verbose=verbose,
+                )
+            best_regularization[isplit] = list(regularization)[np.argmin(mse)]
+            self.train(stimulus, response, fs, tmin, tmax, best_regularization[isplit])
+            _, r_test[isplit], mse_test = self.predict(
+                [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
+            )
+            return r_test, mse_test, best_regularization
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """

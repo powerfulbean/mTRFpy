@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def _check_data(data, crop=False):
+def _check_data(data, assert_list=False, assert_len=False, crop=False):
     """
     Check wheter data (stimulus or response) are formatted correctly.
     Parameters
@@ -10,6 +10,11 @@ def _check_data(data, crop=False):
             Either a two-dimensional samples-by-features array
             or a list of such arrays. If the arrays are only one-dimensional, it is
             assumed that they contain only one feature and a singleton dimension added.
+        assert_list: bool
+            If True raise an error if `data` is not a list
+        assert_len: bool or int
+            If an integer, raise an error if the length of `data` does not
+            equal that value.
         unisize: bool
             If True, crop all trials to the length of the shortest one to enforce
             equal size.
@@ -19,6 +24,10 @@ def _check_data(data, crop=False):
         data (list): Data in a list of arrays with added singelton dimension if the arrays
             were 1-dimensional.
     """
+    if assert_list and not isinstance(data, list):
+        raise ValueError("`data` must be a list!")
+    if assert_len and not len(data) == assert_len:
+        raise ValueError(f"`data` does not have the length {assert_len}!")
     if isinstance(data, list):
         if all([isinstance(d, np.ndarray) for d in data]):
             for i in range(len(data)):
@@ -203,7 +212,7 @@ def regularization_matrix(size, method="ridge"):
     return regmat
 
 
-def banded_regularization(n_lags, coefficients, features, bias):
+def banded_regularization(n_lags, coefficients, bands, bias):
     """
     Create regularization matrix for banded ridge regression.
 
@@ -212,19 +221,22 @@ def banded_regularization(n_lags, coefficients, features, bias):
     n_lags: int
         Number of time lags
     coefficients: list
-        Regularization coefficient for each band. Must be of same length as `features`.
-    features: list
+        Regularization coefficient for each band. Must be of same length as `bands`.
+    bands: list
         Size of the feature bands for which a regularization parameter is fitted, in
         the order they appear in the stimulus matrix. For example, when the stimulus
-        is an envelope vector and a 16-band spectrogram, `features` would be [1, 16].
+        is an envelope vector and a 16-band spectrogram, `bands` would be [1, 16].
     bias: bool
         Whether the TRF model includes a bias term.
     """
-    if not len(features) == len(coefficients):
-        raise ValueError("Coefficients and features must be of same size!")
+
+    if bands is None:
+        raise ValueError("Must provide band sizes when using banded ridge regression!")
+    if not len(bands) == len(coefficients):
+        raise ValueError("Coefficients and bands must be of same size!")
     lag_coefs = []
-    # repeat the coefficient for each occurence of the corresponding feature
-    for c, f in zip(coefficients, features):
+    # repeat the coefficient for each occurence of the corresponding band
+    for c, f in zip(coefficients, bands):
         lag_coefs.append(np.repeat(c, f))
     lag_coefs = np.concatenate(lag_coefs)
     # repeat that sequence for each lag

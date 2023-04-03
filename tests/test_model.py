@@ -44,9 +44,8 @@ def test_predict():
 
 
 def test_fit():
-    reps = np.random.randint(5, 10)
-    responses = [response for _ in range(reps)]
-    stimuli = [stimulus for _ in range(reps)]
+    n = np.random.randint(5, 10)
+    stimuli, responses = np.array_split(stimulus, n), np.array_split(response, n)
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.4)
     direction = np.random.choice([1, -1])
