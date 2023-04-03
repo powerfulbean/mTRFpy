@@ -172,9 +172,9 @@ class TRF:
 
         Returns
         -------
-        correlation: list
+        r : list
             Correlation of prediction and actual output.
-        error: list
+        mse : list
             Mean squared error between prediction and actual output.
         """
         if average is False:
@@ -222,7 +222,79 @@ class TRF:
             self.train(stimulus, response, fs, tmin, tmax, best_regularization)
             return r, mse
 
-    def test():  # finish and test this function
+    def test(
+        self,
+        stimulus,
+        response,
+        fs,
+        tmin,
+        tmax,
+        regularization,
+        test=False,
+        bands=None,
+        k=-1,
+        average=True,
+        seed=None,
+        verbose=True,
+    ):
+        """
+        Unbiased estimate of model accuracy when fitting the regularization parameter.
+
+        This fuction divides the data into k parts and runs two nested
+        cross-validation loops: the outer loop selects k-1 parts to optimize the
+        regularization value and the kth part to test the final model's accuracy.
+        The inner loop uses cross-validation to determine the best regularization
+        value as in the `fit` method. The data are rotated so that each of the
+        k segments is used to test the final model's accuracy once. The average
+        correlation and mean squared error across all folds is an unbiased estimate
+        of the model's accuracy because the test data was not part of the optimization
+        process.
+
+        Parameters
+        ----------
+        stimulus: list
+            Each element must contain one trial's stimulus in a two-dimensional
+            samples-by-features array (second dimension can be omitted if there is
+            only a single feature.
+        response: list
+            Each element must contain one trial's response in a two-dimensional
+            samples-by-channels array.
+        fs: int
+            Sample rate of stimulus and response in hertz.
+        tmin: float
+            Minimum time lag in seconds.
+        tmax: float
+            Maximum time lag in seconds.
+        regularization: list or float or int
+            Values for the regularization parameter lambda. The model is fitted
+            separately for each value and the one yielding the highest accuracy
+            is chosen (correlation and mean squared error of each model are returned).
+        bands: list or None
+            Must only be provided when using banded ridge regression. Size of the
+            features for which a regularization parameter is fitted, in the order they
+            appear in the stimulus matrix. For example, when the stimulus consists of
+            an envelope vector and a 16-band spectrogram, bands would be [1, 16].
+        k: int
+            Number of data splits for cross validation, defaults to 5.
+            If -1, do leave-one-out cross-validation.
+        average: bool or list or numpy.ndarray
+            If True (default), average correlation and mean squared error across all
+            predictions (e.g. channels in the case of forward modelling). If `average`
+            is an array of integers only average the predicted features at those indices.
+        seed: int
+            Seed for the random number generator.
+        verbose: bool
+            If True (default), show a progress bar during fitting
+
+        Returns
+        -------
+        r_test: numpy.ndarray
+            Correlation between actual and predicted output for k test sets
+        mse_test: numpy.ndarray
+            Mean squared error between actual and predicted output for k test sets
+        best_regularization: numpy.ndarray
+            Optimal regularization values for k training sets.
+        """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
         stimulus = _check_data(stimulus, assert_list=True, assert_len=len(response))
