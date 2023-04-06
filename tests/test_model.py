@@ -49,12 +49,20 @@ def test_fit():
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.4)
     direction = np.random.choice([1, -1])
-    reg = np.random.uniform(0, 10)
-    trf = TRF(direction=direction)
-    trf.fit(stimuli, responses, fs, tmin, tmax, reg)
     reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
     trf = TRF(direction=direction)
     trf.fit(stimuli, responses, fs, tmin, tmax, reg)
+
+
+def test_test():
+    n = np.random.randint(5, 10)
+    stimuli, responses = np.array_split(stimulus, n), np.array_split(response, n)
+    tmin = np.random.uniform(-0.1, 0.05)
+    tmax = np.random.uniform(0.1, 0.4)
+    reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
+    trf = TRF()
+    r, mse, best_reg = trf.test(stimuli, responses, fs, tmin, tmax, reg)
+    assert len(r) == len(mse) == len(best_reg) == n
 
 
 def test_save_load():

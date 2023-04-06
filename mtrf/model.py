@@ -309,6 +309,7 @@ class TRF:
                 banded_regularization(len(lags), c, bands, self.bias)
                 for c in coefficients
             ]
+        cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
         r_test, mse_test, best_regularization = [np.zeros(n_splits) for _ in range(3)]
@@ -337,10 +338,10 @@ class TRF:
                 )
             best_regularization[isplit] = list(regularization)[np.argmin(mse)]
             self.train(stimulus, response, fs, tmin, tmax, best_regularization[isplit])
-            _, r_test[isplit], mse_test = self.predict(
+            _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
-            return r_test, mse_test, best_regularization
+        return r_test, mse_test, best_regularization
 
     def train(self, stimulus, response, fs, tmin, tmax, regularization):
         """
