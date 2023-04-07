@@ -230,7 +230,6 @@ class TRF:
         tmin,
         tmax,
         regularization,
-        test=False,
         bands=None,
         k=-1,
         average=True,
@@ -337,7 +336,9 @@ class TRF:
                     verbose=verbose,
                 )
             best_regularization[isplit] = list(regularization)[np.argmin(mse)]
-            self.train(stimulus, response, fs, tmin, tmax, best_regularization[isplit])
+            self.train([stimulus[i] for i in idx_train_val], 
+                       [response[i] for i in idx_train_val], 
+                       fs, tmin, tmax, best_regularization[isplit])
             _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
