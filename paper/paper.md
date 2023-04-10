@@ -12,7 +12,7 @@ authors:
   - name: Ole Bialas
     orcid: 0000-0000-0000-0000
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
-    affiliation: 2
+    affiliation: 1
 	corresponding: true # (This is how to denote the corresponding author)
   - name: Jin Dou
     equal-contrib: true
@@ -29,49 +29,26 @@ bibliography: paper.bib
 ---
 
 # Summary
+Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks [@hamilton2022]. However, this approach demands statistical tools to account for the different sources of variance that naturally occur in speech. One of the most popular tools to model neural responses to naturalistic speech are multivariate temporal response functions (mTRFs). 
 
-Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks [@hamilton2022]. However, this approach demands statistical tools to account for the different sources of variance that naturally occurr in speech. One of the most popular 
+One of the most commonly used packages for computing mTRFs with regularized regression is the mTRF-toolbox [@crosse2016]. However, this toolbox is implemented in the proprietary MATLAB language, restricting accessibility for parts of the scientific community. To overcome this constraint, we present mTRFpy, a Python package which replicates and advances the functionality of the original mTRF-toolbox.
 
-The brain is such a complex system that is hard to be fully understood. 
-A better understanding of how the human brain works will benefit both 
-health care and artificial intelligence. The sensory electrophysiology 
-in human is a field of exploring how the human brain processes and represents 
-the information from the outside world. The researchers in this field 
-normally present participants with stimuli and analyze how their brain 
-responses to them by collecting their neural responses. One technique to 
-model the mapping between stimuli and brain responses is the Temporal Response Function 
-which treats the brain as a linear time-invariant system.
+# Background
+In a nutshell, the mTRF is a regularized linear regression between two continuous signals, computed across multiple time-delays or lags. This accounts for the fact that the relationship between stimulus and neural response is not instantaneous and that the signals are auto-correlated. 
+
+mTRFs can be used as forward or encoding models to predict (multiple) univariate brain responses as the weighted sum of various acoustic and linguistic speech features while identifying their relative contributions [@diliberto2015, broderick2018]. In this case the model's weights have a clear physiological interpretation because they denote the expected change in neural response following a unit change in a given predictor [@haufe2014]. Thus, they can be understood as a generalization of the evoked response potential, obtained from averaging responses to repetitions of prototypical stimuli for continuous data.
+
+mTRFs can also be used as backward or decoding models which reconstruct stimulus features from multivariate neural recordings, for example to identify the speaker an individual is attending to within a cocktail party scenario [@osullivan2015]. Because a decoder pools information across all neural sensors, it can leverage interactions between individual observations and their underlying generators. Thus their predictive power is usually higher compared to encoding models. However, because the neural signals are highly interrelated, the decoder will not only amplify relevant, but suppress irrelevant signals, making a physiological interpretation of the weights difficult [@haufe2014].
 
 # Statement of need
+Temporal response functions are powerful and versatile tool to study the neural processing of speech in it's natural complexity. They also allow researchers to conduct experiments that are engaging (e.g. listening to a conversation) while monitoring the comprehension of speech independently of classical behavioral tests. This makes mTRFs promising tools for clinical applications in infants or patients with schizophrenia, autism spectrum disorder or disorder of consciousness. We believe that mTRFs can be useful to a large clinical research community and hope that open and accessible software will facilitate their wider adoption. Thus, our online documentation contains detailed tutorials to guide new users in computing and interpreting mTRFs.
 
-`mTRFpy` is a pure Numpy based Python Package for fitting the Temporal 
-Response Function. It adapts and extends the matlab mTRF-toolbox [@crosse2016multivariate] which has been 
-widely used in the field of sensory electrophysiology for many years. 
-Python enables the flexible interaction of the TRF method with various
-of open-source Python libraries that are actively maintained, and exposing 
-the TRF method to a larger society of users who are familiar with the mTRF-toolbox 
-but may want to transfer from Matlab to Python. The API for `mTRFpy` provides 
-object-oriented organization of functionality for fitting and applying TRFs 
-including training, predicting, and interpretation of TRF, plus cross-validation 
-and hyper-parameter searching. The core design philosophy of `mTRFpy` is flat and transparent, 
-which makes it robust to be extended and easy to be deployed by the users. 
-In `mTRFpy`, all the data being involved is purely represented by Numpy array and python list 
-without wrapped with customized classes. `mTRFpy` also provides interface to the widely-used 
-lower-level brain signal analysis library MNE [@gramfort2013meg] without additional wrapping of 
-any functions in it, to make it less confusing when integrating both libraries together.
-`mTRFpy` also provides test case to make sure it generates almost the same results as the Matlab version 
-with high precision.
+- commonalities and differences between matlab and python TRFm. Potential synergies with ML community
+- distinction from eelbrain
 
-`mTRFpy` was designed to be used by scientists and engineers who need analyze 
-brain responses and also students taking courses involving brain signal analysis. 
-The matlab mTRF-toolbox has been used in a lot of scientific publications [@broderick2018electrophysiological; @keshishian2023joint]. 
-Given the `mTRFpy` implements and extends the core functionality of mTRF-toolbox, 
-the seamless integration of `mTRFpy` with other python libraries will contribute 
-to more efficient brain signal analysis and finally more exciting new findings 
-about how the brain processes and represents the outside real world.
 
-# Acknowledgements
+# Overview and Example
+Compute and plot forward TRF and compare the correlation to the permutation distribution, plot the result
 
-We acknowledge the support from the Lalor Lab where this library is developed.
 
 # References
