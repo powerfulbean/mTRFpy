@@ -29,7 +29,7 @@ bibliography: paper.bib
 ---
 
 # Summary
-Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks [@hamilton2022]. However, this approach demands statistical tools to account for the different sources of variance that naturally occur in speech. One of the most popular tools to model neural responses to naturalistic speech are multivariate temporal response functions (mTRFs). 
+Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. Recently, more researchers started investigating brain responses to more naturalistic speech like audiobooks [@hamilton2020]. However, this approach demands statistical tools to account for the different sources of variance that naturally occur in speech. One of the most popular tools to model neural responses to naturalistic speech are multivariate temporal response functions (mTRFs). 
 
 One of the most commonly used packages for computing mTRFs with regularized regression is the mTRF-toolbox [@crosse2016]. However, this toolbox is implemented in the proprietary MATLAB language, restricting accessibility for parts of the scientific community. To overcome this constraint, we present mTRFpy, a Python package which replicates and advances the functionality of the original mTRF-toolbox.
 
