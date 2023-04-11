@@ -41,14 +41,31 @@ mTRFs can be used as forward or encoding models to predict (multiple) univariate
 mTRFs can also be used as backward or decoding models which reconstruct stimulus features from multivariate neural recordings, for example to identify the speaker an individual is attending to within a cocktail party scenario [@osullivan2015]. Because a decoder pools information across all neural sensors, it can leverage interactions between individual observations and their underlying generators. Thus their predictive power is usually higher compared to encoding models. However, because the neural signals are highly interrelated, the decoder will not only amplify relevant, but suppress irrelevant signals, making a physiological interpretation of the weights difficult [@haufe2014].
 
 # Statement of need
-Temporal response functions are powerful and versatile tool to study the neural processing of speech in it's natural complexity. They also allow researchers to conduct experiments that are engaging (e.g. listening to a conversation) while monitoring the comprehension of speech independently of classical behavioral tests. This makes mTRFs promising tools for clinical applications in infants or patients with schizophrenia, autism spectrum disorder or disorder of consciousness. We believe that mTRFs can be useful to a large clinical research community and hope that open and accessible software will facilitate their wider adoption. Thus, our online documentation contains detailed tutorials to guide new users in computing and interpreting mTRFs.
+Temporal response functions are powerful and versatile tool to study the neural processing of speech in it's natural complexity. They also allow researchers to conduct experiments that are engaging (e.g. listening to a conversation) while monitoring the comprehension of speech independently of classical behavioral tests. This makes mTRFs promising tools for clinical applications in infants or patients with schizophrenia, autism spectrum disorder or disorder of consciousness. We believe that mTRFs can be useful to a large clinical research community and hope that open and accessible software will facilitate their wider adoption.
 
-- commonalities and differences between matlab and python TRFm. Potential synergies with ML community
-- distinction from eelbrain
+We implement the same methods as the original MATLAB toolbox and use a sample data set to assert that mTRFpy produces the same results (within the limits of numerical accuracy). However, we use an object oriented design, where training, optimization and visualization are implemented as methods of a generic `TRF` class. Whats more, we added functions for permutation testing and model evaluation which were not included in the original mtrf-toolbox. Finally, we also included a method to conveniently export trained models to MNE which is the most common framework for analyzing MEG and EEG data in Python [@gramfort2013].
 
+There is some overlap with eelbrain, another Python package focused on TRF analysis [@brodbeck2021]. However, while eelbrain estimates mTRFs with the iterative boosting algorithm, `mTRFpy` uses ridge regression and while the two methods produce similar results, there are nuanced differences [@kulasingham2022]. Whats more eelbrain provides a full analysis framework with custom data types while `mTRFpy` is more minimalist and operates on list and numpy arrays. This keeps the number of dependencies to a minimum and makes the package easily compatible with most analysis pipelines. We hope that this approach will foster synergies with the large machine learning and deep learning communities working in Python. 
 
 # Overview and Example
-Compute and plot forward TRF and compare the correlation to the permutation distribution, plot the result
+`mTRFpy` provides a sample of EEG recordings during comprehension of naturalistic speech.Here, we use this data set to compute and visualize a forward TRF. Then we will estimate the model's accuracy as the Pearson's correlation between the actual and predicted EEG and compare the result against randomly permuted data.
 
+```python
+import numpy as np
+from matplotlib import pyplot as plt
+from mtrf.model import TRF, load_sample_data
+from mtrf.stats import cross_validate, permutation_distribution
+
+stim, resp, fs = load_sample_data()
+stim, resp = np.array_split(stim, 10), np.array_split(resp, 10)
+trf = TRF(direction=1, method='ridge')
+tmin, tmax = 0, 0.4  # time window in seconds
+regularization = 10  # ridge parameter
+trf.train(stim, resp, fs, tmin, tmax, regularization)
+r, _ = cross_validate(trf, stim, resp, fs, tmin, tmax, regularization)
+r_perm, _ = permutation_distribution(
+    trf, stim, resp, fs, tmin, tmax, regularization, n_permute=1000, k=5
+    )
+```
 
 # References
