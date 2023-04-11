@@ -69,6 +69,8 @@ def cross_validate(
         When the actual output is provided, mean squared error is computed per
         trial or averaged, depending on the `average` parameter.
     """
+    trf = model.copy()
+    trf.bias, trf.weights = None, None
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
@@ -95,6 +97,8 @@ def _cross_validate(
     verbose=True,
     seed=None,
 ):
+    trf = model.copy()
+    trf.bias, trf.weights = None, None
     if seed is not None:
         random.seed(seed)
     regmat = regularization_matrix(cov_xx.shape[-1], model.method)

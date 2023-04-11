@@ -1,80 +1,89 @@
-Tutorial
-========
+===========
+Basic usage
+===========
 
-The multivariate temporal response function is regression model which estimates a linear mapping between a stimulus and a neural response [#f1]_. Because the neural response is delayed with respect to the stimulus, the regression is computed across a series of time lags. The range of lags is determined by the parameters :attr:`tmin` and :attr:`tmax` and the step-size by the sampling rate :attr:`fs` of stimulus and response. It can be used as a forward model, predicting neural activation patterns in response to a stimulus, or as a backward model, reconstructing a stimulus from neural activity. This is determined by the :attr:`direction` parameter.
+This section describes the basic methods to compute a temporal response function on continuous data, estimate its predictive accuracy and visualize the results.
 
-Training models
----------------
-We can fit a simple forward model using the mTRFpy sample dataset, consisting of neural responses to about 2 minutes of naturalistic speech, recorded with a 128 channel EEG system, as well as the 16-band spectrogram of that speech.::
+Background
+==========
+The TRF is a multivariate regression between a continuous stimulus and its neural response. The TRF can be applied as a forward model, using stimulus features to predict neural responses or as a backward model, using neural responses to reconstruct the stimulus. Because neural responses are delayed with respect to the stimulus, the regression must be computed across multiple time lags. The TRF predicts the estimand (i.e. neural response in a forward or stimulus in a backward model) as a weighted combination of predictor features. The model weights are chosen to minimize the mean squared error (MSE) between estimand and it's prediction. This is implemented in the following matrix multiplication:
+
+.. math::
+
+    w = (X^\intercal X+\lambdaI)^{-1}X^\intercal y
+
+Where X is a matrix of time-lagged input features and y is a vector of output features.
+:math:`(X^\intercal X)^{-1}` is the inverse autocovariance matrix of the predictor which accounts for the fact that both natural speech and brain signals are correlated with themselves over time. :math:`\lambdaI` is a diagonal matrix with a regularization parameter that can be optimized to improve stability and avoid overfitting.  :math:`X^\intercal y` is the covariance matrix of predictor and estimand [#f1]_. 
+
+Because the TRF minimized the difference between the estimand and it's prediction within the training data set we must test wheter the estimated linear mapping generalizes. To do this, we use k-fold cross-validation, where the data is split into k subsets, a TRF is trained on k-1 of them and validated on the kth one. The data are rotated so that each segment is used for validation and the models accuracy can be obtained as the correlation or mean squared error averaged across all k validation sets.
+
+
+Sample dataset
+==============
+We provide a small sample dataset for testing purposes. The data contains about two minutes of one individual's brain responses, recorded with a 128 biosemi EEG system while they were listening to an audiobook. It can be obtained by calling a function which will download the data if they are not present. ::
+    
+    from mtrf.model import load_sample_data
+
+    stimulus, response, fs = load_sample_data()
+
+In the above example, ``stimulus`` contains a 16-band spectrogram of the speech signal and ``response`` contains the 128-channel EEG recording. Both are resampled to 128 Hz and the sampling rate is stored in the variable ``fs``.
+
+
+Forward model
+=============
+
+To fit a forward model, create an instance of the TRF class, define the time interval (``tmin`` and ``tmax``) and the ``regularization`` value (details about regularization can be found in the next section) and use the ``train()`` method. ::
+
     
     from mtrf.model import TRF, load_sample_data
-    
+
     stimulus, response, fs = load_sample_data() # data will be downloaded
-    trf = TRF(direction=1)
+    fwd_trf = TRF(direction=1)
     tmin, tmax = 0, 0.4  # range of time lags
-    trf.train(stimulus, response, fs, tmin, tmax, regularization=1)
+    regularization = 1
+    fwd_trf.train(stimulus, response, fs, tmin, tmax, regularization)
 
-The last parameter is the regularization parameter, which is addressed in a later section. Now, we can use the fitted TRF to predict the neural response from the stimulus and compare the prediction to the actual response to assess the model's accuracy.::
+Now, we can use the fitted TRF to predict the neural response from the stimulus and compare the prediction to the actual response to assess the model's accuracy.::
 
-    prediction, correlation, error = trf.predict(stimulus, response)
+    prediction, r_fwd, mse_fwd = fwd_trf.predict(stimulus, response)
+    print(f"correlation between actual and predicted response: {r_fwd.round(3)}")
 
-We can use a backward model by simply changing the :attr"`direction` parameter to -1.
-::
+    out:
+    correlation between actual and predicted response: 0.124
 
-    trf = TRF(direction=-1)
-    tmin, tmax = 0, 0.4  # range of time lags
-    trf.train(stimulus, response, fs, tmin, tmax, regularization=1)
-    prediction, correlation, error = trf.predict(stimulus, response)
-
-The correlation between the predicted and actual output is 0.76, which is impossibly high given the noisy nature of EEG data. This is clear overfitting, resulting from training and testing on the same data. However, cross-validation can give an unbiased estimate of the model's accuracy.
-
-Cross-validation
-----------------
-For cross-validation, data are split into k subsets. All but one of these subsets are used to train the TRF while the last subset is used to test the TRF's prediction. This is repeated k times so that each subset is used for testing once. The average correlation across all splits is an unbiased estimate of the model's accuracy.::
+However, because we trained and tested on the exact same data, the correlation coefficient is inflated due to overfitting. To avoid this we can use k-fold cross-validation which will give an unbiased accuracy estimate for a model with a given set of parameters. The ``cross_validate()`` function takes a ``TRF`` object as input and uses the same parameters as the ``train()`` method. Additionally, you can specify the number of folds ``k``. The default value is -1 which corresponds to leave-one-out cross-validation where the number of folds is equal to the number of trials. To use cross-validation we must split the data into multiple trials which can be done using numpy's ``array_split()`` function. ::
 
     import numpy as np
     from mtrf.stats import cross_validate
-    trf = TRF(direction=-1)
-    stimulus, response, fs = load_sample_data() # data will be downloaded
-    # split stimulus and response into 10 segments
     stimulus = np.array_split(stimulus, 10)
     response = np.array_split(response, 10)
-    correlation, error = cross_validate(  # this will take a few moments
-        trf, stimulus, response, fs, tmin, tmax, regularization=1, k=5
-        )
+    r, mse = cross_validate(fwd_trf, stimulus, response, fs, tmin, tmax, regularization)
+    print(f"correlation between actual and predicted response: {r_fwd.round(3)}")
 
-Regularization
---------------
-One important parameter is the regularization value which penalizes the slope of the regression. Thus, a large regularization value prevents the model from 'overreacting' to large outlier values. The ``TRF.fit()`` method takes a list of regularization values, makes a model for each value, tests their accuracy using cross-validation and selects the regularization value that yield the best model.
+    out:
+    correlation between actual and predicted response: 0.018
 
-.. plot::
-    :include-source:
+Turns out the first estimate of the model's accuracy was about an order of magnitude too large!
+
+Backward model
+==============
+Fitting a backward model works in the same way, just set the ``direction`` parameter to -1. To save time, we won't compute the TRF for each spectral band but rather average across bands to obtain the acoustic envelope. Because a single stimulus feature is reconstructed from 128 neural recordings, the backward model is more powerful but also more susceptible to overfitting. ::
     
-    import numpy as np
-    from matplotlib import pyplot as plt
-    from mtrf.model import TRF, load_sample_data
-    trf = TRF()  # use forward model
-    stimulus, response, fs = load_sample_data() # data will be downloaded
-    stimulus = np.array_split(stimulus, 10)
-    response = np.array_split(response, 10)
-    tmin, tmax = 0, 0.4  # range of time lags
-    regularization = np.logspace(-1, 6, 20)
-    correlation, error = trf.fit(
-        stimulus, response, fs, tmin, tmax, regularization, k=-1
-        )
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
-    ax1.semilogx(regularization, correlation, color='c')
-    ax2.semilogx(regularization, error, color='m')
-    ax1.set(xlabel='Regularization value', ylabel='Correlation')
-    ax2.set(ylabel='Mean squared error')
-    ax1.axvline(regularization[np.argmin(error)], linestyle='--', color='k')
-    plt.show()
+    envelope = [s.mean(axis=1) for s in stimulus]
+    bwd_trf = TRF(direction=-1)
+    bwd_trf.train(envelope, response, fs, tmin, tmax, regularization)
+    prediction, r_bwd, mse_bwd = bwd_trf.predict(envelope, response)
+    print(f"correlation between actual and predicted response: {r_bwd.round(3)}")
 
-The dashed line marks the regularization coefficient which yields the best TRF (i.e. the one that minimizes the mean squared error between predicted and actual response).
+    out:
+    correlation between actual and predicted response: 0.1
+
+
 
 Visualization
 -------------
+
+
 The TRF class has a plot method to quickly visualize the models' weights. Because the weight matrix is three-dimensional (inputs-by-lags-by-outputs) visualization requires selecting from or averaging across one of the dimensions.
 
 .. plot::

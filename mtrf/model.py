@@ -338,7 +338,7 @@ class TRF:
                 )
             best_regularization[isplit] = list(regularization)[np.argmin(mse)]
             self.train(stimulus, response, fs, tmin, tmax, best_regularization[isplit])
-            _, r_test[isplit], mse_test[isplit] = self.predict(
+            _, r_test[isplit], mse_test = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
         return r_test, mse_test, best_regularization

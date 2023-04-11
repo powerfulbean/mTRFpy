@@ -1,6 +1,7 @@
-mTRFpy - multivariate linear modeling
-=====================================
-This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy. It aims to implement the same methods as the original toolbox and advance them. This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
+Welcome to mTRFpy
+=================
+
+The mTRFpy package offers convenient tools for temporal response functions (TRFs) which are multivariate regression models for continuous data, commonly used to model neural responses to naturalistic speech. mTRFpy is an adaptation and advancement of the `MATLAB mTRF-toolbox <https://github.com/mickcrosse/mTRF-Toolbox.git>`_. This documentation provides guidance on the basic usage as well as questions of optimization and statistical inference along with a comprehensive reference documentation.
 
 
 Installation
@@ -9,7 +10,7 @@ You can get the stable release from PyPI::
     
     pip install mtrf 
 
-Or get the latest version from this repo::
+Or get the latest version from Github::
 
     pip install git+https://github.com/powerfulbean/mTRFpy.git 
 
@@ -18,13 +19,12 @@ visualize models. It can also be installed via pip::
 
     pip install matplotlib
 
-We also provide an optional interface to MNE-Python so it might be useful to `install mne <https://mne.tools/stable/install/manual_install.html>`_ as well.
-
 .. toctree::
   :caption: Contents
   :maxdepth: 2
 
   basics
+  optimization
   api
 
 

@@ -32,7 +32,7 @@ def _check_data(data, assert_list=False, assert_len=False, crop=False):
         if all([isinstance(d, np.ndarray) for d in data]):
             for i in range(len(data)):
                 if data[i].ndim == 1:
-                    data[i] = np.expand_dims(data, axis=-1)
+                    data[i] = np.expand_dims(data[i], axis=-1)
             if crop is True:
                 min_len = min([len(d) for d in data])
                 for i in range(len(data)):
@@ -174,7 +174,7 @@ def lag_matrix(x, lags, zeropad=True, bias=True):
     if zeropad is False:
         lag_matrix = truncate(lag_matrix, lags[0], lags[-1])
 
-    if bias:
+    if bias is not False:
         lag_matrix = np.concatenate([np.ones((lag_matrix.shape[0], 1)), lag_matrix], 1)
 
     return lag_matrix
