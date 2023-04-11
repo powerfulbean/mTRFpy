@@ -197,8 +197,6 @@ def permutation_distribution(
     """
     if seed:
         np.random.seed(seed)
-    if np.isscalar(regularization):
-        regularization = [regularization]
     stimulus = _check_data(stimulus, crop=True)
     response = _check_data(response, crop=True)
     xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
