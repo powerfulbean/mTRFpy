@@ -24,7 +24,8 @@ visualize models. It can also be installed via pip::
   :maxdepth: 2
 
   basics
-  optimization
+  regularization
+  inference
   api
 
 
@@ -32,7 +33,7 @@ Frequently Asked Questions
 --------------------------
 * **will mTRFpy produce the same results as the matlab mTRF-toolbox?**
 
-Yes, the basic operations like ``TRF.train()`` and ``TRF.predict()`` will produce identical results (within the boundaries of computer numerical accuracy).
+Yes, the basic operations like :meth:`TRF.train()` and :meth:`TRF.predict()` will produce identical results (within the boundaries of computer numerical accuracy).
 
 
 * **I think I found a bug!**

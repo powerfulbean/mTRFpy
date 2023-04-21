@@ -412,6 +412,8 @@ class TRF:
             1 / self.fs
         )
         self.bias = weight_matrix[0:1]
+        if self.bias.ndim == 1:  # add empty dimension for single feature models
+            self.bias = np.expand_dims(self.bias, axis=0)
         self.weights = weight_matrix[1:].reshape(
             (x.shape[1], len(lags), y.shape[1]), order="F"
         )
@@ -554,7 +556,7 @@ class TRF:
         Cxx = 0
         Css = 0
         trf = self.copy()
-        trf.times = [-i for i in reversed(trf.times)]
+        trf.times = np.asarray([-i for i in reversed(trf.times)])
         trf.direction = 1
         for i in range(ntrials):
             Cxx = Cxx + response[i].T @ response[i]
@@ -742,14 +744,14 @@ class TRF:
             weights = weights[np.asarray(include), :, :]
         evokeds = []
         for w in weights:
-            evoked = mne.EvokedArray(w.T, mne_info, tmin=self.times[0], **kwargs)
+            evoked = mne.EvokedArray(w.T.copy(), mne_info, tmin=self.times[0], **kwargs)
             if isinstance(info, mne.channels.montage.DigMontage):
                 evoked.set_montage(info)
             evokeds.append(evoked)
         return evokeds
 
 
-def load_sample_data(path=None):
+def load_sample_data(path=None, n_segments=1, normalize=True):
     """
     Load sample of brain responses to naturalistic speech.
 
@@ -786,4 +788,19 @@ def load_sample_data(path=None):
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
-    return data["stimulus"], data["response"], data["samplerate"][0][0]
+    stimulus, response, fs = (
+        data["stimulus"],
+        data["response"],
+        data["samplerate"][0][0],
+    )
+    stimulus = np.array_split(stimulus, n_segments)
+    response = np.array_split(response, n_segments)
+    if normalize:
+        for i in range(len(stimulus)):
+            stimulus[i] = (stimulus[i] - stimulus[i].mean(axis=0)) / stimulus[i].std(
+                axis=0
+            )
+            response[i] = (response[i] - response[i].mean(axis=0)) / response[i].std(
+                axis=0
+            )
+    return stimulus, response, fs

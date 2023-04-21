@@ -15,10 +15,10 @@ def cross_validate(
     model,
     stimulus,
     response,
-    fs,
-    tmin,
-    tmax,
-    regularization,
+    fs=None,
+    tmin=None,
+    tmax=None,
+    regularization=None,
     k=-1,
     seed=None,
     average=True,
@@ -71,6 +71,7 @@ def cross_validate(
     """
     trf = model.copy()
     trf.bias, trf.weights = None, None
+    fs, tmin, tmax, regularization = _check_attr(trf, fs, tmin, tmax, regularization)
     if seed is not None:
         random.seed(seed)
     stimulus, response = _check_data(stimulus), _check_data(response)
@@ -258,3 +259,19 @@ def _check_k(k, n_trials):
     if k == -1:  # do leave-one-out cross-validation
         k = n_trials
     return k
+
+
+def _check_attr(model, fs, tmin, tmax, regularization):
+    if fs is None:
+        fs = model.fs
+    if tmin is None and isinstance(model.times, np.ndarray):
+        tmin = np.abs(model.times).min()
+    if tmax is None and isinstance(model.times, np.ndarray):
+        tmax = np.abs(model.times).max()
+    if regularization is None:
+        regularization = model.regularization
+    if any([x is None for x in [fs, tmin, tmax, regularization]]):
+        raise ValueError(
+            "Specify parameters `fs`, `tmin`, `tmax` and `regularization` when using and untrained model!"
+        )
+    return fs, tmin, tmax, regularization
