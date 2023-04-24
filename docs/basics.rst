@@ -83,7 +83,7 @@ To fit a backward model, just change the :py:const:`direction` parameter to -1. 
 
 Visualization
 -------------
-The TRF class has a :py:meth:`plot` method to quickly visualize weights of a trained TRF. Because the weight matrix is three-dimensional (inputs-by-lags-by-outputs) visualization requires selecting from or averaging across one of the dimensions. In the below example, we are plotting the  ::
+The TRF class has a :py:meth:`plot` method to quickly visualize weights of a trained TRF. Because the weight matrix is three-dimensional (inputs-by-lags-by-outputs) visualization requires selecting from or averaging across one of the dimensions. In the below example, we are plotting the TRFs weights over time for the 7 :sup:`th` feature (i.e. spectral band) for each channel as well as the global field power (i.e. standard deviation across all channels) for every feature. ::
 
     from matplotlib import pyplot as plt
     fig, ax = plt.subplots(2)
@@ -94,16 +94,16 @@ The TRF class has a :py:meth:`plot` method to quickly visualize weights of a tra
 
 .. image:: images/fwd.png
 
-The top panel shows the forward TRF for each EEG-channel with the weights averaged across all features (i.e. spectral bands) and the second panels shows the weights for each feature at a single channel where bright yellow indicates high and dark blue indicates low weights.
+The top panel shows the forward TRFs weights across time. This is conceptually similar to an evoked response potential since the weights quantify the average effect a stimulus has on the neural response at a given delay. The bottom panel shows the color coded weights for each spectral band - bright yellow corresponds to high and dark blue to low weights. This depiction is also referred to as a spectrotemporal receptive field (STRF) because it shows the neural response to sound as a function of time and frequency.
 
-It is not recommended to visualize a backward TRF in the same way because their interpretation is difficult, due to the causal relationships between the neural responses used to reconstruct the stimulus. However, we can transform backward to forward models [#f3]_, thereby making them interpretable::
+It is not recommended to visualize a backward TRF in the same way. That is because the backward model must not only amplify the signal of interest (i.e. the neural activation pattern) but also suppress all signals of no interest. If those patterns are not orthogonal, the trade-off between amplification and suppression results in a complex spatial structure where the meaning of model weights can not be disentangled between the two tasks. However, we can transform backward to forward models [#f3]_ to allow a physiological interpretation of model weights::
     
     transformed = bwd_trf.to_forward(response)
     transformed.plot(feature=0)
 
 .. image:: images/bwd.png
 
-The TRF can also be easily converted to MNE-Pythons evoked class (requires that mne is installed) which provides useful methods for visualization like topo-plots. The ``to_mne_evoked`` method requires information about the location of channels (here, we use a standard montage for the biosemi system) and returns a list of evoked responses - one for each feature in the TRF.::
+Finally, we provide a method to easily convert a TRF to the MNE-Python framework. MNE is the most commonly used package for analyzing EEG and MEG data in Python and provides useful functions for visualization. The :py:meth:`to_mne_evoked` requires information about channel locations (here, we use a standard montage for the biosemi system) and returns a list of :py:class:`mne.Evoked` instances - one for each feature in the TRF. In the below example, we are converting and visualizing the TRF for the 7 :sup:`th` spectral band ::
 
     from mne.channels import make_standard_montage
     
@@ -115,8 +115,8 @@ The TRF can also be easily converted to MNE-Pythons evoked class (requires that 
 
 .. image:: images/evo.png
 
-The plot shows each channel's TRF for one spectral band as well as the distribution of TRF weights across the scalp at different points in time.
+The scalp topographies show the spatial pattern of TRF weights at specific points in time which can be informative of the underlying neural generators.
 
 .. [#f1] Crosse, M. J., Di Liberto, G. M., Bednar, A., & Lalor, E. C. (2016). The multivariate temporal response function (mTRF) toolbox: a MATLAB toolbox for relating neural signals to continuous stimuli. Frontiers in human neuroscience, 10, 604.
-.. [#f2] Kohavi, R. (1995, August). A study of cross-validation and bootstrap for accuracy estimation and model selection. In Ijcai (Vol. 14, No. 2, pp. 1137-1145).
+.. [#f2] Kohavi, R. (1995). A study of cross-validation and bootstrap for accuracy estimation and model selection. In Ijcai (Vol. 14, No. 2, pp. 1137-1145).
 .. [#f3] Haufe, S., Meinecke, F., Görgen, K., Dähne, S., Haynes, J. D., Blankertz, B., & Bießmann, F. (2014). On the interpretation of weight vectors of linear models in multivariate neuroimaging. Neuroimage, 87, 96-110.

@@ -1,15 +1,20 @@
 Regularization
 ==============
 
-Ordinary least squares (OLS) regression minimizes the mean squared error (MSE) between predictions and observations. In the two-dimensional case that means finding the line that best fits a set of points. However, in practice, this often doesn't have the desirable outcome because the sampled data is not a perfect representation of the overall population. Thus, OLS optimizes the models fit on the sample to the detriment of its generalizability. To overcome this, one may use a regularization parameter `\lambda` that penalizes large coefficients. The image below shows regularized regression models, fitted to two dimensional data. Four points (filled black circles) were sampled to fit the model. If `\lambda=0`, OLS regression is performed and the line provides the best fit to the sample but deviates from the overall trend in the data (dashed black line).
-As the value of `lambda` is increased the flattens because the slope is penalized. The best regularization value (i.e. the one that leads to the closest match with the trend in the whole data) lies somewhere in between. The optimal `\lambda` value depends on multiple factors like the amount and quality of the data (more data requires less regularization) and the number of model parameters (larger models require more regularization).
+Ordinary least squares (OLS) regression minimizes the mean squared error (MSE) between predictions and observations. In the two-dimensional case that means finding the line that best fits a set of points. However, in practice, this often doesn't have the desirable outcome because the sampled data is not a perfect representation of the overall population. Thus, OLS optimizes the models fit on the sample to the detriment of its generalizability. To overcome this, one may use a regularization parameter :math:`\lambda` that penalizes large coefficients. In the below example, we use simulated data to demonstrate the effect of regularization. We apply regularized regression to four data points (filled circles) sampled from a larger set (unfilled circles). 
 
 .. image:: images/reg.png
+    :align: center
+    :scale: 35 %
+
+When :math:`\lambda=0`, this is equivalent to OLS regression (yellow line) and gives the best fit to the sample at the cost of deviating from the overall trend in the data (dashed black line). As the value of :math:`\lambda` is increased the line flattens because the slope is penalized. As lambda approaches infinity the regression produces a horizontal line, irrespective of the data. The optimal :math:`\lambda` value is the one that gives the best approximation of the population trend.
+This value depends on multiple factors like the amount and quality of the data (more data requires less regularization) and the number of model parameters (larger models require more regularization) and has to be estimated from the data.
 
 Optimization
 ------------
 
-We can optimize regularization by testing out multiple values. For each value, the data is split into a training and validation set. The regression is fitted to the training data and the validation data is used to estimate the model's accuracy. Then, we select the regularization value that minimizes the MSE between the actual and predicted output and use it to train the final model. The whole procedure is implemented in the `TRF.fit` method, which has the same parameters as `TRF.train` but takes a list rather than a single value for regularization.::
+To optimize :math:`\lambda`, we must try out different values and choose the one that gives us the model that best predicts the actual data (i.e. that minimizes the MSE between predicted and observed data). Thus, we estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the best one, and use it to fit a model on the whole data. 
+This whole procedure is implemented in the `TRF.fit` method, which has the same parameters as `TRF.train` but takes a list rather than a single value for the `regularization.::
 
     import numpy as np
     from matplotlib import pyplot as plt

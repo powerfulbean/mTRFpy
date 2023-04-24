@@ -24,7 +24,7 @@ visualize models. It can also be installed via pip::
   :maxdepth: 2
 
   basics
-  regularization
+  optimization
   inference
   api
 
