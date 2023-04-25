@@ -13,8 +13,7 @@ This value depends on multiple factors like the amount and quality of the data (
 Optimization
 ------------
 
-To optimize :math:`\lambda`, we must try out different values and choose the one that gives us the model that best predicts the actual data (i.e. that minimizes the MSE between predicted and observed data). Thus, we estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the best one, and use it to fit a model on the whole data. 
-This whole procedure is implemented in the `TRF.fit` method, which has the same parameters as `TRF.train` but takes a list rather than a single value for the `regularization.::
+To optimize :math:`\lambda`, we must try out different values and choose the one that gives us the model that best predicts the actual data (i.e. that minimizes the MSE between predicted and observed data). Thus, we estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the best one, and use it to fit a model on the whole data. This whole procedure can be done by using the `TRF.train` function and passing a list instead of a single value for the :py:const"`regularization` parameter. When testing multiple values for :math:`\lambda`, :py:meth:`TF.train` will return the correlation coefficient and MSE for each value. In the below example we are using those estimates to visualize how the model's accuracy changes as a function of :math:`\lamda` ::
 
     import numpy as np
     from matplotlib import pyplot as plt

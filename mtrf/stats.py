@@ -74,7 +74,7 @@ def cross_validate(
     fs, tmin, tmax, regularization = _check_attr(trf, fs, tmin, tmax, regularization)
     if seed is not None:
         random.seed(seed)
-    stimulus, response = _check_data(stimulus), _check_data(response)
+    stimulus, response, _ = _check_data(stimulus, response, min_len=2)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, model.bias)
@@ -198,13 +198,11 @@ def permutation_distribution(
     """
     if seed:
         np.random.seed(seed)
-    stimulus = _check_data(stimulus, crop=True)
-    response = _check_data(response, crop=True)
+    stimulus, response, n_trials = _check_data(stimulus, response, min_len=2, crop=True)
     xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     min_len = min([len(x) for x in xs])
     for i in range(len(xs)):
         xs[i], ys[i] = xs[i][:min_len], ys[i][:min_len]
-    n_trials = len(xs)
     k = _check_k(k, n_trials)
     idx = np.arange(n_trials)
     combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)

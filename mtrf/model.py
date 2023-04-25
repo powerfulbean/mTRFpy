@@ -513,7 +513,7 @@ class TRF:
         """
         assert self.direction == -1
 
-        _, response, n_trials = _check_data(response)
+        _, response, n_trials = _check_data(None, response)
         stim_pred = self.predict(response=response)
 
         Cxx = 0
