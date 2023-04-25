@@ -1,8 +1,31 @@
 from pathlib import Path
 import numpy as np
-from mtrf.model import lag_matrix, TRF
+from mtrf.model import lag_matrix, TRF, load_sample_data
+from mtrf.matrices import _check_data
 
 root = Path(__file__).parent.absolute()
+
+
+def test_check_data():
+    n = np.random.randint(2, 10)
+    stimulus, response, _ = load_sample_data(n_segments=n)
+    stimulus, response, n_trials = _check_data(
+        stimulus=stimulus, response=response, min_len=n, crop=False
+    )
+    assert n_trials == n
+    stimulus, response, _ = _check_data(
+        stimulus=stimulus, response=response, min_len=n, crop=True
+    )
+    stimulus, _, _ = _check_data(
+        stimulus=stimulus, response=None, min_len=n, crop=False
+    )
+    assert all([s.shape == stimulus[0].shape for s in stimulus])
+    assert all([r.shape == response[0].shape for r in response])
+    _, response, _ = _check_data(
+        stimulus=None, response=response, min_len=n, crop=False
+    )
+    np.testing.assert_raises(ValueError, _check_data, stimulus, response, n + 1)
+    np.testing.assert_raises(ValueError, _check_data, stimulus, response[:-1], n)
 
 
 def test_lag_matrix():

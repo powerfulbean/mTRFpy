@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def _check_data(data, assert_list=False, assert_len=False, crop=False):
+def _check_data(stimulus=None, response=None, min_len=1, crop=False):
     """
     Check wheter data (stimulus or response) are formatted correctly.
     Parameters
@@ -24,28 +24,33 @@ def _check_data(data, assert_list=False, assert_len=False, crop=False):
         data (list): Data in a list of arrays with added singelton dimension if the arrays
             were 1-dimensional.
     """
-    if assert_list and not isinstance(data, list):
-        raise ValueError("`data` must be a list!")
-    if assert_len and not len(data) == assert_len:
-        raise ValueError(f"`data` does not have the length {assert_len}!")
-    if isinstance(data, list):
-        if all([isinstance(d, np.ndarray) for d in data]):
-            for i in range(len(data)):
-                if data[i].ndim == 1:
-                    data[i] = np.expand_dims(data[i], axis=-1)
-            if crop is True:
-                min_len = min([len(d) for d in data])
-                for i in range(len(data)):
-                    data[i] = data[i][:min_len, :]
-            return data
-    elif isinstance(data, np.ndarray):
-        if data.ndim < 3:
+    for i, data in enumerate([stimulus, response]):
+        if isinstance(data, np.ndarray):  # convert array to list
             if data.ndim == 1:
-                data = np.expand_dims(data, axis=-1)
-            return [data]
-    raise ValueError(
-        "Stimulus and response must either be a single 2-D samples-by-features array if the data contains one trial or a list of such arrays if the data contains multiple trials)!"
-    )
+                data = np.expand_dims(data, axis=1)
+            if data.ndim > 2:
+                raise ValueError("Array cant have more that three dimensions!")
+            data = [data]
+        if data is not None:
+            if len(data) < min_len:  # check length
+                raise ValueError("Data list is too short!")
+            if crop is True:  # crop all trials to same number of samples
+                min_n = min([len(d) for d in data])
+                for i in range(len(data)):
+                    data[i] = data[i][:min_n, :]
+            n_trials = len(data)
+        if i == 0:
+            stimulus = data
+        else:
+            response = data
+    if (stimulus is not None) and (response is not None):
+        if (not len(stimulus) == len(response)) or (
+            not all([s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)])
+        ):
+            raise ValueError(
+                "Stimulus and response must have the same number of trials and the same number of samples in each trial!"
+            )
+    return stimulus, response, n_trials
 
 
 def _get_xy(stimulus, response, tmin=None, tmax=None, direction=1):

@@ -106,7 +106,7 @@ class TRF:
         trf_new.bias /= num
         return trf_new
 
-    def fit(
+    def train(
         self,
         stimulus,
         response,
@@ -179,10 +179,13 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        stimulus = _check_data(stimulus, assert_list=True, assert_len=len(response))
-        response = _check_data(response, assert_list=True, assert_len=len(stimulus))
-        n_trials = len(stimulus)
-        k = _check_k(k, n_trials)
+        if np.isscalar(regularization):
+            min_len = 1
+        else:  # optimizing lambda requires multiple trials
+            min_len = 2
+        stimulus, response, n_trials = _check_data(stimulus, response, min_len=min_len)
+        if not np.isscalar(regularization):
+            k = _check_k(k, n_trials)
         xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
@@ -192,7 +195,8 @@ class TRF:
                 for c in coefficients
             ]
         if np.isscalar(regularization):
-            self.train(stimulus, response, fs, tmin, tmax, regularization)
+            self._train(xs, ys, fs, tmin, tmax, regularization)
+            return
         else:  # run cross-validation once per regularization parameter
             # pre-compute covariance matrices
             cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
@@ -218,9 +222,46 @@ class TRF:
                     verbose=verbose,
                 )
             best_regularization = list(regularization)[np.argmin(mse)]
-            print(best_regularization)
-            self.train(stimulus, response, fs, tmin, tmax, best_regularization)
+            self._train(stimulus, response, fs, tmin, tmax, best_regularization)
             return r, mse
+
+    def _train(self, xs, ys, fs, tmin, tmax, regularization):
+        if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
+            self.bias = True
+        if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
+            if (
+                np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
+                > 0
+            ):
+                raise ValueError(
+                    "Regularization parameter must be a single number or a diagonal matrix!"
+                )
+        self.fs, self.regularization = fs, regularization
+        cov_xx = 0
+        cov_xy = 0
+        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+        for x, y in zip(xs, ys):
+            assert x.ndim == 2 and y.ndim == 2
+            # sum covariances matrices across observations
+            cov_xx_trial, cov_xy_trial = covariance_matrices(
+                x, y, lags, self.zeropad, self.bias
+            )
+            cov_xx += cov_xx_trial
+            cov_xy += cov_xy_trial
+        cov_xx, cov_xy = cov_xx / len(x), cov_xy / len(y)  # normalize
+        regmat = regularization_matrix(cov_xx.shape[1], self.method)
+        regmat *= regularization / (1 / self.fs)
+        weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
+            1 / self.fs
+        )
+        self.bias = weight_matrix[0:1]
+        if self.bias.ndim == 1:  # add empty dimension for single feature models
+            self.bias = np.expand_dims(self.bias, axis=0)
+        self.weights = weight_matrix[1:].reshape(
+            (x.shape[1], len(lags), y.shape[1]), order="F"
+        )
+        self.times = np.array(lags) / fs
+        self.fs = fs
 
     def test(
         self,
@@ -296,9 +337,7 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        stimulus = _check_data(stimulus, assert_list=True, assert_len=len(response))
-        response = _check_data(response, assert_list=True, assert_len=len(stimulus))
-        n_trials = len(stimulus)
+        stimulus, response, n_trials = _check_data(stimulus, response, min_len=2)
         k = _check_k(k, n_trials)
         xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
@@ -348,77 +387,6 @@ class TRF:
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
         return r_test, mse_test, best_regularization
-
-    def train(self, stimulus, response, fs, tmin, tmax, regularization):
-        """
-        Compute the linear mapping between stimulus and response.
-
-        By de-convolution of the stimulus and response we obtain a matrix of weights
-        (temporal response function) which is applied to the stimulus via convolution
-        to predict the response (or vice versa) so that the mean squared error between
-        the prediction and actual output is minimized.
-
-        Parameters
-        ----------
-        stimulus: list or numpy.ndarray
-            Either a 2-D samples-by-features array, if the data contains only one trial
-            or a list of such arrays of it contains multiple trials. The second
-            dimension can be omitted if there only is a single stimulus feature.
-        response: list or numpy.ndarray
-            Either a 2-D samples-by-channels array, if the data contains only one trial
-            or a list of such arrays of it contains multiple trials.
-        fs: int
-            Sample rate of stimulus and response in hertz.
-        tmin: float
-            Minimum time lag in seconds
-        tmax: float
-            Maximum time lag in seconds
-        regularization: float or int
-            The regularization parameter (lambda). If `regularization` is 0, orfinary least
-            squares regression will be performed.
-        """
-        if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
-            self.bias = True
-        stimulus, response = _check_data(stimulus), _check_data(response)
-        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
-        if not len(stimulus) == len(response):
-            ValueError("Response and stimulus must have the same length!")
-        else:
-            ntrials = len(stimulus)
-        if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
-            if (
-                np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
-                > 0
-            ):
-                raise ValueError(
-                    "Regularization parameter must be a single number or a diagonal matrix!"
-                )
-        self.fs, self.regularization = fs, regularization
-        cov_xx = 0
-        cov_xy = 0
-        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-        for x, y in zip(xs, ys):
-            assert x.ndim == 2 and y.ndim == 2
-            # sum covariances matrices across observations
-            cov_xx_trial, cov_xy_trial = covariance_matrices(
-                x, y, lags, self.zeropad, self.bias
-            )
-            cov_xx += cov_xx_trial
-            cov_xy += cov_xy_trial
-        cov_xx, cov_xy = cov_xx / ntrials, cov_xy / ntrials  # normalize
-        regmat = regularization_matrix(cov_xx.shape[1], self.method)
-        regmat *= regularization / (1 / self.fs)
-        weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
-            1 / self.fs
-        )
-        self.bias = weight_matrix[0:1]
-        if self.bias.ndim == 1:  # add empty dimension for single feature models
-            self.bias = np.expand_dims(self.bias, axis=0)
-        self.weights = weight_matrix[1:].reshape(
-            (x.shape[1], len(lags), y.shape[1]), order="F"
-        )
-        self.times = np.array(lags) / fs
-        self.fs = fs
 
     def predict(
         self,
@@ -472,16 +440,12 @@ class TRF:
             raise ValueError("Need stimulus to predict with a forward model!")
         elif self.direction == -1 and response is None:
             raise ValueError("Need response to predict with a backward model!")
-        if stimulus is not None:
-            stimulus = _check_data(stimulus)
-            ntrials = len(stimulus)
-        if response is not None:
-            response = _check_data(response)
-            ntrials = len(response)
+        else:
+            stimulus, response, n_trials = _check_data(stimulus, response)
         if stimulus is None:
-            stimulus = [None for _ in range(ntrials)]
+            stimulus = [None for _ in range(n_trials)]
         if response is None:
-            response = [None for _ in range(ntrials)]
+            response = [None for _ in range(n_trials)]
 
         xs, ys = _get_xy(stimulus, response, direction=self.direction)
         prediction = [np.zeros((x.shape[0], self.weights.shape[-1])) for x in xs]
@@ -549,8 +513,7 @@ class TRF:
         """
         assert self.direction == -1
 
-        response = _check_data(response)
-        ntrials = len(response)
+        _, response, n_trials = _check_data(response)
         stim_pred = self.predict(response=response)
 
         Cxx = 0
@@ -558,7 +521,7 @@ class TRF:
         trf = self.copy()
         trf.times = np.asarray([-i for i in reversed(trf.times)])
         trf.direction = 1
-        for i in range(ntrials):
+        for i in range(n_trials):
             Cxx = Cxx + response[i].T @ response[i]
             Css = Css + stim_pred[i].T @ stim_pred[i]
         nStimChan = trf.weights.shape[-1]

@@ -4,11 +4,6 @@ from mtrf.model import TRF
 
 root = Path(__file__).parent.absolute()
 
-"""
-Test that we produce the same results as the matlab-mtrf toolbox
-"""
-
-
 speech_response = np.load(root / "data" / "speech_data.npy", allow_pickle=True).item()
 fs = speech_response["samplerate"][0][0]
 response = speech_response["response"]
