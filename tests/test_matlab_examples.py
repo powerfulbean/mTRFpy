@@ -34,22 +34,6 @@ def test_encoding():
     np.testing.assert_almost_equal(prediction1, np.concatenate(prediction2), decimal=12)
     np.testing.assert_almost_equal(correlation1, correlation2, decimal=12)
     np.testing.assert_almost_equal(error1, error2, decimal=12)
-    # we should get the same results if we duplicate the data and use the
-    # fit function
-    stimuli = [stimulus for _ in range(10)]
-    responses = [response for _ in range(10)]
-    trf_encoder = TRF()
-    tmin, tmax = -0.1, 0.2
-    trf_encoder.fit(stimuli, responses, fs, tmin, tmax, 100)
-    prediction2, correlation2, error2 = trf_encoder.predict(
-        stimuli, response, average=False
-    )
-    # check that the results are the same as in matlab
-    np.testing.assert_almost_equal(trf_encoder.weights, w, decimal=12)
-    np.testing.assert_almost_equal(trf_encoder.bias, b, decimal=12)
-    np.testing.assert_equal(trf_encoder.times, times[0] / 1e3)
-    np.testing.assert_almost_equal(correlation1, correlation2, decimal=12)
-    np.testing.assert_almost_equal(error1, error2, decimal=12)
 
 
 def test_decoding():

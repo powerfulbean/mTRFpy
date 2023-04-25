@@ -248,7 +248,7 @@ class TRF:
             )
             cov_xx += cov_xx_trial
             cov_xy += cov_xy_trial
-        cov_xx, cov_xy = cov_xx / len(x), cov_xy / len(y)  # normalize
+        cov_xx, cov_xy = cov_xx / len(xs), cov_xy / len(ys)  # normalize
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= regularization / (1 / self.fs)
         weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
