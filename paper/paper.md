@@ -64,12 +64,12 @@ r, _ = cross_validate(trf, stim, resp, fs, tmin, tmax, regularization)
 r_perm, _ = permutation_distribution(
     trf, stim, resp, fs, tmin, tmax, regularization, n_permute=10000, k=-1)
 p = sum(r_perm>r)/len(r_perm)
-fig, ax = plt.subplots(1, 2)
+fig, ax = plt.subplots(1, 2, figsize=(4, 7))
 trf.plot(channel='avg', axes=ax[0], show=False, kind='image')
 ax[1].hist(r_perm, bins=100)
 ax[1].axvline(r, 0, 1, color='black', linestyle='--')
 ax[1].set(ylabel='Number of permutations', xlabel='Correlation [r]')
-ax[1].text(0.07, 250, f'p={p.round(2)}')
+ax[1].text(0.04, 250, f'p={p.round(2)}')
 ```
 ![Left panel shows the TRFs weights, averaged across channels, for each spectral band where bright yellow indicates high and dark blue indicates low weights. The histrogram on the right shows the distribution of correlation coefficients obtained by random permutation. The dashed line marks the actually observed value.](example.png)
 
