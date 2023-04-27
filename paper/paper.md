@@ -64,7 +64,7 @@ r, _ = cross_validate(trf, stim, resp, fs, tmin, tmax, regularization)
 r_perm, _ = permutation_distribution(
     trf, stim, resp, fs, tmin, tmax, regularization, n_permute=10000, k=-1)
 p = sum(r_perm>r)/len(r_perm)
-fig, ax = plt.subplots(1, 2, figsize=(4, 7))
+fig, ax = plt.subplots(1, 2, figsize=(7, 4))
 trf.plot(channel='avg', axes=ax[0], show=False, kind='image')
 ax[1].hist(r_perm, bins=100)
 ax[1].axvline(r, 0, 1, color='black', linestyle='--')
