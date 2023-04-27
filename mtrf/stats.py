@@ -218,12 +218,17 @@ def permutation_distribution(
             idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
         idx = np.array_split(idx, k)
-        idx_train, idx_val = np.concatenate(idx[1:]), idx[0]
-        perm_model = np.mean([models[i] for i in idx_train])
-        stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
-        response_val = [response[combinations[i][1]] for i in idx_val]
-        _, perm_r, perm_mse = perm_model.predict(stimulus_val, response_val)
-        r[iperm], mse[iperm] = perm_r, perm_mse
+        perm_r, perm_mse = [], []  # r and mse for this permuttaion
+        for isplit in range(len(idx)):
+            idx_val = idx[isplit]
+            idx_train = np.concatenate(idx[:isplit] + idx[isplit + 1 :])
+            perm_model = np.mean([models[i] for i in idx_train])
+            stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
+            response_val = [response[combinations[i][1]] for i in idx_val]
+            _, fold_r, fold_mse = perm_model.predict(stimulus_val, response_val)
+            perm_r.append(fold_r)
+            perm_mse.append(fold_mse)
+        r[iperm], mse[iperm] = np.mean(perm_r), np.mean(perm_mse)
 
     return r, mse
 

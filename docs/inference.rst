@@ -10,36 +10,32 @@ One way to determine the significance of an estimate without making assumptions 
 Significance
 ------------
 
-In the below example, we are using the :py:func:`permutation_distribution` function from the :py:module:`stats` module to estimate the distribution of correlation coefficients from the forward model under random permutation. We then compute the p-value of the observed correlation as the number of elements in the permuted distribution that are equal or higher divided by the number of permutations. ::
+In the below example, we are using the :py:func:`permutation_distribution` function from the :py:mod:`stats` module which randomly permutes the data and, for each permutation, estimates the accuracy of the TRF model using cross-validation. The number of permutations is set by the :py:const:`n_permute` parameter (in this demo we use 100 but usually you would use more in an actual analysis) and the number of cross-validation folds :py:const:`k` should be the same that was used to estimate model accuracy for the actual data. Finally, we then compute the p-value of the observed correlation as the number of elements in the permuted distribution that are equal or higher divided by the number of permutations. ::
     
     import numpy as np
     from matplotlib import pyplot as plt
     from mtrf.model import TRF, load_sample_data
     from mtrf.stats import permutation_distribution
     r_obs = 0.024 # the previously observed correlation
+    regularization = 6000 # the lambda value that worked best
     trf = TRF()  # use forward model
     stimulus, response, fs = load_sample_data(n_segments=5)
-    for i in range(len(stimulus)):
-        stimulus[i] = (stimulus[i] - stimulus[i].mean(axis=0))/stimulus[i].std(axis=0)
-        response[i] = (response[i]- response[i].mean(axis=0))/response[i].std(axis=0)
     tmin, tmax = 0, 0.4  # range of time lags
-    regularization = np.logspace(-1, 6, 10)
     r_perm, mse_perm = permutation_distribution(
-        trf, stimulus, response, fs, tmin, tmax, trf.regularization, n_permute=10000
+        trf, stimulus, response, fs, tmin, tmax, regularization, n_permute=100
         )
     p = sum(r_perm>=r_obs)/len(r_perm)
-    plt.hist(r_perm, bins=200)
-    plt.axvline(x=r_obs, ymin=0, ymax=1, color='black', linestyle='--')
-    plt.xlabel('Correlation [r]')
-    plt.hist(r_perm, bins=200)
+    plt.hist(r_perm, bins=10)
     plt.axvline(x=r_obs, ymin=0, ymax=1, color='black', linestyle='--')
     plt.xlabel('Correlation [r]')
     plt.ylabel('Number of models')
-    plt.annotate(f'p={p.round(2)}', (0.06, 140))
+    plt.annotate(f'p={p.round(2)}', (0.04, 14))
     plt.show()
 
 .. image:: images/perm.png
+    :align: center
+    :scale: 30 %
 
-The p-value of the observed correlation is 0.24, which means that we obtain a correlation of that or larger size in about one quarter of observations. Thus, we would not reject our null hypothesis at the typically used significance level :math:`\alpha=0.05`. This is hardly surprising given that EEG has a poor signal-to-noise ratio and we are only using two minutes of data. Note that the permutation distribution is very sensitive to the amount of data because small amounts (for training and validation data) will produce more extreme results.
+The p-value of the observed correlation is 0.15, which means that we obtain a correlation of that or larger size for 15 percent of all models which were trained on randomly permuted data. Thus, we would not reject our null hypothesis at the typically used significance level :math:`\alpha=0.05`. This is hardly surprising given that EEG has a poor signal-to-noise ratio and we are only using two minutes of data.
 
 .. [#f1] Ernst, M. D. (2004). Permutation methods: a basis for exact inference. Statistical Science, 676-685.

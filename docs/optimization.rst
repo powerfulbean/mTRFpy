@@ -5,7 +5,7 @@ Ordinary least squares (OLS) regression minimizes the mean squared error (MSE) b
 
 .. image:: images/reg.png
     :align: center
-    :scale: 35 %
+    :scale: 30 %
 
 When :math:`\lambda=0`, this is equivalent to OLS regression (yellow line) and gives the best fit to the sample at the cost of deviating from the overall trend in the data (dashed black line). As the value of :math:`\lambda` is increased the line flattens because the slope is penalized. As lambda approaches infinity the regression produces a horizontal line, irrespective of the data. The optimal :math:`\lambda` value is the one that gives the best approximation of the population trend.
 This value depends on multiple factors like the amount and quality of the data (more data requires less regularization) and the number of model parameters (larger models require more regularization) and has to be estimated from the data.
@@ -13,7 +13,7 @@ This value depends on multiple factors like the amount and quality of the data (
 Optimization
 ------------
 
-To optimize :math:`\lambda`, we must try out different values and choose the one that gives us the model that best predicts the actual data (i.e. that minimizes the MSE between predicted and observed data). Thus, we estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the best one, and use it to fit a model on the whole data. This whole procedure can be done by using the `TRF.train` function and passing a list instead of a single value for the :py:const"`regularization` parameter. When testing multiple values for :math:`\lambda`, :py:meth:`TF.train` will return the correlation coefficient and MSE for each value. In the below example we are using those estimates to visualize how the model's accuracy changes as a function of :math:`\lamda` ::
+To optimize :math:`\lambda`, we must try out different values and choose the one that gives us the model that best predicts the actual data (i.e. that minimizes the MSE between predicted and observed data). Thus, we estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the best one, and use it to fit a model on the whole data. This whole procedure can be done by using the `TRF.train` function and passing a list instead of a single value for the :py:const"`regularization` parameter. When testing multiple values for :math:`\lambda`, :py:meth:`TF.train` will return the correlation coefficient and MSE for each value. In the below example we are using those estimates to visualize how the model's accuracy changes as a function of :math:`\lambda` ::
 
     import numpy as np
     from matplotlib import pyplot as plt
@@ -34,9 +34,12 @@ To optimize :math:`\lambda`, we must try out different values and choose the one
     ax1.axvline(regularization[np.argmin(error)], linestyle='--', color='k')
     plt.show()
 
-.. image:: images/opt.png
+.. image:: images/optim.png
+    :align: center
+    :scale: 30 %
 
-The dashed line marks the :math:`lambda` value where the MSE (purple line) was lowest. Usually, this will also be the point where the correlation is highest but there can be cases where MSE and correlation deviate.
+In this example, we obtain the best result for :math:`\lambda \approx 6000` which is marked by the vertical dashed line. However, all values between one thousand and one million result in similarily good models (accuracy slightly decreases for very high :math:`\lambda` values). On the other hand, picking a :math:`\lambda` value that is too low drastically reduces the models accuracy. This asymmetry is commonly observed in regularized regression.
+
 
 Overfitting
 -----------
