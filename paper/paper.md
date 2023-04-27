@@ -55,11 +55,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 from mtrf.model import TRF, load_sample_data
 from mtrf.stats import cross_validate, permutation_distribution
-stim, resp, fs = load_sample_data()
-stim, resp = np.array_split(stim, 5), np.array_split(resp, 5)
+stim, resp, fs = load_sample_data(n_segments=5)
 trf = TRF(direction=1, method='ridge')
 tmin, tmax = 0, 0.4  # time window in seconds
-regularization = 10  # ridge parameter
+regularization = 6000  # ridge parameter
 trf.train(stim, resp, fs, tmin, tmax, regularization)
 r, _ = cross_validate(trf, stim, resp, fs, tmin, tmax, regularization)
 r_perm, _ = permutation_distribution(
