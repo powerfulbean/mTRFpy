@@ -76,7 +76,7 @@ To fit a backward model, just change the :py:const:`direction` parameter to -1. 
     envelope = [s.mean(axis=1) for s in stimulus]
     bwd_trf = TRF(direction=-1)
     bwd_trf.train(envelope, response, fs, tmin, tmax, regularization=1000)
-    r_bwd, mse_bwd = cross_validate(bwd_trf, stimulus, response)
+    r_bwd, mse_bwd = cross_validate(bwd_trf, envelope, response)
     print(f"correlation between actual and predicted envelope: {r_bwd.round(3)}")
 
     out:

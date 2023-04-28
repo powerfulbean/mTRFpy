@@ -18,7 +18,6 @@ def _check_data(stimulus=None, response=None, min_len=1, crop=False):
         unisize: bool
             If True, crop all trials to the length of the shortest one to enforce
             equal size.
-
     Returns
     -------
         data (list): Data in a list of arrays with added singelton dimension if the arrays
@@ -26,19 +25,20 @@ def _check_data(stimulus=None, response=None, min_len=1, crop=False):
     """
     for i, data in enumerate([stimulus, response]):
         if isinstance(data, np.ndarray):  # convert array to list
-            if data.ndim == 1:
-                data = np.expand_dims(data, axis=1)
             if data.ndim > 2:
                 raise ValueError("Array cant have more that three dimensions!")
-            data = [data]
+            else:
+                data = [data]
         if data is not None:
-            if len(data) < min_len:  # check length
-                raise ValueError("Data list is too short!")
-            if crop is True:  # crop all trials to same number of samples
-                min_n = min([len(d) for d in data])
-                for i in range(len(data)):
-                    data[i] = data[i][:min_n, :]
             n_trials = len(data)
+            if n_trials < min_len:  # check length
+                raise ValueError("Data list is too short!")
+            min_n = min([len(d) for d in data])
+            for j in range(len(data)):
+                if data[j].ndim == 1:
+                    data[j] = np.expand_dims(data[j], axis=1)
+                if crop is True:  # crop all trials to same number of samples
+                    data[j] = data[j][:min_n, :]
         if i == 0:
             stimulus = data
         else:

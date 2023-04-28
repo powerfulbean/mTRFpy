@@ -122,6 +122,8 @@ def _cross_validate(
         w = np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
         trf = model.copy()
         trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs
+        if trf.bias.ndim == 1:
+            trf.bias = np.expand_dims(trf.bias, 1)
         trf.weights = w[1:].reshape(
             (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
         )
