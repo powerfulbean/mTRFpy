@@ -50,10 +50,6 @@ Optimizing `\lambda` means that we are picking the value that generates the best
         )
     print(f'Correlation between the actual and predicted response is {r.mean().round(3)}')
 
-    out:
-
-    Correlation between the actual and predicted response is 0.024
-
 The average correlation is an unbiased estimate of the model's accuracy in the sense that the data used for testing was never part of the model fitting procedure. Note however, that `TRF.test` will not give a single answer regarding the best value for `\lambda` because the optimal value might vary across the different segmentations of the data.
 
 
@@ -69,12 +65,6 @@ All previous examples used the default ridge regularization which penalizes larg
     regularization = np.logspace(-1, 5, 5)
     trf.train(combined, response, fs, tmin, tmax, regularization, bands=[16,1])
     print(f'optimal values for \u03BB: \n {np.diagonal(trf.regularization)[:18]}')
-
-    out:
-
-    optimal values for λ:
-     [0.e+00 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05
-     1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e+05 1.e-01]
 
 The first value is 0 and corresponds to the models bias term which is not regularized. The next 16 values are the optimal :math:`\lambda` for the spectrogram and the last value is the optimal :math:`\lambda` for the acoustic onsets. Note that banded ridge increases the number of parameters (by 1 for each band) and thus makes the model more susceptible to overfitting. Also, computation time increases exponentially with the number of bands because all combinations of :math:`\lambda` are tested.
 

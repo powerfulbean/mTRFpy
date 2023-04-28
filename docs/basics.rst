@@ -43,10 +43,6 @@ Now, we can use :py:meth:`TRF.predict` method to generate a prediction of the ne
     prediction, r_fwd, mse_fwd = fwd_trf.predict(stimulus, response)
     print(f"correlation between actual and predicted response: {r_fwd.round(3)}")
 
-    out:
-
-    correlation between actual and predicted response: 0.108
-
 However, because we trained and tested on the exact same data, the correlation coefficient is inflated due to overfitting. To avoid this we can use The :func:`cross_validate` function from the :py:mod:`stats` module which tests a :py:class:`TRF` instance using k-fold cross-validation. During this process, the data is split into :py:const:`k` segments - all but one segments are used to train the TRF and the final segment is used to validate it's accuracy. The TRF is trained multiple times while the segments are rotated so that each segment is used for validation once. Finally, the TRFs correlation and MSE is obtained by averaging across all :py:const:`k` segments.
 The default value for :py:const:`k` is -1, which will perform leave-one-out cross validation where the number of segments is equal to the number of trials in the stimulus and response. 
 
@@ -63,10 +59,6 @@ In the below example, we are using leave-one-out cross-validation to estimate th
     r_fwd, mse_fwd = cross_validate( fwd_trf, stimulus, response)
     print(f"mean correlation between actual and predicted response: {r_fwd.mean().round(3)}")
 
-    out:
-
-    correlation between actual and predicted response: 0.022
-
 
 Backward model
 --------------
@@ -78,10 +70,6 @@ To fit a backward model, just change the :py:const:`direction` parameter to -1. 
     bwd_trf.train(envelope, response, fs, tmin, tmax, regularization=1000)
     r_bwd, mse_bwd = cross_validate(bwd_trf, envelope, response)
     print(f"correlation between actual and predicted envelope: {r_bwd.round(3)}")
-
-    out:
-
-    correlation between actual and predicted envelope: 0.084
 
 
 Visualization
