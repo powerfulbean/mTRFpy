@@ -40,6 +40,17 @@ def test_predict():
     prediction, r, mse = trf.predict(stimulus, response, average=False)
     assert r.shape[-1] == mse.shape[-1] == trf.weights.shape[-1]
 
+    # Backwards prediction
+    trf = TRF(-1)
+    trf.train(stimulus, response, fs, tmin, tmax, regularization)
+    for average in [True, list(range(randint(stimulus[0].shape[-1])))]:
+        prediction, r, mse = trf.predict(stimulus, response, average=average)
+        assert len(prediction) == len(stimulus)
+        assert all([p[0].shape == s[0].shape for p, s in zip(prediction, stimulus)])
+        assert np.isscalar(r) and np.isscalar(mse)
+    prediction, r, mse = trf.predict(stimulus, response, average=False)
+    assert r.shape[-1] == mse.shape[-1] == trf.weights.shape[-1]
+
 
 def test_test():
     tmin = np.random.uniform(-0.1, 0.05)
