@@ -222,7 +222,7 @@ class TRF:
                     verbose=verbose,
                 )
             best_regularization = list(regularization)[np.argmin(mse)]
-            self._train(stimulus, response, fs, tmin, tmax, best_regularization)
+            self._train(xs, ys, fs, tmin, tmax, best_regularization)
             return r, mse
 
     def _train(self, xs, ys, fs, tmin, tmax, regularization):
