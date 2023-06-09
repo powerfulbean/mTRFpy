@@ -222,7 +222,7 @@ class TRF:
                     verbose=verbose,
                 )
             best_regularization = list(regularization)[np.argmin(mse)]
-            self._train(stimulus, response, fs, tmin, tmax, best_regularization)
+            self._train(xs, ys, fs, tmin, tmax, best_regularization)
             return r, mse
 
     def _train(self, xs, ys, fs, tmin, tmax, regularization):
@@ -337,7 +337,7 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        stimulus, response, n_trials = _check_data(stimulus, response, min_len=2)
+        stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
         k = _check_k(k, n_trials)
         xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
@@ -703,6 +703,10 @@ class TRF:
                 if "grad" in str(k).lower():
                     ch_types.append("grad")
             mne_info = mne.create_info(info.ch_names, self.fs, ch_types)
+        elif isinstance(info,mne.Info):
+            mne_info = info
+        else:
+            raise ValueError
         if isinstance(include, list) or isinstance(include, np.ndarray):
             weights = weights[np.asarray(include), :, :]
         evokeds = []

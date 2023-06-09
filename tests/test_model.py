@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import randint
 from mtrf.model import TRF, load_sample_data
 
-n = np.random.randint(2, 10)
+n = np.random.randint(3, 10)
 stimulus, response, fs = load_sample_data(n_segments=n)
 
 
@@ -36,6 +36,17 @@ def test_predict():
         prediction, r, mse = trf.predict(stimulus, response, average=average)
         assert len(prediction) == len(response)
         assert all([p[0].shape == r[0].shape for p, r in zip(prediction, response)])
+        assert np.isscalar(r) and np.isscalar(mse)
+    prediction, r, mse = trf.predict(stimulus, response, average=False)
+    assert r.shape[-1] == mse.shape[-1] == trf.weights.shape[-1]
+
+    # Backwards prediction
+    trf = TRF(-1)
+    trf.train(stimulus, response, fs, tmin, tmax, regularization)
+    for average in [True, list(range(randint(stimulus[0].shape[-1])))]:
+        prediction, r, mse = trf.predict(stimulus, response, average=average)
+        assert len(prediction) == len(stimulus)
+        assert all([p[0].shape == s[0].shape for p, s in zip(prediction, stimulus)])
         assert np.isscalar(r) and np.isscalar(mse)
     prediction, r, mse = trf.predict(stimulus, response, average=False)
     assert r.shape[-1] == mse.shape[-1] == trf.weights.shape[-1]
