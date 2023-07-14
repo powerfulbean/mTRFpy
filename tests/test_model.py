@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import randint
 from mtrf.model import TRF, load_sample_data
 
-n = np.random.randint(2, 10)
+n = np.random.randint(3, 10)
 stimulus, response, fs = load_sample_data(n_segments=n)
 
 

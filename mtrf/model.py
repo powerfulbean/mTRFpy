@@ -189,7 +189,7 @@ class TRF:
         xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
-            coefficients = list(product(regularization, repeat=2))
+            coefficients = list(product(regularization, repeat=len(bands)))
             regularization = [
                 banded_regularization(len(lags), c, bands, self.bias)
                 for c in coefficients
@@ -337,7 +337,7 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        stimulus, response, n_trials = _check_data(stimulus, response, min_len=2)
+        stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
         k = _check_k(k, n_trials)
         xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
