@@ -703,6 +703,10 @@ class TRF:
                 if "grad" in str(k).lower():
                     ch_types.append("grad")
             mne_info = mne.create_info(info.ch_names, self.fs, ch_types)
+        elif isinstance(info,mne.Info):
+            mne_info = info
+        else:
+            raise ValueError
         if isinstance(include, list) or isinstance(include, np.ndarray):
             weights = weights[np.asarray(include), :, :]
         evokeds = []
