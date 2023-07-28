@@ -350,43 +350,46 @@ class TRF:
         cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
-        r_test, mse_test, best_regularization = [np.zeros(n_splits) for _ in range(3)]
+        r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
         for isplit in range(n_splits):
             idx_test = splits[isplit]
             idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
-            mse = np.zeros(len(regularization))
-            for ir in _progressbar(
-                range(len(regularization)),
-                "Hyperparameter optimization",
-                verbose=verbose,
-            ):
-                _, mse[ir] = _cross_validate(
-                    self.copy(),
-                    [xs[i] for i in idx_train_val],
-                    [ys[i] for i in idx_train_val],
-                    cov_xx[idx_train_val, :, :],
-                    cov_xy[idx_train_val, :, :],
-                    lags,
-                    fs,
-                    regularization[ir],
-                    k - 1,
-                    seed=seed,
-                    average=average,
+            if not np.isscalar(regularization):
+                mse = np.zeros(len(regularization))
+                for ir in _progressbar(
+                    range(len(regularization)),
+                    "Hyperparameter optimization",
                     verbose=verbose,
-                )
-            best_regularization[isplit] = list(regularization)[np.argmin(mse)]
+                ):
+                    _, mse[ir] = _cross_validate(
+                        self.copy(),
+                        [xs[i] for i in idx_train_val],
+                        [ys[i] for i in idx_train_val],
+                        cov_xx[idx_train_val, :, :],
+                        cov_xy[idx_train_val, :, :],
+                        lags,
+                        fs,
+                        regularization[ir],
+                        k - 1,
+                        seed=seed,
+                        average=average,
+                        verbose=verbose,
+                    )
+                best_regularization = list(regularization)[np.argmin(mse)]
+            else:
+                best_regularization = regularization
             self.train(
                 [stimulus[i] for i in idx_train_val],
                 [response[i] for i in idx_train_val],
                 fs,
                 tmin,
                 tmax,
-                best_regularization[isplit],
+                best_regularization,
             )
             _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
-        return r_test, mse_test, best_regularization
+        return r_test, mse_test
 
     def predict(
         self,
@@ -703,7 +706,7 @@ class TRF:
                 if "grad" in str(k).lower():
                     ch_types.append("grad")
             mne_info = mne.create_info(info.ch_names, self.fs, ch_types)
-        elif isinstance(info,mne.Info):
+        elif isinstance(info, mne.Info):
             mne_info = info
         else:
             raise ValueError
