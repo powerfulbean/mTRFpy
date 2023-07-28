@@ -58,7 +58,7 @@ def test_test():
     reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
     trf = TRF()
     r, mse = trf.test(stimulus, response, fs, tmin, tmax, reg)
-    assert len(r) == len(mse) == len(best_reg) == n
+    assert len(r) == len(mse) == n
 
 
 def test_save_load():
