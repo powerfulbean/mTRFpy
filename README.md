@@ -10,24 +10,24 @@ This is an adaptation of the matlab mTRF-toolbox using only basic Python and Num
 
 Installation
 ------------
-You can get the stable release from PyPI::
-    
-    pip install mtrf 
+You can get the stable release from PyPI:
 
-Or get the latest version from this repo::
+    pip install mtrf
 
-    pip install git+https://github.com/powerfulbean/mTRFpy.git 
+Or get the latest version from this repo:
+
+    pip install git+https://github.com/powerfulbean/mTRFpy.git
 
 While mTRFpy only depends on numpy, matplotlib is an optional dependency used to
-visualize models. It can also be installed via pip::
+visualize models. It can also be installed via pip:
 
     pip install matplotlib
 
-We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/instal/manual_install.html) as well.
+We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/install/manual_install.html) as well.
 
 Getting Started
 ---------------
-For a little tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io)
+For a short tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io).
 
 
 

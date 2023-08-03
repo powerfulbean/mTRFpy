@@ -7,12 +7,12 @@ The mTRFpy package offers convenient tools for temporal response functions (TRFs
 Installation
 ------------
 You can get the stable release from PyPI::
-    
-    pip install mtrf 
+
+    pip install mtrf
 
 Or get the latest version from Github::
 
-    pip install git+https://github.com/powerfulbean/mTRFpy.git 
+    pip install git+https://github.com/powerfulbean/mTRFpy.git
 
 While mTRFpy only depends on numpy, matplotlib is an optional dependency used to
 visualize models. It can also be installed via pip::
