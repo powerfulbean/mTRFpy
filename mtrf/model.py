@@ -353,7 +353,7 @@ class TRF:
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
         for isplit in range(n_splits):
             idx_test = splits[isplit]
-    j       idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
+            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
             if not np.isscalar(regularization):
                 mse = np.zeros(len(regularization))
                 for ir in _progressbar(
