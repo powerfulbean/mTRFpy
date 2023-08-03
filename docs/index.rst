@@ -38,9 +38,9 @@ Yes, the basic operations like :meth:`TRF.train()` and :meth:`TRF.predict()` wil
 
 * **I think I found a bug!**
 
-Please see the `bug reports <https://github.com/user/powerfulbean/mTRFpy/CONTRIBUTING.md#bugs>`_ section in the contribution guidelines.
+Please see the `bug reports <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#bugs>`_ section in the contribution guidelines.
 
 
 * **How can I contribute to the project?**
 
-Please see the `pull request <https://github.com/user/powerfulbean/mTRFpy/CONTRIBUTING.md#pull-requests>`_ section in the contribution guidelines if you want to contribute code or useful examples for the documentation.
+Please see the `pull request <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#pull-requests>`_ section in the contribution guidelines if you want to contribute code or useful examples for the documentation.
