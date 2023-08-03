@@ -7,7 +7,7 @@ tags:
   - cognitive neuroscience
   - computational neuroscience
   - TRF
-  
+
 authors:
   - name: Ole Bialas
     orcid: 0000-0003-4472-7626
@@ -30,20 +30,20 @@ bibliography: paper.bib
 ---
 
 # Summary
-Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g. phonemes, words, sentences) where the properties of interest were carefully controlled. 
-Recently, researchers have increasingly focused on  investigating brain responses to more naturalistic speech like audiobooks [@hamilton2020]. 
+Traditionally, studies on the neural processing of speech involved the repetitive display of isolated tokens (e.g., phonemes, words, sentences) where the properties of interest were carefully controlled.
+Recently, researchers have increasingly focused on investigating brain responses to more naturalistic speech like audiobooks [@hamilton2020].
 However, this approach demands statistical tools to account for the different sources of variance that naturally occur in speech. 
-Among the most popular tools to model neural responses to naturalistic speech are multivariate temporal response functions (mTRFs). 
+Among the most popular tools to model neural responses to naturalistic speech are multivariate temporal response functions (mTRFs).
 
 One of the most commonly used packages for computing mTRFs with regularized regression is the mTRF-toolbox [@crosse2016]. 
 However, this toolbox is implemented in the proprietary MATLAB language, restricting accessibility for parts of the scientific community. 
 To overcome this constraint, we present mTRFpy, a Python package which replicates and advances the functionality of the original mTRF-toolbox.
 
 # Background
-In a nutshell, the mTRF is a regularized linear regression between two continuous signals, computed across multiple time-delays or lags. 
-This accounts for the fact that the relationship between stimulus and neural response is not instantaneous and that the signals are auto-correlated. 
+In a nutshell, the mTRF is a regularized linear regression between two continuous signals, computed across multiple time-delays or lags.
+This accounts for the fact that the relationship between stimulus and neural response is not instantaneous and that the signals are auto-correlated.
 
-mTRFs can be used as forward or encoding models to predict (multiple) univariate brain responses as the weighted sum of various acoustic and linguistic speech features while identifying their relative contributions [@diliberto2015, broderick2018]. 
+mTRFs can be used as forward or encoding models to predict (multiple) univariate brain responses as the weighted sum of various acoustic and linguistic speech features while identifying their relative contributions [@diliberto2015, broderick2018].
 In this case the model's weights have a clear physiological interpretation because they denote the expected change in neural response following a unit change in a given predictor [@haufe2014]. 
 Thus, they can be understood as a generalization of the event potential, obtained from averaging responses to repetitions of prototypical stimuli for continuous data.
 
@@ -53,15 +53,15 @@ Thus their predictive power is usually higher compared to encoding models.
 However, because the neural signals are highly interrelated, the decoder will not only amplify relevant, but suppress irrelevant signals, making a physiological interpretation of the weights difficult [@haufe2014].
 
 # Statement of need
-The temporal response function is a powerful and versatile tool to study the neural processing of speech in its natural complexity. 
-They also allow researchers to conduct experiments that are engaging (e.g. listening to a conversation) while monitoring the comprehension of speech independently of classical behavioral tests. 
-This makes mTRFs promising tools for clinical applications in infants or patients with schizophrenia, autism spectrum disorder or disorder of consciousness. 
+The temporal response function is a powerful and versatile tool to study the neural processing of speech in its natural complexity.
+They also allow researchers to conduct experiments that are engaging (e.g., listening to a conversation) while monitoring the comprehension of speech independently of classical behavioral tests.
+This makes mTRFs promising tools for clinical applications in infants or patients with schizophrenia, autism spectrum disorder or disorder of consciousness.
 We believe that mTRFs can be useful to a large clinical research community and hope that open and accessible software will facilitate their wider adoption.
 
-We implement the same methods as the original MATLAB toolbox and use a sample data set to demonstrate that mTRFpy produces the same results (within the limits of numerical accuracy). 
-However, we use an object oriented design, where training, optimization and visualization are implemented as methods of a generic `TRF` class. 
-What is more, we added functions for permutation testing and model evaluation which were not included in the original mtrf-toolbox. 
-Finally, we also included a method to conveniently export trained models to MNE which is the most common framework for analyzing MEG and EEG data in Python [@gramfort2013].
+We implement the same methods as the original MATLAB toolbox and use a sample data set to demonstrate that mTRFpy produces the same results (within the limits of numerical accuracy).
+However, we use an object oriented design, where training, optimization and visualization are implemented as methods of a generic `TRF` class.
+What is more, we added functions for permutation testing and model evaluation which were not included in the original mTRF-toolbox.
+Finally, we also included a method to conveniently export trained models to MNE-Python which is the most common framework for analyzing MEG and EEG data in Python [@gramfort2013].
 
 There is some overlap with other Python packages focused on the neural processing of naturalistic speech such as eelbrain [@brodbeck2021] and naplib [@mischler2023]. 
 However, while these packages provide a whole analysis framework, `mTRFpy` is more minimalist in its implementation. 
