@@ -3,6 +3,7 @@
 [![Documentation Status](https://readthedocs.org/projects/mtrfpy/badge/?version=latest)](https://mtrfpy.readthedocs.io/en/latest/?badge=latest)
 ![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
+[![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
 
 mTRFpy - multivariate linear modeling
 =====================================
