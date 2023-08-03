@@ -5,29 +5,32 @@
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
 [![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
 
-mTRFpy - multivariate linear modeling
-=====================================
-This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy. It aims to implement the same methods as the original toolbox and advance them. This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
+# mTRFpy - multivariate linear modeling
+This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy.
+It aims to implement the same methods as the original toolbox and advance them.
+This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
 
-Installation
-------------
-You can get the stable release from PyPI::
-    
+# Installation
+You can get the stable release from PyPI:
+```sh
     pip install mtrf 
-
-Or get the latest version from this repo::
-
-    pip install git+https://github.com/powerfulbean/mTRFpy.git 
+```
+    
+Or get the latest version from this repo:
+```sh
+    pip install git+https://github.com/powerfulbean/mTRFpy.git
+```
 
 While mTRFpy only depends on numpy, matplotlib is an optional dependency used to
-visualize models. It can also be installed via pip::
+visualize models. It can also be installed via pip:
 
+```sh
     pip install matplotlib
+```
 
 We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/instal/manual_install.html) as well.
 
-Getting Started
----------------
+# Getting Started
 For a little tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io)
 
 
