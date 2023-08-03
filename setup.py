@@ -23,7 +23,11 @@ setup(
     license="MIT",
     python_requires=">=3.8",
     install_requires=["numpy"],
-    extras_require={"testing": ["flake8", "pytest", "tqdm", "matplotlib", "scipy"]},
+    extras_require={
+        "testing": [
+            "requests", "flake8", "pytest", "tqdm", "matplotlib", "scipy",
+            ],
+        },
     packages=find_packages(),
     zip_safe=False,
     classifiers=[

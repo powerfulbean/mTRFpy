@@ -1,9 +1,10 @@
 from pathlib import Path
 from itertools import product
 import pickle
-import requests
 from collections.abc import Iterable
+
 import numpy as np
+
 from mtrf.stats import _cross_validate, _progressbar, _check_k
 from mtrf.matrices import (
     covariance_matrices,
@@ -755,6 +756,7 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
         path = Path(path)
     if not (path / "speech_data.npy").exists():  # download the data
         url = "https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy"
+        import requests
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
