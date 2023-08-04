@@ -10,6 +10,7 @@ This is an adaptation of the matlab mTRF-toolbox using only basic Python and Num
 It aims to implement the same methods as the original toolbox and advance them.
 This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
 
+
 # Installation
 You can get the stable release from PyPI:
 ```sh
@@ -28,11 +29,11 @@ visualize models. It can also be installed via pip:
     pip install matplotlib
 ```
 
-We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/instal/manual_install.html) as well.
+We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/install/manual_install.html) as well.
+
 
 # Getting Started
 For a little tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io)
-
 
 
 

@@ -7,12 +7,12 @@ The mTRFpy package offers convenient tools for temporal response functions (TRFs
 Installation
 ------------
 You can get the stable release from PyPI::
-    
-    pip install mtrf 
+
+    pip install mtrf
 
 Or get the latest version from Github::
 
-    pip install git+https://github.com/powerfulbean/mTRFpy.git 
+    pip install git+https://github.com/powerfulbean/mTRFpy.git
 
 While mTRFpy only depends on numpy, matplotlib is an optional dependency used to
 visualize models. It can also be installed via pip::
@@ -38,9 +38,9 @@ Yes, the basic operations like :meth:`TRF.train()` and :meth:`TRF.predict()` wil
 
 * **I think I found a bug!**
 
-Please see the `bug reports <https://github.com/user/powerfulbean/mTRFpy/CONTRIBUTING.md#bugs>`_ section in the contribution guidelines.
+Please see the `bug reports <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#bugs>`_ section in the contribution guidelines.
 
 
 * **How can I contribute to the project?**
 
-Please see the `pull request <https://github.com/user/powerfulbean/mTRFpy/CONTRIBUTING.md#pull-requests>`_ section in the contribution guidelines if you want to contribute code or useful examples for the documentation.
+Please see the `pull request <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#pull-requests>`_ section in the contribution guidelines if you want to contribute code or useful examples for the documentation.

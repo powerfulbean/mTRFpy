@@ -1,10 +1,11 @@
 from pathlib import Path
 from itertools import product
 import pickle
-import requests
 from collections.abc import Iterable
+
 import numpy as np
-from mtrf.stats import cross_validate, _cross_validate, _progressbar, _check_k
+
+from mtrf.stats import _cross_validate, _progressbar, _check_k
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
@@ -353,7 +354,7 @@ class TRF:
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
         for isplit in range(n_splits):
             idx_test = splits[isplit]
-            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
+            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1:])
             if not np.isscalar(regularization):
                 mse = np.zeros(len(regularization))
                 for ir in _progressbar(
@@ -747,7 +748,7 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
     fs: int
         Sampling rate of stimulus and response in Hz.
     """
-    if path == None:  # use default path
+    if path is None:  # use default path
         path = Path.home() / "mtrf_data"
         if not path.exists():
             path.mkdir()
@@ -755,6 +756,7 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
         path = Path(path)
     if not (path / "speech_data.npy").exists():  # download the data
         url = "https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy"
+        import requests
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()
