@@ -336,7 +336,7 @@ class TRF:
         best_regularization: numpy.ndarray
             Optimal regularization values for k training sets.
         """
-        if average is False:
+        if average is False and not np.isscalar(regularization):
             raise ValueError("Average must be True or a list of indices!")
         stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
         k = _check_k(k, n_trials)
