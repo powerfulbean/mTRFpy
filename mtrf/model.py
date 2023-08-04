@@ -354,7 +354,7 @@ class TRF:
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
         for isplit in range(n_splits):
             idx_test = splits[isplit]
-            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1:])
+            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
             if not np.isscalar(regularization):
                 mse = np.zeros(len(regularization))
                 for ir in _progressbar(
@@ -757,6 +757,7 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
     if not (path / "speech_data.npy").exists():  # download the data
         url = "https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy"
         import requests
+
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()

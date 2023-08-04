@@ -25,13 +25,16 @@ setup(
     install_requires=["numpy"],
     extras_require={
         "testing": [
-            "requests", "flake8", "pytest", "tqdm", "matplotlib", "scipy",
-            ],
-        "docs": [
-            "sphinx", "sphinx_rtd_theme", "mne", "matplotlib"
+            "requests",
+            "flake8",
+            "pytest",
+            "tqdm",
+            "matplotlib",
+            "scipy",
         ],
-        "full": ["mtrf[testing]", "mtrf[docs]"]
-        },
+        "docs": ["sphinx", "sphinx_rtd_theme", "mne", "matplotlib"],
+        "full": ["mtrf[testing]", "mtrf[docs]"],
+    },
     packages=find_packages(),
     zip_safe=False,
     classifiers=[
