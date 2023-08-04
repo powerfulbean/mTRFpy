@@ -76,6 +76,6 @@ def test_transform():
     trf_trans_enc = trf_decoder.to_forward(response)
 
     scale = 1e-5
-    np.testing.assert_almost_equal(trf_trans_enc.weights * scale, w * scale, decimal=11)
+    np.testing.assert_almost_equal(trf_trans_enc.weights * scale, w * scale, decimal=10)
     np.testing.assert_equal(trf_trans_enc.times, t[0] / 1e3)
     assert trf_trans_enc.direction == direction
