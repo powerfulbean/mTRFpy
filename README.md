@@ -4,6 +4,7 @@
 ![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
 [![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
+[![DOI](https://zenodo.org/badge/277399725.svg)](https://zenodo.org/badge/latestdoi/277399725)
 
 # mTRFpy - multivariate linear modeling
 
