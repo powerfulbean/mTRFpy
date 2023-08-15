@@ -31,6 +31,7 @@ setup(
             "tqdm",
             "matplotlib",
             "scipy",
+            "black",
         ],
         "docs": ["sphinx", "sphinx_rtd_theme", "mne", "matplotlib"],
         "full": ["mtrf[testing]", "mtrf[docs]"],
