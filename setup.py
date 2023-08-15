@@ -4,12 +4,12 @@ import re
 with open("README.md") as f:
     readme = f.read()
 
-    # extract version
-    with open("mtrf/__init__.py") as file:
-        for line in file.readlines():
-            m = re.match("__version__ *= *['\"](.*)['\"]", line)
-            if m:
-                version = m.group(1)
+# extract version
+with open("mtrf/__init__.py") as file:
+    for line in file.readlines():
+        m = re.match("__version__ *= *['\"](.*)['\"]", line)
+        if m:
+            version = m.group(1)
 
 setup(
     name="mtrf",
@@ -23,7 +23,19 @@ setup(
     license="MIT",
     python_requires=">=3.8",
     install_requires=["numpy"],
-    extras_require={"testing": ["pytest", "tqdm", "matplotlib", "scipy"]},
+    extras_require={
+        "testing": [
+            "requests",
+            "flake8",
+            "pytest",
+            "tqdm",
+            "matplotlib",
+            "scipy",
+            "black",
+        ],
+        "docs": ["sphinx", "sphinx_rtd_theme", "mne", "matplotlib"],
+        "full": ["mtrf[testing]", "mtrf[docs]"],
+    },
     packages=find_packages(),
     zip_safe=False,
     classifiers=[

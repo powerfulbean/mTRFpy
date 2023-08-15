@@ -3,32 +3,56 @@
 [![Documentation Status](https://readthedocs.org/projects/mtrfpy/badge/?version=latest)](https://mtrfpy.readthedocs.io/en/latest/?badge=latest)
 ![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
+[![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
+[![DOI](https://zenodo.org/badge/277399725.svg)](https://zenodo.org/badge/latestdoi/277399725)
 
-mTRFpy - multivariate linear modeling
-=====================================
-This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy. It aims to implement the same methods as the original toolbox and advance them. This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
+# mTRFpy - multivariate linear modeling
 
-Installation
-------------
-You can get the stable release from PyPI::
-    
+This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy.
+It aims to implement the same methods as the original toolbox and advance them.
+This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
+
+
+# Installation
+
+You can get the stable release from PyPI:
+```sh
     pip install mtrf 
-
-Or get the latest version from this repo::
-
-    pip install git+https://github.com/powerfulbean/mTRFpy.git 
+```
+    
+Or get the latest version from this repo:
+```sh
+    pip install git+https://github.com/powerfulbean/mTRFpy.git
+```
 
 While mTRFpy only depends on numpy, matplotlib is an optional dependency used to
-visualize models. It can also be installed via pip::
+visualize models. It can also be installed via pip:
 
+```sh
     pip install matplotlib
+```
 
-We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/instal/manual_install.html) as well.
+We also provide an optional interface to MNE-Python so it might be useful to [install mne](https://mne.tools/stable/install/manual_install.html) as well.
 
-Getting Started
----------------
+# Getting started
+
 For a little tutorial on the core features of mTRFpy, have a look at our [online documentation](https://mtrfpy.readthedocs.io)
+# Found a bug?
 
+1. Please use the issue search to check if the issue has already been reportet.
+2. Try to reproduce problem using the latest` master` branch.
+3. Create an issue with a minimal example that reproduces the problem.
+
+# Missing a feature?
+
+Feature requests are welcome. But take a moment to find out whether your idea
+fits with the scope and aims of the project. It's up to *you* to make a strong
+case to convince the project's developers of the merits of this feature. Please
+provide as much detail and context as possible.
+
+# Want to contribute to the project?
+
+Great! Please take a moment to read the ![contribution guidelines](https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md) before you do.
 
 
 

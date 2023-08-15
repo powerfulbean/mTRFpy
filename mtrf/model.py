@@ -1,10 +1,11 @@
 from pathlib import Path
 from itertools import product
 import pickle
-import requests
 from collections.abc import Iterable
+
 import numpy as np
-from mtrf.stats import cross_validate, _cross_validate, _progressbar, _check_k
+
+from mtrf.stats import _cross_validate, _progressbar, _check_k
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
@@ -335,7 +336,7 @@ class TRF:
         best_regularization: numpy.ndarray
             Optimal regularization values for k training sets.
         """
-        if average is False:
+        if average is False and not np.isscalar(regularization):
             raise ValueError("Average must be True or a list of indices!")
         stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
         k = _check_k(k, n_trials)
@@ -350,43 +351,46 @@ class TRF:
         cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
-        r_test, mse_test, best_regularization = [np.zeros(n_splits) for _ in range(3)]
+        r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
         for isplit in range(n_splits):
             idx_test = splits[isplit]
             idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
-            mse = np.zeros(len(regularization))
-            for ir in _progressbar(
-                range(len(regularization)),
-                "Hyperparameter optimization",
-                verbose=verbose,
-            ):
-                _, mse[ir] = _cross_validate(
-                    self.copy(),
-                    [xs[i] for i in idx_train_val],
-                    [ys[i] for i in idx_train_val],
-                    cov_xx[idx_train_val, :, :],
-                    cov_xy[idx_train_val, :, :],
-                    lags,
-                    fs,
-                    regularization[ir],
-                    k - 1,
-                    seed=seed,
-                    average=average,
+            if not np.isscalar(regularization):
+                mse = np.zeros(len(regularization))
+                for ir in _progressbar(
+                    range(len(regularization)),
+                    "Hyperparameter optimization",
                     verbose=verbose,
-                )
-            best_regularization[isplit] = list(regularization)[np.argmin(mse)]
+                ):
+                    _, mse[ir] = _cross_validate(
+                        self.copy(),
+                        [xs[i] for i in idx_train_val],
+                        [ys[i] for i in idx_train_val],
+                        cov_xx[idx_train_val, :, :],
+                        cov_xy[idx_train_val, :, :],
+                        lags,
+                        fs,
+                        regularization[ir],
+                        k - 1,
+                        seed=seed,
+                        average=average,
+                        verbose=verbose,
+                    )
+                best_regularization = list(regularization)[np.argmin(mse)]
+            else:
+                best_regularization = regularization
             self.train(
                 [stimulus[i] for i in idx_train_val],
                 [response[i] for i in idx_train_val],
                 fs,
                 tmin,
                 tmax,
-                best_regularization[isplit],
+                best_regularization,
             )
             _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
-        return r_test, mse_test, best_regularization
+        return r_test, mse_test
 
     def predict(
         self,
@@ -703,7 +707,7 @@ class TRF:
                 if "grad" in str(k).lower():
                     ch_types.append("grad")
             mne_info = mne.create_info(info.ch_names, self.fs, ch_types)
-        elif isinstance(info,mne.Info):
+        elif isinstance(info, mne.Info):
             mne_info = info
         else:
             raise ValueError
@@ -744,7 +748,7 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
     fs: int
         Sampling rate of stimulus and response in Hz.
     """
-    if path == None:  # use default path
+    if path is None:  # use default path
         path = Path.home() / "mtrf_data"
         if not path.exists():
             path.mkdir()
@@ -752,6 +756,8 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
         path = Path(path)
     if not (path / "speech_data.npy").exists():  # download the data
         url = "https://github.com/powerfulbean/mTRFpy/raw/master/tests/data/speech_data.npy"
+        import requests
+
         response = requests.get(url, allow_redirects=True)
         open(path / "speech_data.npy", "wb").write(response.content)
     data = np.load(str(path / "speech_data.npy"), allow_pickle=True).item()

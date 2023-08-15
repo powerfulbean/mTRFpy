@@ -1,0 +1,33 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: mTRFpy
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Ole
+    family-names: Bialas
+    email: ole.bialas@posteo.de
+    affiliation: University of Rochester
+    orcid: 'https://orcid.org/0000-0003-4472-7626'
+  - given-names: Jin
+    family-names: Dou
+    email: jdou3@ur.rochester.edu
+    affiliation: University of Rochester
+    orcid: 'https://orcid.org/0009-0000-0539-5951'
+repository-code: 'https://github.com/powerfulbean/mTRFpy'
+url: 'https://mtrfpy.readthedocs.io/en/latest/'
+abstract: >-
+  mTRFpy is a Python package for computing linear
+  encoding/decoding models, also known multivariate temporal
+  response functions (mTRFs) that are commonly used in
+  neuroscience
+keywords:
+  - Neuroscience
+  - Encoding
+  - Decoding
+  - Modeling
+license: BSD-3-Clause

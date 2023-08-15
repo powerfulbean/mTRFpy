@@ -57,13 +57,12 @@ def test_test():
     tmax = np.random.uniform(0.1, 0.4)
     reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
     trf = TRF()
-    r, mse, best_reg = trf.test(stimulus, response, fs, tmin, tmax, reg)
-    assert len(r) == len(mse) == len(best_reg) == n
+    r, mse = trf.test(stimulus, response, fs, tmin, tmax, reg)
+    assert len(r) == len(mse) == n
 
 
 def test_save_load():
     tmpdir = Path(tempfile.gettempdir())
-    reps = np.random.randint(2, 10)
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.4)
     direction = np.random.choice([1, -1])
