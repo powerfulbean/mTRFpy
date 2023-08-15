@@ -63,7 +63,6 @@ def test_test():
 
 def test_save_load():
     tmpdir = Path(tempfile.gettempdir())
-    reps = np.random.randint(2, 10)
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.4)
     direction = np.random.choice([1, -1])

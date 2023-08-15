@@ -1,11 +1,9 @@
 import random
-import time
 import sys
 import numpy as np
 from mtrf.matrices import (
     regularization_matrix,
     covariance_matrices,
-    lag_matrix,
     _check_data,
     _get_xy,
 )

@@ -1,7 +1,4 @@
-from pathlib import Path
-import tempfile
 import numpy as np
-from numpy.random import randint
 from mtrf.model import TRF, load_sample_data
 from mtrf.stats import cross_validate, permutation_distribution
 
@@ -15,7 +12,6 @@ def test_crossval():
     reg = np.random.uniform(0, 10)
     trf = TRF(direction=direction)
     splits = np.random.randint(2, 5)
-    test_size = np.random.uniform(0.05, 0.3)
     r, mse = cross_validate(trf, stimulus, response, fs, tmin, tmax, reg, splits)
     assert np.isscalar(r) and np.isscalar(mse)
     r, mse = cross_validate(
