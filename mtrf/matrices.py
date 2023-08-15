@@ -138,7 +138,11 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
             cov_xy = np.zeros((len(y), x_lag.shape[-1], y[0].shape[-1]))
         cov_xx[i_x] = x_lag.T @ x_lag
         cov_xy[i_x] = x_lag.T @ y[i_x]
-    return cov_xx.squeeze(), cov_xy.squeeze()
+    if len(x) == 1:
+        assert len(y) == 1
+        return cov_xx[0], cov_xy[0]
+    else:
+        return cov_xx, cov_xy
 
 
 def lag_matrix(x, lags, zeropad=True, bias=True):
