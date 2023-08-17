@@ -390,7 +390,7 @@ class TRF:
             _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
-        return r_test, mse_test
+        return r_test, mse_test, best_regularization
 
     def predict(
         self,
