@@ -44,11 +44,15 @@ class TRF:
         If 'multi' (default), fit a multi-lag model using all time lags simultaneously.
         If 'single', fit separate single-lag models for each individual lag.
     zeropad: bool
-        If True (defaul), pad the outer rows of the design matrix with zeros.
+        If True (default), pad the outer rows of the design matrix with zeros.
         If False, delete them.
     method: str
         Regularization method. Can be 'ridge' (default), 'tikhonov' or 'banded'.
         See documentation for a detailed explanation.
+    pre_cal_cov: bool
+        If True (default), pre-compute and store covariance matrices for each trial
+        during cross-validation to save time and consume more memory. If False, 
+        re-compute covariance matrices for each trial during cross-validation.
 
     Attributes
     ----------
@@ -61,13 +65,18 @@ class TRF:
     """
 
     def __init__(
-        self, direction=1, kind="multi", zeropad=True, bias=True, method="ridge"
+        self, direction=1, kind="multi", zeropad=True, bias=True, method="ridge",
+        pre_cal_cov = True
     ):
         self.weights = None
         self.bias = bias
         self.times = None
         self.fs = None
         self.regularization = None
+        if isinstance(pre_cal_cov, bool):
+            self.pre_cal_cov = pre_cal_cov
+        else:
+            raise ValueError("Parameter pre_cal_cov must be either True or False!")
         if direction in [1, -1]:
             self.direction = direction
         else:
@@ -200,7 +209,10 @@ class TRF:
             return
         else:  # run cross-validation once per regularization parameter
             # pre-compute covariance matrices
-            cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+            if self.pre_cal_cov:
+                cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+            else:
+                cov_xx, cov_xy = None, None
             r = np.zeros(len(regularization))
             mse = np.zeros(len(regularization))
             for ir in _progressbar(
@@ -348,7 +360,10 @@ class TRF:
                 banded_regularization(len(lags), c, bands, self.bias)
                 for c in coefficients
             ]
-        cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+        if self.pre_cal_cov:
+            cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+        else:
+            cov_xx, cov_xy = None, None
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
@@ -363,12 +378,17 @@ class TRF:
                     "Hyperparameter optimization",
                     verbose=verbose,
                 ):
+                    cov_xx_this = None
+                    cov_xy_this = None
+                    if cov_xx is not None:
+                        cov_xx_this = cov_xx[idx_train_val, :, :]
+                        cov_xy_this = cov_xy[idx_train_val, :, :]
                     _, mse[ir] = _cross_validate(
                         self.copy(),
                         [xs[i] for i in idx_train_val],
                         [ys[i] for i in idx_train_val],
-                        cov_xx[idx_train_val, :, :],
-                        cov_xy[idx_train_val, :, :],
+                        cov_xx_this,
+                        cov_xy_this,
                         lags,
                         fs,
                         regularization[ir],

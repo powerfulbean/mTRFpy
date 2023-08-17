@@ -93,6 +93,19 @@ def truncate(x, min_idx, max_idx):
     x_truncated = x[rowSlice]
     return x_truncated
 
+def _reduced_covariance_matrices(xs, ys, lags, zeropad=True, bias=True):
+    cov_xx = 0
+    cov_xy = 0
+    for x, y in zip(xs, ys):
+        assert x.ndim == 2 and y.ndim == 2
+        # sum covariances matrices across observations
+        cov_xx_trial, cov_xy_trial = covariance_matrices(
+            x, y, lags, zeropad, bias
+        )
+        cov_xx += cov_xx_trial
+        cov_xy += cov_xy_trial
+    cov_xx, cov_xy = cov_xx / len(xs), cov_xy / len(ys)  # normalize
+    return cov_xx, cov_xy
 
 def covariance_matrices(x, y, lags, zeropad=True, bias=True):
     """

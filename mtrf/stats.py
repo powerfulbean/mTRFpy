@@ -6,6 +6,7 @@ from mtrf.matrices import (
     covariance_matrices,
     _check_data,
     _get_xy,
+    _reduced_covariance_matrices
 )
 
 
@@ -96,11 +97,23 @@ def _cross_validate(
     verbose=True,
     seed=None,
 ):
-    trf = model.copy()
-    trf.bias, trf.weights = None, None
+    #!!! support when cov_xx and cov_xy is None
+    if (model.bias is True) or isinstance(model.bias, np.ndarray):
+        bias = True
+    else:
+        bias = False
+
+    if cov_xx is None:
+        assert cov_xy is None
+        reg_mat_size = x[0].shape[-1] * len(lags)
+        if bias:
+            reg_mat_size = reg_mat_size + 1
+    else:
+        reg_mat_size = cov_xx.shape[-1]
+    
     if seed is not None:
         random.seed(seed)
-    regmat = regularization_matrix(cov_xx.shape[-1], model.method)
+    regmat = regularization_matrix(reg_mat_size, model.method)
     regmat *= regularization / (1 / fs)
     n_trials = len(x)
     k = _check_k(k, n_trials)
@@ -115,8 +128,17 @@ def _cross_validate(
         idx_val = splits[isplit]
         idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
         # compute the model for the training set
-        cov_xx_hat = cov_xx[idx_train].mean(axis=0)
-        cov_xy_hat = cov_xy[idx_train].mean(axis=0)
+        cov_xx_hat = None
+        cov_xy_hat = None
+        if cov_xx is None:
+            x_train = [x[i] for i in idx_train]
+            y_train = [y[i] for i in idx_train]
+            cov_xx_hat, cov_xy_hat = _reduced_covariance_matrices(
+                x_train, y_train, lags, model.zeropad, bias
+            )
+        else:        
+            cov_xx_hat = cov_xx[idx_train].mean(axis=0)
+            cov_xy_hat = cov_xy[idx_train].mean(axis=0)
         w = np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
         trf = model.copy()
         trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs

@@ -73,3 +73,42 @@ def test_save_load():
     trf2 = TRF()
     trf2.load(tmpdir / "test.trf")
     np.testing.assert_equal(trf1.weights, trf2.weights)
+
+def test_pre_cal_cov(decimal = 10):
+    tmin = np.random.uniform(-0.1, 0.05)
+    tmax = np.random.uniform(0.1, 0.2)
+    regularization = [np.random.uniform(0, 10) for _ in range(2)]
+    stimulus, response, fs = load_sample_data(n_segments=4)
+
+    #testing forward model
+    trf1 = TRF()
+    trf1.train(stimulus, response, fs, tmin, tmax, regularization)
+    prediction1, r1, mse1 = trf1.predict(stimulus, response, average = False)
+
+    trf2 = TRF(pre_cal_cov = False)
+    trf2.train(stimulus, response, fs, tmin, tmax, regularization)
+    prediction2, r2, mse2 = trf2.predict(stimulus, response, average = False)
+
+    #assert all close
+    np.testing.assert_almost_equal(trf1.weights, trf2.weights, decimal = decimal)
+    np.testing.assert_almost_equal(trf1.bias   , trf2.bias   , decimal = decimal)
+    for pred1, pred2 in zip(prediction1, prediction2):
+        np.testing.assert_almost_equal(pred1, pred2, decimal = decimal)
+    np.testing.assert_almost_equal(r1, r2, decimal = decimal)
+    np.testing.assert_almost_equal(mse1, mse2, decimal = decimal)
+
+    #testing backward model
+    trf3 = TRF(-1)
+    trf3.train(stimulus, response, fs, tmin, tmax, regularization)
+    prediction3, r3, mse3 = trf3.predict(stimulus, response, average = False)
+
+    trf4 = TRF(-1, pre_cal_cov = False)
+    trf4.train(stimulus, response, fs, tmin, tmax, regularization)
+    prediction4, r4, mse4 = trf4.predict(stimulus, response, average = False)
+
+    np.testing.assert_almost_equal(trf3.weights, trf4.weights, decimal = decimal)
+    np.testing.assert_almost_equal(trf3.bias   , trf4.bias   , decimal = decimal)
+    for pred1, pred2 in zip(prediction3, prediction4):
+        np.testing.assert_almost_equal(pred1, pred2, decimal = decimal)
+    np.testing.assert_almost_equal(r3, r4, decimal = decimal)
+    np.testing.assert_almost_equal(mse3, mse4, decimal = decimal)
