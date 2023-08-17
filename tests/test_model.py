@@ -57,8 +57,8 @@ def test_test():
     tmax = np.random.uniform(0.1, 0.4)
     reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
     trf = TRF()
-    r, mse = trf.test(stimulus, response, fs, tmin, tmax, reg)
-    assert len(r) == len(mse) == n
+    r, mse, best_regularization = trf.test(stimulus, response, fs, tmin, tmax, reg)
+    assert len(r) == len(mse) == len(best_regularization) == n
 
 
 def test_save_load():
