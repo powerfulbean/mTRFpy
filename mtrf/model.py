@@ -352,6 +352,7 @@ class TRF:
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
+        best_regularization = []
         for isplit in range(n_splits):
             idx_test = splits[isplit]
             idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
@@ -376,20 +377,21 @@ class TRF:
                         average=average,
                         verbose=verbose,
                     )
-                best_regularization = list(regularization)[np.argmin(mse)]
+                best_regularization_ = list(regularization)[np.argmin(mse)]
             else:
-                best_regularization = regularization
+                best_regularization_ = regularization
             self.train(
                 [stimulus[i] for i in idx_train_val],
                 [response[i] for i in idx_train_val],
                 fs,
                 tmin,
                 tmax,
-                best_regularization,
+                best_regularization_,
             )
             _, r_test[isplit], mse_test[isplit] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
+            best_regularization.append(best_regularization_)
         return r_test, mse_test, best_regularization
 
     def predict(
