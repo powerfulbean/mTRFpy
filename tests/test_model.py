@@ -74,6 +74,7 @@ def test_save_load():
     trf2.load(tmpdir / "test.trf")
     np.testing.assert_equal(trf1.weights, trf2.weights)
 
+
 def test_pre_cal_cov(decimal=10):
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.2)
@@ -85,7 +86,7 @@ def test_pre_cal_cov(decimal=10):
     trf1.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction1, r1, mse1 = trf1.predict(stimulus, response, average=False)
 
-    trf2 = TRF(pre_cal_cov = False)
+    trf2 = TRF(pre_cal_cov=False)
     trf2.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction2, r2, mse2 = trf2.predict(stimulus, response, average=False)
 

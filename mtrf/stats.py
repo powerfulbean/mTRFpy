@@ -109,7 +109,7 @@ def _cross_validate(
             reg_mat_size = reg_mat_size + 1
     else:
         reg_mat_size = cov_xx.shape[-1]
-    
+
     if seed is not None:
         random.seed(seed)
     regmat = regularization_matrix(reg_mat_size, model.method)
@@ -135,7 +135,7 @@ def _cross_validate(
             cov_xx_hat, cov_xy_hat = _reduced_covariance_matrices(
                 x_train, y_train, lags, model.zeropad, bias
             )
-        else:        
+        else:   
             cov_xx_hat = cov_xx[idx_train].mean(axis=0)
             cov_xy_hat = cov_xy[idx_train].mean(axis=0)
         w = np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
