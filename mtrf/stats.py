@@ -97,10 +97,12 @@ def _cross_validate(
     verbose=True,
     seed=None,
 ):
-    if (model.bias is True) or isinstance(model.bias, np.ndarray):
-        bias = True
-    else:
-        bias = False
+    # if (model.bias is True) or isinstance(model.bias, np.ndarray):
+    #     bias = True
+    # else:
+    #     bias = False
+    bias = True
+    assert (model.bias is True) or isinstance(model.bias, np.ndarray)
 
     if cov_xx is None:
         assert cov_xy is None

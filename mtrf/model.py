@@ -209,6 +209,7 @@ class TRF:
             return
         else:  # run cross-validation once per regularization parameter
             # pre-compute covariance matrices
+            cov_xx, cov_xy = None, None
             if self.pre_cal_cov:
                 cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
             else:
@@ -360,10 +361,13 @@ class TRF:
                 banded_regularization(len(lags), c, bands, self.bias)
                 for c in coefficients
             ]
+
+        cov_xx, cov_xy = None, None
         if self.pre_cal_cov:
             cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
         else:
             cov_xx, cov_xy = None, None
+
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
         r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
