@@ -51,7 +51,7 @@ class TRF:
         See documentation for a detailed explanation.
     pre_cal_cov: bool
         If True (default), pre-compute and store covariance matrices for each trial
-        during cross-validation to save time and consume more memory. If False, 
+        during cross-validation to save time and consume more memory. If False,
         re-compute covariance matrices for each trial during cross-validation.
 
     Attributes
@@ -66,7 +66,7 @@ class TRF:
 
     def __init__(
         self, direction=1, kind="multi", zeropad=True, bias=True, method="ridge",
-        pre_cal_cov = True
+        pre_cal_cov=True
     ):
         self.weights = None
         self.bias = bias

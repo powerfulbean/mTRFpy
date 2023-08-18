@@ -97,7 +97,6 @@ def _cross_validate(
     verbose=True,
     seed=None,
 ):
-    #!!! support when cov_xx and cov_xy is None
     if (model.bias is True) or isinstance(model.bias, np.ndarray):
         bias = True
     else:
