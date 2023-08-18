@@ -1,6 +1,19 @@
 import numpy as np
 
 
+def _reduced_covariance_matrices(xs, ys, lags, zeropad=True, bias=True):
+    cov_xx = 0
+    cov_xy = 0
+    for x, y in zip(xs, ys):
+        assert x.ndim == 2 and y.ndim == 2
+        # sum covariances matrices across observations
+        cov_xx_trial, cov_xy_trial = covariance_matrices(x, y, lags, zeropad, bias)
+        cov_xx += cov_xx_trial
+        cov_xy += cov_xy_trial
+    cov_xx, cov_xy = cov_xx / len(xs), cov_xy / len(ys)  # normalize
+    return cov_xx, cov_xy
+
+
 def _check_data(stimulus=None, response=None, min_len=1, crop=False):
     """
     Check wheter data (stimulus or response) are formatted correctly.
