@@ -6,7 +6,7 @@ from mtrf.matrices import (
     covariance_matrices,
     _check_data,
     _get_xy,
-    _reduced_covariance_matrices
+    _reduced_covariance_matrices,
 )
 
 

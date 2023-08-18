@@ -65,8 +65,13 @@ class TRF:
     """
 
     def __init__(
-        self, direction=1, kind="multi", zeropad=True, bias=True, method="ridge",
-        pre_cal_cov=True
+        self,
+        direction=1,
+        kind="multi",
+        zeropad=True,
+        bias=True,
+        method="ridge",
+        pre_cal_cov=True,
     ):
         self.weights = None
         self.bias = bias
@@ -211,7 +216,9 @@ class TRF:
             # pre-compute covariance matrices
             cov_xx, cov_xy = None, None
             if self.pre_cal_cov:
-                cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+                cov_xx, cov_xy = covariance_matrices(
+                    xs, ys, lags, self.zeropad, self.bias
+                )
             else:
                 cov_xx, cov_xy = None, None
             r = np.zeros(len(regularization))
