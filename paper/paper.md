@@ -15,6 +15,7 @@ authors:
     affiliation: 1
     corresponding: true # (This is how to denote the corresponding author)
   - name: Jin Dou
+    orcid: 0009-0000-0539-5951
     equal-contrib: true
     affiliation: 1 # (Multiple affiliations must be quoted)
   - name: Edmund C. Lalor

@@ -23,7 +23,6 @@ Then, `git clone` your fork and install it in "editable" mode.
 git clone https://github.com/<your-GitHub-username>/mTRFpy
 cd ./mTRFpy
 pip install -e ".[full]"
-git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
 The last command is needed for `git diff` to work properly.
@@ -53,7 +52,7 @@ flake8 . --ignore=E501,E203,W503
 
 ## Running tests
 
-We run tests using [pytest](https://docs.pytest.org/en/7.4.x/).
+We run tests using [pytest](https://docs.pytest.org/en/).
 
 If you have accurately followed the steps to setup your `mTRFpy` development version, you can then simply run `pytest .` from the root of the `mTRFpy` repository
 
