@@ -2,9 +2,7 @@ from pathlib import Path
 from itertools import product
 import pickle
 from collections.abc import Iterable
-
 import numpy as np
-
 from mtrf.stats import _cross_validate, _progressbar, _check_k
 from mtrf.matrices import (
     covariance_matrices,
@@ -49,10 +47,11 @@ class TRF:
     method: str
         Regularization method. Can be 'ridge' (default), 'tikhonov' or 'banded'.
         See documentation for a detailed explanation.
-    pre_cal_cov: bool
-        If True (default), pre-compute and store covariance matrices for each trial
-        during cross-validation to save time and consume more memory. If False,
-        re-compute covariance matrices for each trial during cross-validation.
+    preload: bool
+        If True (default), covariance matrices for all trials will be pre-loaded before
+        cross-validation. This makes optimization faster but consumes more memory. If
+        False, the covariance matrices will be computed on each iteration which is slower
+        but memory efficient.
 
     Attributes
     ----------
@@ -65,23 +64,17 @@ class TRF:
     """
 
     def __init__(
-        self,
-        direction=1,
-        kind="multi",
-        zeropad=True,
-        bias=True,
-        method="ridge",
-        pre_cal_cov=True,
+        self, direction=1, kind="multi", zeropad=True, method="ridge", preload=True
     ):
         self.weights = None
-        self.bias = bias
+        self.bias = None
         self.times = None
         self.fs = None
         self.regularization = None
-        if isinstance(pre_cal_cov, bool):
-            self.pre_cal_cov = pre_cal_cov
+        if isinstance(preload, bool):
+            self.preload = preload
         else:
-            raise ValueError("Parameter pre_cal_cov must be either True or False!")
+            raise ValueError("Parameter preload must be either True or False!")
         if direction in [1, -1]:
             self.direction = direction
         else:
@@ -201,23 +194,22 @@ class TRF:
         stimulus, response, n_trials = _check_data(stimulus, response, min_len=min_len)
         if not np.isscalar(regularization):
             k = _check_k(k, n_trials)
-        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+        x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
             coefficients = list(product(regularization, repeat=len(bands)))
             regularization = [
-                banded_regularization(len(lags), c, bands, self.bias)
-                for c in coefficients
+                banded_regularization(len(lags), c, bands) for c in coefficients
             ]
         if np.isscalar(regularization):
-            self._train(xs, ys, fs, tmin, tmax, regularization)
+            self._train(x, y, fs, tmin, tmax, regularization)
             return
         else:  # run cross-validation once per regularization parameter
             # pre-compute covariance matrices
             cov_xx, cov_xy = None, None
-            if self.pre_cal_cov:
+            if self.preload:
                 cov_xx, cov_xy = covariance_matrices(
-                    xs, ys, lags, self.zeropad, self.bias
+                    x, y, lags, self.zeropad, self.preload
                 )
             else:
                 cov_xx, cov_xy = None, None
@@ -230,8 +222,8 @@ class TRF:
             ):
                 r[ir], mse[ir] = _cross_validate(
                     self.copy(),
-                    xs,
-                    ys,
+                    x,
+                    y,
                     cov_xx,
                     cov_xy,
                     lags,
@@ -243,12 +235,10 @@ class TRF:
                     verbose=verbose,
                 )
             best_regularization = list(regularization)[np.argmin(mse)]
-            self._train(xs, ys, fs, tmin, tmax, best_regularization)
+            self._train(x, y, fs, tmin, tmax, best_regularization)
             return r, mse
 
-    def _train(self, xs, ys, fs, tmin, tmax, regularization):
-        if isinstance(self.bias, np.ndarray):  # reset bias if trf is already trained
-            self.bias = True
+    def _train(self, x, y, fs, tmin, tmax, regularization):
         if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
             if (
                 np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
@@ -258,18 +248,8 @@ class TRF:
                     "Regularization parameter must be a single number or a diagonal matrix!"
                 )
         self.fs, self.regularization = fs, regularization
-        cov_xx = 0
-        cov_xy = 0
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-        for x, y in zip(xs, ys):
-            assert x.ndim == 2 and y.ndim == 2
-            # sum covariances matrices across observations
-            cov_xx_trial, cov_xy_trial = covariance_matrices(
-                x, y, lags, self.zeropad, self.bias
-            )
-            cov_xx += cov_xx_trial
-            cov_xy += cov_xy_trial
-        cov_xx, cov_xy = cov_xx / len(xs), cov_xy / len(ys)  # normalize
+        cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
         regmat = regularization_matrix(cov_xx.shape[1], self.method)
         regmat *= regularization / (1 / self.fs)
         weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
@@ -279,7 +259,7 @@ class TRF:
         if self.bias.ndim == 1:  # add empty dimension for single feature models
             self.bias = np.expand_dims(self.bias, axis=0)
         self.weights = weight_matrix[1:].reshape(
-            (x.shape[1], len(lags), y.shape[1]), order="F"
+            (x[0].shape[1], len(lags), y[0].shape[1]), order="F"
         )
         self.times = np.array(lags) / fs
         self.fs = fs
@@ -360,18 +340,16 @@ class TRF:
             raise ValueError("Average must be True or a list of indices!")
         stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
         k = _check_k(k, n_trials)
-        xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
+        x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         if self.method == "banded":
             coefficients = list(product(regularization, repeat=2))
             regularization = [
-                banded_regularization(len(lags), c, bands, self.bias)
-                for c in coefficients
+                banded_regularization(len(lags), c, bands) for c in coefficients
             ]
 
-        cov_xx, cov_xy = None, None
-        if self.pre_cal_cov:
-            cov_xx, cov_xy = covariance_matrices(xs, ys, lags, self.zeropad, self.bias)
+        if self.preload:
+            cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad)
         else:
             cov_xx, cov_xy = None, None
 
@@ -389,17 +367,17 @@ class TRF:
                     "Hyperparameter optimization",
                     verbose=verbose,
                 ):
-                    cov_xx_this = None
-                    cov_xy_this = None
                     if cov_xx is not None:
-                        cov_xx_this = cov_xx[idx_train_val, :, :]
-                        cov_xy_this = cov_xy[idx_train_val, :, :]
+                        cov_xx_train = cov_xx[idx_train_val, :, :]
+                        cov_xy_train = cov_xy[idx_train_val, :, :]
+                    else:
+                        cov_xx_train, cov_xy_train = None, None
                     _, mse[ir] = _cross_validate(
                         self.copy(),
-                        [xs[i] for i in idx_train_val],
-                        [ys[i] for i in idx_train_val],
-                        cov_xx_this,
-                        cov_xy_this,
+                        [x[i] for i in idx_train_val],
+                        [y[i] for i in idx_train_val],
+                        cov_xx_train,
+                        cov_xy_train,
                         lags,
                         fs,
                         regularization[ir],
@@ -484,10 +462,10 @@ class TRF:
         if response is None:
             response = [None for _ in range(n_trials)]
 
-        xs, ys = _get_xy(stimulus, response, direction=self.direction)
-        prediction = [np.zeros((x.shape[0], self.weights.shape[-1])) for x in xs]
+        x, y = _get_xy(stimulus, response, direction=self.direction)
+        prediction = [np.zeros((x_i.shape[0], self.weights.shape[-1])) for x_i in x]
         r, mse = [], []  # output lists
-        for i, (x, y) in enumerate(zip(xs, ys)):
+        for i, (x_i, y_i) in enumerate(zip(x, y)):
             lags = list(
                 range(
                     int(np.floor(self.times[0] * self.fs)),
@@ -504,22 +482,22 @@ class TRF:
                 [
                     self.bias,
                     w.reshape(
-                        x.shape[-1] * len(lags), self.weights.shape[-1], order="F"
+                        x_i.shape[-1] * len(lags), self.weights.shape[-1], order="F"
                     ),
                 ]
             ) * (1 / self.fs)
-            x_lag = lag_matrix(x, lags, self.zeropad)
+            x_lag = lag_matrix(x_i, lags, self.zeropad)
             y_pred = x_lag @ w
-            if y is not None:
+            if y_i is not None:
                 if self.zeropad is False:
-                    y = truncate(y, lags[0], lags[-1])
-                mse.append(np.mean((y - y_pred) ** 2, axis=0))
+                    y_i = truncate(y_i, lags[0], lags[-1])
+                mse.append(np.mean((y_i - y_pred) ** 2, axis=0))
                 r.append(
-                    np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0)
-                    / (y.std(0) * y_pred.std(0))
+                    np.mean((y_i - y_i.mean(0)) * (y_pred - y_pred.mean(0)), 0)
+                    / (y_i.std(0) * y_pred.std(0))
                 )
             prediction[i][:] = y_pred
-        if ys[0] is not None:
+        if y[0] is not None:
             r, mse = np.mean(r, axis=0), np.mean(mse, axis=0)  # average across trials
             if isinstance(average, list) or isinstance(average, np.ndarray):
                 r, mse = r[average], mse[average]  # select a subset of predictions
@@ -566,7 +544,7 @@ class TRF:
             trf.weights[..., i] = Cxx @ self.weights[..., i] / Css[i, i]
 
         trf.weights = np.flip(trf.weights.T, axis=1)
-        trf.bias = np.zeros(trf.weights.shape[-1])  # need to explore
+        trf.bias = np.zeros(trf.weights.shape[-1])
         return trf
 
     def save(self, path):

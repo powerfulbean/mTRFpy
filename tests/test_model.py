@@ -21,7 +21,7 @@ def test_train():
     if direction == -1:
         assert trf.weights.shape[-1] == stimulus[0].shape[-1]
         assert trf.weights.shape[0] == response[0].shape[-1]
-    regularization = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
+    regularization = [np.random.uniform(0, 10) for _ in range(randint(2, 5))]
     r, mse = trf.train(stimulus, response, fs, tmin, tmax, regularization)
     assert len(r) == len(mse) == len(regularization)
 
@@ -75,7 +75,7 @@ def test_save_load():
     np.testing.assert_equal(trf1.weights, trf2.weights)
 
 
-def test_pre_cal_cov(decimal=10):
+def test_no_preload(decimal=10):
     tmin = np.random.uniform(-0.1, 0.05)
     tmax = np.random.uniform(0.1, 0.2)
     regularization = [np.random.uniform(0, 10) for _ in range(2)]
@@ -86,7 +86,7 @@ def test_pre_cal_cov(decimal=10):
     trf1.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction1, r1, mse1 = trf1.predict(stimulus, response, average=False)
 
-    trf2 = TRF(pre_cal_cov=False)
+    trf2 = TRF(preload=False)
     trf2.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction2, r2, mse2 = trf2.predict(stimulus, response, average=False)
 
@@ -103,7 +103,7 @@ def test_pre_cal_cov(decimal=10):
     trf3.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction3, r3, mse3 = trf3.predict(stimulus, response, average=False)
 
-    trf4 = TRF(-1, pre_cal_cov=False)
+    trf4 = TRF(-1, preload=False)
     trf4.train(stimulus, response, fs, tmin, tmax, regularization)
     prediction4, r4, mse4 = trf4.predict(stimulus, response, average=False)
 

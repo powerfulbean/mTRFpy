@@ -1,19 +1,6 @@
 import numpy as np
 
 
-def _reduced_covariance_matrices(xs, ys, lags, zeropad=True, bias=True):
-    cov_xx = 0
-    cov_xy = 0
-    for x, y in zip(xs, ys):
-        assert x.ndim == 2 and y.ndim == 2
-        # sum covariances matrices across observations
-        cov_xx_trial, cov_xy_trial = covariance_matrices(x, y, lags, zeropad, bias)
-        cov_xx += cov_xx_trial
-        cov_xy += cov_xy_trial
-    cov_xx, cov_xy = cov_xx / len(xs), cov_xy / len(ys)  # normalize
-    return cov_xx, cov_xy
-
-
 def _check_data(stimulus=None, response=None, min_len=1, crop=False):
     """
     Check wheter data (stimulus or response) are formatted correctly.
@@ -107,7 +94,7 @@ def truncate(x, min_idx, max_idx):
     return x_truncated
 
 
-def covariance_matrices(x, y, lags, zeropad=True, bias=True):
+def covariance_matrices(x, y, lags, zeropad=True, preload=True):
     """
     Compute (auto-)covariance of x and y.
 
@@ -125,8 +112,6 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
         Time lags in samples.
     zeropad: bool
         If True (default), pad the input with zeros, if false, truncate the output.
-    bias: bool
-        Must be True (default) if TRF model includes a bias term.
 
     Returns
     -------
@@ -144,18 +129,21 @@ def covariance_matrices(x, y, lags, zeropad=True, bias=True):
         x, y = [x], [y]
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
+    cov_xx, cov_xy = 0, 0
     for i_x in range(len(x)):
-        x_lag = lag_matrix(x[i_x], lags, zeropad, bias)
-        if i_x == 0:
-            cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
-            cov_xy = np.zeros((len(y), x_lag.shape[-1], y[0].shape[-1]))
-        cov_xx[i_x] = x_lag.T @ x_lag
-        cov_xy[i_x] = x_lag.T @ y[i_x]
-    if len(x) == 1:
-        assert len(y) == 1
-        return cov_xx[0], cov_xy[0]
-    else:
-        return cov_xx, cov_xy
+        x_lag = lag_matrix(x[i_x], lags, zeropad)
+        if preload is True:
+            if i_x == 0:
+                cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
+                cov_xy = np.zeros((len(y), x_lag.shape[-1], y[0].shape[-1]))
+            cov_xx[i_x] = x_lag.T @ x_lag
+            cov_xy[i_x] = x_lag.T @ y[i_x]
+        else:
+            cov_xx += x_lag.T @ x_lag
+            cov_xy += x_lag.T @ y[i_x]
+    if preload is False:
+        cov_xx, cov_xy = cov_xx / len(x), cov_xy / len(x)
+    return cov_xx, cov_xy
 
 
 def lag_matrix(x, lags, zeropad=True, bias=True):
@@ -234,7 +222,7 @@ def regularization_matrix(size, method="ridge"):
     return regmat
 
 
-def banded_regularization(n_lags, coefficients, bands, bias):
+def banded_regularization(n_lags, coefficients, bands):
     """
     Create regularization matrix for banded ridge regression.
 
@@ -248,8 +236,6 @@ def banded_regularization(n_lags, coefficients, bands, bias):
         Size of the feature bands for which a regularization parameter is fitted, in
         the order they appear in the stimulus matrix. For example, when the stimulus
         is an envelope vector and a 16-band spectrogram, `bands` would be [1, 16].
-    bias: bool
-        Whether the TRF model includes a bias term.
     """
 
     if bands is None:
@@ -263,6 +249,5 @@ def banded_regularization(n_lags, coefficients, bands, bias):
     lag_coefs = np.concatenate(lag_coefs)
     # repeat that sequence for each lag
     diagonal = np.concatenate([lag_coefs for i in range(n_lags)])
-    if bias:
-        diagonal = np.concatenate([[0], diagonal])
+    diagonal = np.concatenate([[0], diagonal])
     return np.diag(diagonal)

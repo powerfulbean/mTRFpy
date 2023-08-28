@@ -6,7 +6,6 @@ from mtrf.matrices import (
     covariance_matrices,
     _check_data,
     _get_xy,
-    _reduced_covariance_matrices,
 )
 
 
@@ -76,7 +75,7 @@ def cross_validate(
     stimulus, response, _ = _check_data(stimulus, response, min_len=2)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-    cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, model.bias)
+    cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
     r, mse = _cross_validate(
         model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average, verbose
     )
@@ -97,45 +96,32 @@ def _cross_validate(
     verbose=True,
     seed=None,
 ):
-    # if (model.bias is True) or isinstance(model.bias, np.ndarray):
-    #     bias = True
-    # else:
-    #     bias = False
-    bias = True
-    assert (model.bias is True) or isinstance(model.bias, np.ndarray)
-
-    if cov_xx is None:
-        assert cov_xy is None
-        reg_mat_size = x[0].shape[-1] * len(lags)
-        if bias:
-            reg_mat_size = reg_mat_size + 1
-    else:
-        reg_mat_size = cov_xx.shape[-1]
-
     if seed is not None:
         random.seed(seed)
+
+    reg_mat_size = x[0].shape[-1] * len(lags) + 1
     regmat = regularization_matrix(reg_mat_size, model.method)
     regmat *= regularization / (1 / fs)
+
     n_trials = len(x)
     k = _check_k(k, n_trials)
     splits = np.arange(n_trials)
     random.shuffle(splits)
     splits = np.array_split(splits, k)
-    if average is not False:
+
+    if average is True:
         r, mse = np.zeros(k), np.zeros(k)
     else:
         r, mse = np.zeros((k, y[0].shape[-1])), np.zeros((k, y[0].shape[-1]))
+
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_val = splits[isplit]
         idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
-        # compute the model for the training set
-        cov_xx_hat = None
-        cov_xy_hat = None
         if cov_xx is None:
             x_train = [x[i] for i in idx_train]
             y_train = [y[i] for i in idx_train]
-            cov_xx_hat, cov_xy_hat = _reduced_covariance_matrices(
-                x_train, y_train, lags, model.zeropad, bias
+            cov_xx_hat, cov_xy_hat = covariance_matrices(
+                x_train, y_train, lags, model.zeropad, preload=False
             )
         else:
             cov_xx_hat = cov_xx[idx_train].mean(axis=0)
@@ -222,10 +208,10 @@ def permutation_distribution(
     if seed:
         np.random.seed(seed)
     stimulus, response, n_trials = _check_data(stimulus, response, min_len=2, crop=True)
-    xs, ys, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
-    min_len = min([len(x) for x in xs])
-    for i in range(len(xs)):
-        xs[i], ys[i] = xs[i][:min_len], ys[i][:min_len]
+    x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
+    min_len = min([len(x_i) for x_i in x])
+    for i in range(len(x)):
+        x[i], y[i] = x[i][:min_len], y[i][:min_len]
     k = _check_k(k, n_trials)
     idx = np.arange(n_trials)
     combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)
@@ -237,7 +223,7 @@ def permutation_distribution(
     r, mse = np.zeros(n_permute), np.zeros(n_permute)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
-        for i in range(len(xs)):  # make sure eachx x only appears once
+        for i in range(len(x)):  # make sure eachx x only appears once
             idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
         idx = np.array_split(idx, k)
