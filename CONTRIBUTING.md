@@ -14,16 +14,15 @@ Afterwards, a few additional steps need to be performed.
 
 **For all of the steps below we assume that you work in your dedicated `mTRFpy` Python environment.**
 
-### Install the development version of MNE-BIDS
+### Install the development version of mTRFpy
 
-Now [fork](https://help.github.com/en/github/getting-started-with-github/fork-a-repo) the `mne-bids` repository.
+Now [fork](https://help.github.com/en/github/getting-started-with-github/fork-a-repo) the `mTRFpy` repository.
 Then, `git clone` your fork and install it in "editable" mode.
 
 ```Shell
 git clone https://github.com/<your-GitHub-username>/mTRFpy
 cd ./mTRFpy
 pip install -e ".[full]"
-git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
 The last command is needed for `git diff` to work properly.
@@ -37,7 +36,7 @@ Navigate to the root of the `mTRFpy` repository and call:
 pip install -r doc/requirements.txt
 ```
 
-This will install several packages for building the documentation for `mne-bids`.
+This will install several packages for building the documentation for `mTRFpy`.
 
 ## Making style checks
 
@@ -53,15 +52,15 @@ flake8 . --ignore=E501,E203,W503
 
 ## Running tests
 
-We run tests using [pytest](https://docs.pytest.org/en/7.4.x/).
+We run tests using [pytest](https://docs.pytest.org/en/).
 
 If you have accurately followed the steps to setup your `mTRFpy` development version, you can then simply run `pytest .` from the root of the `mTRFpy` repository
 
 ## Building the documentation
 
 The documentation can be built using [Sphinx](https://www.sphinx-doc.org).
-If you have accurately followed the steps to setup your `mne-bids` development version,
-you can simply use the following command from the root of the `mne-bids` repository:
+If you have accurately followed the steps to setup your `mTRFpy` development version,
+you can simply use the following command from the root of the `mTRFpy` repository:
 
 ```Shell
 sphinx-build -b html docs docs/_build
