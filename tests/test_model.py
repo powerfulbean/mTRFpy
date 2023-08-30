@@ -71,7 +71,7 @@ def test_predict():
         assert len(prediction) == len(stimulus)
         assert all([p[0].shape == s[0].shape for p, s in zip(prediction, stimulus)])
         assert np.isscalar(loss)
-    prediction, r, mse = trf.predict(stimulus, response, average=False)
+    prediction, loss = trf.predict(stimulus, response, average=False)
     assert loss.shape[-1] == trf.weights.shape[-1]
 
 
