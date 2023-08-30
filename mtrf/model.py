@@ -3,7 +3,13 @@ from itertools import product
 import pickle
 from collections.abc import Iterable
 import numpy as np
-from mtrf.stats import _cross_validate, _progressbar, _check_k
+from mtrf.stats import (
+    _cross_validate,
+    _progressbar,
+    _check_k,
+    mean_squared_error,
+    one_minus_r,
+)
 from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
@@ -64,13 +70,23 @@ class TRF:
     """
 
     def __init__(
-        self, direction=1, kind="multi", zeropad=True, method="ridge", preload=True
+        self,
+        direction=1,
+        kind="multi",
+        zeropad=True,
+        method="ridge",
+        preload=True,
+        loss_function=one_minus_r,
     ):
         self.weights = None
         self.bias = None
         self.times = None
         self.fs = None
         self.regularization = None
+        if not callable(loss_function):
+            raise ValueError("Loss function must be callable")
+        else:
+            self.loss_function = loss_function
         if isinstance(preload, bool):
             self.preload = preload
         else:
@@ -140,7 +156,7 @@ class TRF:
         Compute a linear mapping between stimulus and response, or vice versa, using
         regularized regression. This method can compare multiple values for the
         regularization parameter and select the best one (i.e. the one that yields
-        the highest prediction accuracy).
+        the lowest prediction loss).
 
         Parameters
         ----------
@@ -170,20 +186,20 @@ class TRF:
             Number of data splits for cross validation, defaults to 5.
             If -1, do leave-one-out cross-validation.
         average: bool or list or numpy.ndarray
-            If True (default), average correlation and mean squared error across all
-            predictions (e.g. channels in the case of forward modelling). If `average`
-            is an array of integers only average the predicted features at those indices.
+            If True (default), average loss cross all predictions (e.g. channels in the
+            case of forward modelling). If `average` is an array of indices only average
+            those features.
         seed: int
             Seed for the random number generator.
         verbose: bool
-            If True (default), show a progress bar during fitting
+            If True (default), show a progress bar during fitting.
 
         Returns
         -------
-        r : list
-            Correlation of prediction and actual output.
-        mse : list
-            Mean squared error between prediction and actual output.
+        loss : list
+            When providing multiple `regularization` values this returns the loss as
+            computed by the loss function defined in the `TRF.loss_function` attribute
+            for every regularization value.
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
@@ -213,14 +229,13 @@ class TRF:
                 )
             else:
                 cov_xx, cov_xy = None, None
-            r = np.zeros(len(regularization))
-            mse = np.zeros(len(regularization))
+            loss = np.zeros(len(regularization))
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                r[ir], mse[ir] = _cross_validate(
+                loss[ir] = _cross_validate(
                     self.copy(),
                     x,
                     y,
@@ -234,9 +249,9 @@ class TRF:
                     average=average,
                     verbose=verbose,
                 )
-            best_regularization = list(regularization)[np.argmin(mse)]
+            best_regularization = list(regularization)[np.argmin(loss)]
             self._train(x, y, fs, tmin, tmax, best_regularization)
-            return r, mse
+            return loss
 
     def _train(self, x, y, fs, tmin, tmax, regularization):
         if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
@@ -325,16 +340,15 @@ class TRF:
         seed: int
             Seed for the random number generator.
         verbose: bool
-            If True (default), show a progress bar during fitting
+            If True (default), show a progress bar during fitting.
 
         Returns
         -------
-        r_test: numpy.ndarray
-            Correlation between actual and predicted output for k test sets
-        mse_test: numpy.ndarray
-            Mean squared error between actual and predicted output for k test sets
+        loss_test: numpy.ndarray
+            Loss as computed but the loss function defined in the attribute
+            `TRF.loss_function` for all k test sets.
         best_regularization: numpy.ndarray
-            Optimal regularization values for k training sets.
+            Optimal regularization values for all k training sets.
         """
         if average is False and not np.isscalar(regularization):
             raise ValueError("Average must be True or a list of indices!")
@@ -355,13 +369,13 @@ class TRF:
 
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
-        r_test, mse_test = np.zeros(n_splits), np.zeros(n_splits)
+        loss_test = np.zeros(n_splits)
         best_regularization = []
-        for isplit in range(n_splits):
-            idx_test = splits[isplit]
-            idx_train_val = np.concatenate(splits[:isplit] + splits[isplit + 1 :])
+        for split_i in range(n_splits):
+            idx_test = splits[split_i]
+            idx_train_val = np.concatenate(splits[:split_i] + splits[split_i + 1 :])
             if not np.isscalar(regularization):
-                mse = np.zeros(len(regularization))
+                loss = np.zeros(len(regularization))
                 for ir in _progressbar(
                     range(len(regularization)),
                     "Hyperparameter optimization",
@@ -372,7 +386,7 @@ class TRF:
                         cov_xy_train = cov_xy[idx_train_val, :, :]
                     else:
                         cov_xx_train, cov_xy_train = None, None
-                    _, mse[ir] = _cross_validate(
+                    loss[ir] = _cross_validate(
                         self.copy(),
                         [x[i] for i in idx_train_val],
                         [y[i] for i in idx_train_val],
@@ -386,22 +400,22 @@ class TRF:
                         average=average,
                         verbose=verbose,
                     )
-                best_regularization_ = list(regularization)[np.argmin(mse)]
+                regularization_split_i = list(regularization)[np.argmin(loss)]
             else:
-                best_regularization_ = regularization
+                regularization_split_i = regularization
             self.train(
                 [stimulus[i] for i in idx_train_val],
                 [response[i] for i in idx_train_val],
                 fs,
                 tmin,
                 tmax,
-                best_regularization_,
+                regularization_split_i,
             )
-            _, r_test[isplit], mse_test[isplit] = self.predict(
+            _, loss_test[split_i] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
-            best_regularization.append(best_regularization_)
-        return r_test, mse_test, best_regularization
+            best_regularization.append(regularization_split_i)
+        return loss_test, best_regularization
 
     def predict(
         self,
@@ -432,21 +446,18 @@ class TRF:
             If not None (default), only use the specified lags for prediction.
             The provided values index the elements in self.times.
         average: bool or list or numpy.ndarray
-            If True (default), average correlation and mean squared error across all
-            predictions (e.g. channels in the case of forward modelling). If `average`
-            is an array of integers only average the predicted features at those indices.
-            If `False`, return each predicted feature's accuracy.
+            If True (default), average loss across all predicted features (e.g. channels
+            in the case of forward modelling). If `average` is an array of indices only
+            average those features. If `False`, return each predicted feature's loss.
 
         Returns
         -------
         prediction: numpy.ndarray
             Predicted stimulus or response
-        correlation: float or numpy.ndarray
-            When the actual output is provided, correlation is computed per trial or
-            averaged, depending on the `average` parameter.
-        error: float or numpy.ndarray
-            When the actual output is provided, mean squared error is computed per
-            trial or averaged, depending on the `average` parameter.
+        loss: float or numpy.ndarray
+            If both stimulus and response are provided, loss is computed by the loss
+            function defined in the attribute `TRF.loss_function`. If average is False,
+            an array containing the loss for each feature is returned.
         """
         # check that inputs are valid
         if self.weights is None:
@@ -464,7 +475,7 @@ class TRF:
 
         x, y = _get_xy(stimulus, response, direction=self.direction)
         prediction = [np.zeros((x_i.shape[0], self.weights.shape[-1])) for x_i in x]
-        r, mse = [], []  # output lists
+        loss = []
         for i, (x_i, y_i) in enumerate(zip(x, y)):
             lags = list(
                 range(
@@ -491,19 +502,15 @@ class TRF:
             if y_i is not None:
                 if self.zeropad is False:
                     y_i = truncate(y_i, lags[0], lags[-1])
-                mse.append(np.mean((y_i - y_pred) ** 2, axis=0))
-                r.append(
-                    np.mean((y_i - y_i.mean(0)) * (y_pred - y_pred.mean(0)), 0)
-                    / (y_i.std(0) * y_pred.std(0))
-                )
+                loss.append(self.loss_function(y_i, y_pred))
             prediction[i][:] = y_pred
         if y[0] is not None:
-            r, mse = np.mean(r, axis=0), np.mean(mse, axis=0)  # average across trials
+            loss = np.mean(loss, axis=0)  # average across trials
             if isinstance(average, list) or isinstance(average, np.ndarray):
-                r, mse = r[average], mse[average]  # select a subset of predictions
+                loss = loss[average]  # select a subset of predictions
             if average is not False:
-                r, mse = np.mean(r), np.mean(mse)
-            return prediction, r, mse
+                loss = np.mean(loss)
+            return prediction, loss
         else:
             return prediction
 

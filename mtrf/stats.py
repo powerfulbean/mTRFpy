@@ -9,6 +9,34 @@ from mtrf.matrices import (
 )
 
 
+def mean_squared_error(y, y_pred):
+    mse = np.mean((y_i - y_pred) ** 2, axis=0)
+    return mse
+
+
+def one_minus_r(y, y_pred):
+    """
+    Compute one minus the Pearson's correlation coefficient between predicted
+    and observed data
+
+    Parameters
+    ----------
+    y: np.ndarray
+        samples-by-features matrix of observed data.
+    y_pred: np.ndarray
+        samples-by-features matrix of predicted data.
+
+    Returns
+    -------
+    inv_r: np.ndarray
+        Inverse Pearsons r (1-r) for each feature in y.
+    """
+    r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+        y.std(0) * y_pred.std(0)
+    )
+    return 1 - r
+
+
 def cross_validate(
     model,
     stimulus,
@@ -23,7 +51,7 @@ def cross_validate(
     verbose=True,
 ):
     """
-    Test model accuracy using k-fold cross-validation.
+    Test model loss using k-fold cross-validation.
 
     Input data is randomly shuffled and separated into k parts of with approximately
     the same number of trials. The first k-1 parts are used for training and the kth
@@ -56,16 +84,12 @@ def cross_validate(
         If True (default), average correlation and mean squared error across all
         predictions (e.g. channels in the case of forward modelling). If `average`
         is an array of integers only average the predicted features at those indices.
-        If `False`, return each predicted feature's accuracy.
+        If `False`, return each predicted feature's loss.
 
     Returns
     -------
-    r: float or numpy.ndarray
-        When the actual output is provided, correlation is computed per trial or
-        averaged, depending on the `average` parameter.
-    mse: float or numpy.ndarray
-        When the actual output is provided, mean squared error is computed per
-        trial or averaged, depending on the `average` parameter.
+    loss: float or numpy.ndarray
+        Loss as computed by the loss function in  the attribute `model.loss_function`.
     """
     trf = model.copy()
     trf.bias, trf.weights = None, None
@@ -76,10 +100,20 @@ def cross_validate(
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
-    r, mse = _cross_validate(
-        model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average, verbose
+    loss = _cross_validate(
+        model,
+        x,
+        y,
+        cov_xx,
+        cov_xy,
+        lags,
+        fs,
+        regularization,
+        k,
+        average,
+        verbose,
     )
-    return r, mse
+    return loss
 
 
 def _cross_validate(
@@ -110,9 +144,9 @@ def _cross_validate(
     splits = np.array_split(splits, k)
 
     if average is True:
-        r, mse = np.zeros(k), np.zeros(k)
+        loss = np.zeros(k)
     else:
-        r, mse = np.zeros((k, y[0].shape[-1])), np.zeros((k, y[0].shape[-1]))
+        loss = np.zeros((k, y[0].shape[-1]))
 
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_val = splits[isplit]
@@ -137,11 +171,11 @@ def _cross_validate(
         # use the model to predict the test data
         x_test, y_test = [x[i] for i in idx_val], [y[i] for i in idx_val]
         if model.direction == 1:
-            _, r_test, mse_test = trf.predict(x_test, y_test, average=average)
+            _, loss_test = trf.predict(x_test, y_test, None, average)
         elif model.direction == -1:
-            _, r_test, mse_test = trf.predict(y_test, x_test, average=average)
-        r[isplit], mse[isplit] = r_test, mse_test
-    return r.mean(axis=0), mse.mean(axis=0)
+            _, loss_test = trf.predict(y_test, x_test, None, average)
+        loss[isplit] = loss_test
+    return loss.mean(axis=0)
 
 
 def permutation_distribution(
@@ -194,16 +228,14 @@ def permutation_distribution(
     seed: int
         Seed for the random number generator.
     average: bool or list or numpy.ndarray
-        If True (default), average correlation and mean squared error across all
-        predictions (e.g. channels in the case of forward modelling). If `average`
-        is an array of integers only average the predicted features at those indices.
-        If `False`, return each predicted feature's accuracy.
+        If True (default), average loss across all predicted features (e.g. channels
+        in the case of forward modelling). If `average` is an array of indices only
+        average the loss for those features. If `False`, return each feature's loss.
     Returns
     -------
-    r: float or numpy.ndarray
-       Correlation coefficient for each permutation.
-    mse: float or numpy.ndarray
-        Mean squared error for each permutation.
+    loss: float or numpy.ndarray
+        Loss as computed by the loss function in  the attribute `model.loss_function`
+        for each permutation.
     """
     if seed:
         np.random.seed(seed)
