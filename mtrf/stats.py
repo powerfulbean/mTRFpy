@@ -10,7 +10,7 @@ from mtrf.matrices import (
 
 
 def mean_squared_error(y, y_pred):
-    mse = np.mean((y_i - y_pred) ** 2, axis=0)
+    mse = np.mean((y - y_pred) ** 2, axis=0)
     return mse
 
 
@@ -252,26 +252,25 @@ def permutation_distribution(
         trf = model.copy()
         trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
         models.append(trf)
-    r, mse = np.zeros(n_permute), np.zeros(n_permute)
+    loss = np.zeros(n_permute)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
-        for i in range(len(x)):  # make sure eachx x only appears once
+        for i in range(len(x)):  # make sure each x only appears once
             idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
         idx = np.array_split(idx, k)
-        perm_r, perm_mse = [], []  # r and mse for this permuttaion
+        perm_loss = []
         for isplit in range(len(idx)):
             idx_val = idx[isplit]
             idx_train = np.concatenate(idx[:isplit] + idx[isplit + 1 :])
             perm_model = np.mean([models[i] for i in idx_train])
             stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
             response_val = [response[combinations[i][1]] for i in idx_val]
-            _, fold_r, fold_mse = perm_model.predict(stimulus_val, response_val)
-            perm_r.append(fold_r)
-            perm_mse.append(fold_mse)
-        r[iperm], mse[iperm] = np.mean(perm_r), np.mean(perm_mse)
+            _, fold_loss = perm_model.predict(stimulus_val, response_val)
+            perm_loss.append(fold_loss)
+        loss[iperm] = np.mean(perm_loss)
 
-    return r, mse
+    return loss
 
 
 def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):

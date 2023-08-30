@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 from mtrf.model import TRF
+from mtrf.stats import mean_squared_error, one_minus_r
 
 root = Path(__file__).parent.absolute()
 
@@ -14,19 +15,18 @@ def test_encoding():
     encoder_results = np.load(  # expected results
         root / "results" / "encoder_results.npy", allow_pickle=True
     ).item()
-    # w = input features (stimuli) x times x output features (=channels)
     w, b, times, _, direction, kind = encoder_results["model"]
     prediction1 = encoder_results["prediction"]
     correlation1 = encoder_results["prediction_r"]
     error1 = encoder_results["prediction_err"]
-    # train the TRF model on the data
-    trf_encoder = TRF()
+    trf_encoder = TRF(loss_function=one_minus_r)
     tmin, tmax = -0.1, 0.2
     trf_encoder.train(stimulus, response, fs, tmin, tmax, 100)
-    # use the trained TRF to predict data
-    prediction2, correlation2, error2 = trf_encoder.predict(
-        stimulus, response, average=False
-    )
+    prediction2, loss = trf_encoder.predict(stimulus, response, average=False)
+    correlation2 = 1 - loss
+    trf_encoder = TRF(loss_function=mean_squared_error)
+    trf_encoder.train(stimulus, response, fs, tmin, tmax, 100)
+    prediction2, error2 = trf_encoder.predict(stimulus, response, average=False)
     # check that the results are the same as in matlab
     np.testing.assert_almost_equal(trf_encoder.weights, w, decimal=12)
     np.testing.assert_almost_equal(trf_encoder.bias, b, decimal=12)
@@ -49,9 +49,11 @@ def test_decoding():
     trf_decoder = TRF(direction=-1)
     tmin, tmax = -0.1, 0.2
     trf_decoder.train(stimulus, response, fs, tmin, tmax, 100)
-    prediction2, correlation2, error2 = trf_decoder.predict(
-        stimulus, response, average=False
-    )
+    prediction2, loss = trf_decoder.predict(stimulus, response, average=False)
+    correlation2 = 1 - loss
+    trf_decoder = TRF(direction=-1, loss_function=mean_squared_error)
+    trf_decoder.train(stimulus, response, fs, tmin, tmax, 100)
+    prediction2, error2 = trf_decoder.predict(stimulus, response, average=False)
     # check that the results are the same as in matlab
     np.testing.assert_almost_equal(trf_decoder.weights, w, decimal=11)
     np.testing.assert_almost_equal(trf_decoder.bias, b, decimal=11)
