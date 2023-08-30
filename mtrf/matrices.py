@@ -24,12 +24,16 @@ def _check_data(stimulus=None, response=None, min_len=1, crop=False):
             were 1-dimensional.
     """
     for i, data in enumerate([stimulus, response]):
-        if isinstance(data, np.ndarray):  # convert array to list
+        if isinstance(data, tuple):
+            data = list(data)
+        elif isinstance(data, np.ndarray):  # convert array to list
             if data.ndim > 2:
-                raise ValueError("Array cant have more that three dimensions!")
+                raise ValueError("Array can't have more that three dimensions!")
             else:
                 data = [data]
         if data is not None:
+            if not all([isinstance(d, np.ndarray) for d in data]):
+                raise ValueError("Trials must be arrays!")
             n_trials = len(data)
             if n_trials < min_len:  # check length
                 raise ValueError("Data list is too short!")
@@ -125,8 +129,7 @@ def covariance_matrices(x, y, lags, zeropad=True, preload=True):
         size is features in y. If y contains only one trial, the first dimension is
         empty and will be removed.
     """
-    if not all(isinstance(i, list) for i in (x, y)):
-        x, y = [x], [y]
+    x, y, _ = _check_data(x, y)
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
     cov_xx, cov_xy = 0, 0
@@ -143,6 +146,7 @@ def covariance_matrices(x, y, lags, zeropad=True, preload=True):
             cov_xy += x_lag.T @ y_i
     if preload is False:
         cov_xx, cov_xy = cov_xx / len(x), cov_xy / len(x)
+
     return cov_xx, cov_xy
 
 

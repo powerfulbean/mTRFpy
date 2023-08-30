@@ -27,6 +27,7 @@ setup(
         "testing": [
             "requests",
             "flake8",
+            "black",
             "pytest",
             "tqdm",
             "matplotlib",
