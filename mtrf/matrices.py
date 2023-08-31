@@ -132,24 +132,19 @@ def covariance_matrices(x, y, lags, zeropad=True, preload=True):
     x, y, _ = _check_data(x, y)
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
-
-    x_lag_size = x[0].shape[-1] * len(lags) + 1
-    cov_xx_size = (x_lag_size, x_lag_size)
-    cov_xy_size = (x_lag_size, y[0].shape[-1])
-
-    if preload is True:
-        cov_xx = np.zeros((len(x), *cov_xx_size))
-        cov_xy = np.zeros((len(y), *cov_xy_size))
-        for i_x in range(len(x)):
-            x_lag = lag_matrix(x[i_x], lags, zeropad)
-            cov_xx[i_x] = x_lag.T @ x_lag
-            cov_xy[i_x] = x_lag.T @ y[i_x]
-    else:
-        cov_xx, cov_xy = 0, 0
-        for i_x in range(len(x)):
-            x_lag = lag_matrix(x[i_x], lags, zeropad)
+    cov_xx, cov_xy = 0, 0
+    for i, (x_i, y_i) in enumerate(zip(x, y)):
+        x_lag = lag_matrix(x_i, lags, zeropad)
+        if preload is True:
+            if i == 0:
+                cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
+                cov_xy = np.zeros((len(y), x_lag.shape[-1], y_i.shape[-1]))
+            cov_xx[i] = x_lag.T @ x_lag
+            cov_xy[i] = x_lag.T @ y_i
+        else:
             cov_xx += x_lag.T @ x_lag
-            cov_xy += x_lag.T @ y[i_x]
+            cov_xy += x_lag.T @ y_i
+    if preload is False:
         cov_xx, cov_xy = cov_xx / len(x), cov_xy / len(x)
 
     return cov_xx, cov_xy

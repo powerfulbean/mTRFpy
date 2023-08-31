@@ -29,27 +29,24 @@ def test_check_data():
 
 
 def test_lag_matrix():
-    speech_response = np.load(
-        root / "data" / "speech_data.npy", allow_pickle=True
-    ).item()
-    fs = speech_response["samplerate"][0][0]
-    stimuli = speech_response["stimulus"]
+    stimulus, response, fs = load_sample_data(n_segments=1)
+    stimulus = stimulus[0]
     for _ in range(10):
         tmin = np.random.randint(-200, -100) / 1e3
         tmax = np.random.randint(150, 500) / 1e3
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-        lag_mat = lag_matrix(stimuli, lags, True, True)
-        assert lag_mat.shape[0] == stimuli.shape[0]
-        assert lag_mat.shape[1] == len(lags) * stimuli.shape[1] + 1
-        lag_mat = lag_matrix(stimuli, lags, True, False)
-        assert lag_mat.shape[0] == stimuli.shape[0]
-        assert lag_mat.shape[1] == len(lags) * stimuli.shape[1]
-        lag_mat = lag_matrix(stimuli, lags, False, False)
-        assert stimuli.shape[0] - lag_mat.shape[0] == len(lags) - 1
-        assert lag_mat.shape[1] == len(lags) * stimuli.shape[1]
-        lag_mat = lag_matrix(stimuli, lags, False, True)
-        assert stimuli.shape[0] - lag_mat.shape[0] == len(lags) - 1
-        assert lag_mat.shape[1] == len(lags) * stimuli.shape[1] + 1
+        lag_mat = lag_matrix(stimulus, lags, True, True)
+        assert lag_mat.shape[0] == stimulus.shape[0]
+        assert lag_mat.shape[1] == len(lags) * stimulus.shape[1] + 1
+        lag_mat = lag_matrix(stimulus, lags, True, False)
+        assert lag_mat.shape[0] == stimulus.shape[0]
+        assert lag_mat.shape[1] == len(lags) * stimulus.shape[1]
+        lag_mat = lag_matrix(stimulus, lags, False, False)
+        assert stimulus.shape[0] - lag_mat.shape[0] == len(lags) - 1
+        assert lag_mat.shape[1] == len(lags) * stimulus.shape[1]
+        lag_mat = lag_matrix(stimulus, lags, False, True)
+        assert stimulus.shape[0] - lag_mat.shape[0] == len(lags) - 1
+        assert lag_mat.shape[1] == len(lags) * stimulus.shape[1] + 1
 
 
 def test_arithmatic():

@@ -9,6 +9,50 @@ from mtrf.matrices import (
 )
 
 
+def neg_mean_squared_error(y, y_pred):
+    """
+    Compute negative mean suqare error (mse) between predicted
+    and observed data
+
+    Parameters
+    ----------
+    y: np.ndarray
+        samples-by-features matrix of observed data.
+    y_pred: np.ndarray
+        samples-by-features matrix of predicted data.
+
+    Returns
+    -------
+    neg_mse: np.ndarray
+        Negative mse (-mse) for each feature in y.
+    """
+    mse = np.mean((y - y_pred) ** 2, axis=0)
+    return -mse
+
+
+def pearsonr(y, y_pred):
+    """
+    Compute Pearson's correlation coefficient between predicted
+    and observed data
+
+    Parameters
+    ----------
+    y: np.ndarray
+        samples-by-features matrix of observed data.
+    y_pred: np.ndarray
+        samples-by-features matrix of predicted data.
+
+    Returns
+    -------
+    r: np.ndarray
+        Pearsons r for each feature in y.
+    """
+    r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+        y.std(0) * y_pred.std(0)
+    )
+    return r
+
+
 def cross_validate(
     model,
     stimulus,
@@ -23,7 +67,7 @@ def cross_validate(
     verbose=True,
 ):
     """
-    Test model accuracy using k-fold cross-validation.
+    Test model metric using k-fold cross-validation.
 
     Input data is randomly shuffled and separated into k parts of with approximately
     the same number of trials. The first k-1 parts are used for training and the kth
@@ -56,16 +100,12 @@ def cross_validate(
         If True (default), average correlation and mean squared error across all
         predictions (e.g. channels in the case of forward modelling). If `average`
         is an array of integers only average the predicted features at those indices.
-        If `False`, return each predicted feature's accuracy.
+        If `False`, return each predicted feature's metric.
 
     Returns
     -------
-    r: float or numpy.ndarray
-        When the actual output is provided, correlation is computed per trial or
-        averaged, depending on the `average` parameter.
-    mse: float or numpy.ndarray
-        When the actual output is provided, mean squared error is computed per
-        trial or averaged, depending on the `average` parameter.
+    metric: float or numpy.ndarray
+        Metric as computed by the metric function in the attribute `model.metric_function`.
     """
     trf = model.copy()
     trf.bias, trf.weights = None, None
@@ -76,10 +116,20 @@ def cross_validate(
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
-    r, mse = _cross_validate(
-        model, x, y, cov_xx, cov_xy, lags, fs, regularization, k, average, verbose
+    metric = _cross_validate(
+        model,
+        x,
+        y,
+        cov_xx,
+        cov_xy,
+        lags,
+        fs,
+        regularization,
+        k,
+        average,
+        verbose,
     )
-    return r, mse
+    return metric
 
 
 def _cross_validate(
@@ -110,9 +160,9 @@ def _cross_validate(
     splits = np.array_split(splits, k)
 
     if average is True:
-        r, mse = np.zeros(k), np.zeros(k)
+        metric = np.zeros(k)
     else:
-        r, mse = np.zeros((k, y[0].shape[-1])), np.zeros((k, y[0].shape[-1]))
+        metric = np.zeros((k, y[0].shape[-1]))
 
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_val = splits[isplit]
@@ -134,14 +184,15 @@ def _cross_validate(
         trf.weights = w[1:].reshape(
             (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
         )
-        # use the model to predict the test data
         x_test, y_test = [x[i] for i in idx_val], [y[i] for i in idx_val]
+        # because we are working with covariance matrices, we have to check direction
+        # to pass the right variable as stimulus and response to TRF.predict
         if model.direction == 1:
-            _, r_test, mse_test = trf.predict(x_test, y_test, average=average)
+            _, metric_test = trf.predict(x_test, y_test, None, average)
         elif model.direction == -1:
-            _, r_test, mse_test = trf.predict(y_test, x_test, average=average)
-        r[isplit], mse[isplit] = r_test, mse_test
-    return r.mean(axis=0), mse.mean(axis=0)
+            _, metric_test = trf.predict(y_test, x_test, None, average)
+        metric[isplit] = metric_test
+    return metric.mean(axis=0)
 
 
 def permutation_distribution(
@@ -194,16 +245,14 @@ def permutation_distribution(
     seed: int
         Seed for the random number generator.
     average: bool or list or numpy.ndarray
-        If True (default), average correlation and mean squared error across all
-        predictions (e.g. channels in the case of forward modelling). If `average`
-        is an array of integers only average the predicted features at those indices.
-        If `False`, return each predicted feature's accuracy.
+        If True (default), average metric across all predicted features (e.g. channels
+        in the case of forward modelling). If `average` is an array of indices only
+        average the metric for those features. If `False`, return each feature's metric.
     Returns
     -------
-    r: float or numpy.ndarray
-       Correlation coefficient for each permutation.
-    mse: float or numpy.ndarray
-        Mean squared error for each permutation.
+    metric: float or numpy.ndarray
+        Metric as computed by the metric function in  the attribute `model.metric_function`
+        for each permutation.
     """
     if seed:
         np.random.seed(seed)
@@ -220,26 +269,27 @@ def permutation_distribution(
         trf = model.copy()
         trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
         models.append(trf)
-    r, mse = np.zeros(n_permute), np.zeros(n_permute)
+    metric = np.zeros(n_permute)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
-        for i in range(len(x)):  # make sure eachx x only appears once
+        for i in range(len(x)):  # make sure each x only appears once
             idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
         idx = np.array_split(idx, k)
-        perm_r, perm_mse = [], []  # r and mse for this permuttaion
+        perm_metric = []
         for isplit in range(len(idx)):
             idx_val = idx[isplit]
             idx_train = np.concatenate(idx[:isplit] + idx[isplit + 1 :])
             perm_model = np.mean([models[i] for i in idx_train])
             stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
             response_val = [response[combinations[i][1]] for i in idx_val]
-            _, fold_r, fold_mse = perm_model.predict(stimulus_val, response_val)
-            perm_r.append(fold_r)
-            perm_mse.append(fold_mse)
-        r[iperm], mse[iperm] = np.mean(perm_r), np.mean(perm_mse)
+            _, fold_metric = perm_model.predict(
+                stimulus_val, response_val, None, average
+            )
+            perm_metric.append(fold_metric)
+        metric[iperm] = np.mean(perm_metric)
 
-    return r, mse
+    return metric
 
 
 def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):
