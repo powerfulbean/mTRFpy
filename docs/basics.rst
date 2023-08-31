@@ -38,9 +38,11 @@ To fit a forward model, create an instance of the TRF class, define the time int
     tmin, tmax = 0, 0.4  # range of time lag
     fwd_trf.train(stimulus, response, fs, tmin, tmax, regularization=1000)
 
-Now, we can use :py:meth:`TRF.predict` method to generate a prediction of the neural response based on the stimulus and compare it to the actual response to assess the model's accuracy.::
+Now, we can use the :py:meth:`TRF.predict` method to generate a prediction of the neural response based on the stimulus.
+When provided with both stimulus and response, `TRF.predict` will also evaluate the prediction's accuracy.
+Per default, it computes Pearson's correlation between the predicted and observed data as a metric for model accuracy but this can be changes as demonstrated in the next section.::
 
-    prediction, r_fwd, mse_fwd = fwd_trf.predict(stimulus, response)
+    prediction, r_fwd = fwd_trf.predict(stimulus, response)
     print(f"correlation between actual and predicted response: {r_fwd.round(3)}")
 
 However, because we trained and tested on the exact same data, the correlation coefficient is inflated due to overfitting. To avoid this we can use The :func:`cross_validate` function from the :py:mod:`stats` module which tests a :py:class:`TRF` instance using k-fold cross-validation. During this process, the data is split into :py:const:`k` segments - all but one segments are used to train the TRF and the final segment is used to validate it's accuracy. The TRF is trained multiple times while the segments are rotated so that each segment is used for validation once. Finally, the TRFs correlation and MSE is obtained by averaging across all :py:const:`k` segments.
