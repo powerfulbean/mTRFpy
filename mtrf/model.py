@@ -7,8 +7,8 @@ from mtrf.stats import (
     _cross_validate,
     _progressbar,
     _check_k,
-    mean_squared_error,
-    one_minus_r,
+    neg_mean_squared_error,
+    pearsonr,
 )
 from mtrf.matrices import (
     covariance_matrices,
@@ -58,6 +58,9 @@ class TRF:
         cross-validation. This makes optimization faster but consumes more memory. If
         False, the covariance matrices will be computed on each iteration which is slower
         but memory efficient.
+    metric_function: callable
+        A callable which accept two arguments (true y, predicted y), and retrun a single
+        value for each feature in y. The default is mtrf.stats.pearsonr.
 
     Attributes
     ----------
@@ -76,17 +79,17 @@ class TRF:
         zeropad=True,
         method="ridge",
         preload=True,
-        loss_function=one_minus_r,
+        metric_function=pearsonr,
     ):
         self.weights = None
         self.bias = None
         self.times = None
         self.fs = None
         self.regularization = None
-        if not callable(loss_function):
-            raise ValueError("Loss function must be callable")
+        if not callable(metric_function):
+            raise ValueError("Metric function must be callable")
         else:
-            self.loss_function = loss_function
+            self.metric_function = metric_function
         if isinstance(preload, bool):
             self.preload = preload
         else:
@@ -138,7 +141,6 @@ class TRF:
         tmin,
         tmax,
         regularization,
-        test=False,
         bands=None,
         k=-1,
         average=True,
@@ -146,17 +148,16 @@ class TRF:
         verbose=True,
     ):
         """
-        Optimize the regularization parameter and optionally test model performance.
+        Optimize the regularization parameter.
 
         For each value in `regularization`, a model is trained and validated using
         k-fold cross validation. Then the best regularization value (i.e. the one
-        that results is the lowest mean squared error between the predicted and
-        actual output) is chosen to train the final model.
+        that results in the highest mean metric value is chosen to train the final model.
 
         Compute a linear mapping between stimulus and response, or vice versa, using
         regularized regression. This method can compare multiple values for the
         regularization parameter and select the best one (i.e. the one that yields
-        the lowest prediction loss).
+        the highest prediction metric).
 
         Parameters
         ----------
@@ -186,7 +187,7 @@ class TRF:
             Number of data splits for cross validation, defaults to 5.
             If -1, do leave-one-out cross-validation.
         average: bool or list or numpy.ndarray
-            If True (default), average loss cross all predictions (e.g. channels in the
+            If True (default), average metric cross all predictions (e.g. channels in the
             case of forward modelling). If `average` is an array of indices only average
             those features.
         seed: int
@@ -196,9 +197,9 @@ class TRF:
 
         Returns
         -------
-        loss : list
-            When providing multiple `regularization` values this returns the loss as
-            computed by the loss function defined in the `TRF.loss_function` attribute
+        metric : list
+            When providing multiple `regularization` values this returns the metric as
+            computed by the metric function defined in the `TRF.metric_function` attribute
             for every regularization value.
         """
         if average is False:
@@ -229,13 +230,13 @@ class TRF:
                 )
             else:
                 cov_xx, cov_xy = None, None
-            loss = np.zeros(len(regularization))
+            metric = np.zeros(len(regularization))
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                loss[ir] = _cross_validate(
+                metric[ir] = _cross_validate(
                     self.copy(),
                     x,
                     y,
@@ -249,9 +250,9 @@ class TRF:
                     average=average,
                     verbose=verbose,
                 )
-            best_regularization = list(regularization)[np.argmin(loss)]
+            best_regularization = list(regularization)[np.argmax(metric)]
             self._train(x, y, fs, tmin, tmax, best_regularization)
-            return loss
+            return metric
 
     def _train(self, x, y, fs, tmin, tmax, regularization):
         if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
@@ -344,9 +345,9 @@ class TRF:
 
         Returns
         -------
-        loss_test: numpy.ndarray
-            Loss as computed but the loss function defined in the attribute
-            `TRF.loss_function` for all k test sets.
+        metric_test: numpy.ndarray
+            Metric as computed by the metric function defined in the attribute
+            `TRF.metric_function` for all k test sets.
         best_regularization: numpy.ndarray
             Optimal regularization values for all k training sets.
         """
@@ -369,13 +370,13 @@ class TRF:
 
         splits = np.array_split(np.arange(n_trials), k)
         n_splits = len(splits)
-        loss_test = np.zeros(n_splits)
+        metric_test = np.zeros(n_splits)
         best_regularization = []
         for split_i in range(n_splits):
             idx_test = splits[split_i]
             idx_train_val = np.concatenate(splits[:split_i] + splits[split_i + 1 :])
             if not np.isscalar(regularization):
-                loss = np.zeros(len(regularization))
+                metric = np.zeros(len(regularization))
                 for ir in _progressbar(
                     range(len(regularization)),
                     "Hyperparameter optimization",
@@ -386,7 +387,7 @@ class TRF:
                         cov_xy_train = cov_xy[idx_train_val, :, :]
                     else:
                         cov_xx_train, cov_xy_train = None, None
-                    loss[ir] = _cross_validate(
+                    metric[ir] = _cross_validate(
                         self.copy(),
                         [x[i] for i in idx_train_val],
                         [y[i] for i in idx_train_val],
@@ -400,7 +401,7 @@ class TRF:
                         average=average,
                         verbose=verbose,
                     )
-                regularization_split_i = list(regularization)[np.argmin(loss)]
+                regularization_split_i = list(regularization)[np.argmax(metric)]
             else:
                 regularization_split_i = regularization
             self.train(
@@ -411,11 +412,11 @@ class TRF:
                 tmax,
                 regularization_split_i,
             )
-            _, loss_test[split_i] = self.predict(
+            _, metric_test[split_i] = self.predict(
                 [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
             )
             best_regularization.append(regularization_split_i)
-        return loss_test, best_regularization
+        return metric_test, best_regularization
 
     def predict(
         self,
@@ -446,18 +447,19 @@ class TRF:
             If not None (default), only use the specified lags for prediction.
             The provided values index the elements in self.times.
         average: bool or list or numpy.ndarray
-            If True (default), average loss across all predicted features (e.g. channels
+            If True (default), average metric across all predicted features (e.g. channels
             in the case of forward modelling). If `average` is an array of indices only
-            average those features. If `False`, return each predicted feature's loss.
+            average those features. If `False`, return each predicted feature's metric.
 
         Returns
         -------
         prediction: numpy.ndarray
             Predicted stimulus or response
-        loss: float or numpy.ndarray
-            If both stimulus and response are provided, loss is computed by the loss
-            function defined in the attribute `TRF.loss_function`. If average is False,
-            an array containing the loss for each feature is returned.
+        metric: float or numpy.ndarray
+            If both stimulus and response are provided, metric is computed by the
+            metric function defined in the attribute `TRF.metric_function`.
+            If average is False, an array containing the metric for each feature
+            is returned.
         """
         # check that inputs are valid
         if self.weights is None:
@@ -475,7 +477,7 @@ class TRF:
 
         x, y = _get_xy(stimulus, response, direction=self.direction)
         prediction = [np.zeros((x_i.shape[0], self.weights.shape[-1])) for x_i in x]
-        loss = []
+        metric = []
         for i, (x_i, y_i) in enumerate(zip(x, y)):
             lags = list(
                 range(
@@ -502,15 +504,15 @@ class TRF:
             if y_i is not None:
                 if self.zeropad is False:
                     y_i = truncate(y_i, lags[0], lags[-1])
-                loss.append(self.loss_function(y_i, y_pred))
+                metric.append(self.metric_function(y_i, y_pred))
             prediction[i][:] = y_pred
         if y[0] is not None:
-            loss = np.mean(loss, axis=0)  # average across trials
+            metric = np.mean(metric, axis=0)  # average across trials
             if isinstance(average, list) or isinstance(average, np.ndarray):
-                loss = loss[average]  # select a subset of predictions
+                metric = metric[average]  # select a subset of predictions
             if average is not False:
-                loss = np.mean(loss)
-            return prediction, loss
+                metric = np.mean(metric)
+            return prediction, metric
         else:
             return prediction
 
