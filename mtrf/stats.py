@@ -184,8 +184,9 @@ def _cross_validate(
         trf.weights = w[1:].reshape(
             (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
         )
-        # use the model to predict the test data
         x_test, y_test = [x[i] for i in idx_val], [y[i] for i in idx_val]
+        # because we are working with covariance matrices, we have to check direction
+        # to pass the right variable as stimulus and response to TRF.predict
         if model.direction == 1:
             _, metric_test = trf.predict(x_test, y_test, None, average)
         elif model.direction == -1:
