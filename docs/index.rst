@@ -19,6 +19,8 @@ visualize models. It can also be installed via pip::
 
     pip install matplotlib
 
+
+
 .. toctree::
   :caption: Contents
   :maxdepth: 2
@@ -38,9 +40,9 @@ Yes, the basic operations like :meth:`TRF.train()` and :meth:`TRF.predict()` wil
 
 * **I think I found a bug!**
 
-Please see the `bug reports <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#bugs>`_ section in the contribution guidelines.
+Please see use the `GitHub issue tracker <https://github.com/powerfulbean/mTRFpy/issues>`_ to report your bug and, if possible, include a minimal example to reproduce it.
 
 
 * **How can I contribute to the project?**
 
-Please see the `pull request <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md#pull-requests>`_ section in the contribution guidelines if you want to contribute code or useful examples for the documentation.
+Please see the `contribution guidelines <https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md>`_ if you want to contribute code or useful examples for the documentation.
