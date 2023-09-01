@@ -4,10 +4,10 @@ import pickle
 from collections.abc import Iterable
 import numpy as np
 from mtrf.stats import (
-    _cross_validate,
+    _crossval,
     _progressbar,
     _check_k,
-    neg_mean_squared_error,
+    neg_mse,
     pearsonr,
 )
 from mtrf.matrices import (
@@ -58,7 +58,7 @@ class TRF:
         cross-validation. This makes optimization faster but consumes more memory. If
         False, the covariance matrices will be computed on each iteration which is slower
         but memory efficient.
-    metric_function: callable
+    metric: callable
         A callable which accept two arguments (true y, predicted y), and retrun a single
         value for each feature in y. The default is mtrf.stats.pearsonr.
 
@@ -79,17 +79,17 @@ class TRF:
         zeropad=True,
         method="ridge",
         preload=True,
-        metric_function=pearsonr,
+        metric=pearsonr,
     ):
         self.weights = None
         self.bias = None
         self.times = None
         self.fs = None
         self.regularization = None
-        if not callable(metric_function):
+        if not callable(metric):
             raise ValueError("Metric function must be callable")
         else:
-            self.metric_function = metric_function
+            self.metric = metric
         if isinstance(preload, bool):
             self.preload = preload
         else:
@@ -199,7 +199,7 @@ class TRF:
         -------
         metric : list
             When providing multiple `regularization` values this returns the metric as
-            computed by the metric function defined in the `TRF.metric_function` attribute
+            computed by the metric function defined in the `TRF.metric` attribute
             for every regularization value.
         """
         if average is False:
@@ -236,7 +236,7 @@ class TRF:
                 "Hyperparameter optimization",
                 verbose=verbose,
             ):
-                metric[ir] = _cross_validate(
+                metric[ir] = _crossval(
                     self.copy(),
                     x,
                     y,
@@ -280,144 +280,6 @@ class TRF:
         self.times = np.array(lags) / fs
         self.fs = fs
 
-    def test(
-        self,
-        stimulus,
-        response,
-        fs,
-        tmin,
-        tmax,
-        regularization,
-        bands=None,
-        k=-1,
-        average=True,
-        seed=None,
-        verbose=True,
-    ):
-        """
-        Unbiased estimate of model accuracy when fitting the regularization parameter.
-
-        This fuction divides the data into k parts and runs two nested
-        cross-validation loops: the outer loop selects k-1 parts to optimize the
-        regularization value and the kth part to test the final model's accuracy.
-        The inner loop uses cross-validation to determine the best regularization
-        value as in the `fit` method. The data are rotated so that each of the
-        k segments is used to test the final model's accuracy once. The average
-        correlation and mean squared error across all folds is an unbiased estimate
-        of the model's accuracy because the test data was not part of the optimization
-        process.
-
-        Parameters
-        ----------
-        stimulus: list
-            Each element must contain one trial's stimulus in a two-dimensional
-            samples-by-features array (second dimension can be omitted if there is
-            only a single feature.
-        response: list
-            Each element must contain one trial's response in a two-dimensional
-            samples-by-channels array.
-        fs: int
-            Sample rate of stimulus and response in hertz.
-        tmin: float
-            Minimum time lag in seconds.
-        tmax: float
-            Maximum time lag in seconds.
-        regularization: list or float or int
-            Values for the regularization parameter lambda. The model is fitted
-            separately for each value and the one yielding the highest accuracy
-            is chosen (correlation and mean squared error of each model are returned).
-        bands: list or None
-            Must only be provided when using banded ridge regression. Size of the
-            features for which a regularization parameter is fitted, in the order they
-            appear in the stimulus matrix. For example, when the stimulus consists of
-            an envelope vector and a 16-band spectrogram, bands would be [1, 16].
-        k: int
-            Number of data splits for cross validation, defaults to 5.
-            If -1, do leave-one-out cross-validation.
-        average: bool or list or numpy.ndarray
-            If True (default), average correlation and mean squared error across all
-            predictions (e.g. channels in the case of forward modelling). If `average`
-            is an array of integers only average the predicted features at those indices.
-        seed: int
-            Seed for the random number generator.
-        verbose: bool
-            If True (default), show a progress bar during fitting.
-
-        Returns
-        -------
-        metric_test: numpy.ndarray
-            Metric as computed by the metric function defined in the attribute
-            `TRF.metric_function` for all k test sets.
-        best_regularization: numpy.ndarray
-            Optimal regularization values for all k training sets.
-        """
-        if average is False and not np.isscalar(regularization):
-            raise ValueError("Average must be True or a list of indices!")
-        stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
-        k = _check_k(k, n_trials)
-        x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
-        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-        if self.method == "banded":
-            coefficients = list(product(regularization, repeat=2))
-            regularization = [
-                banded_regularization(len(lags), c, bands) for c in coefficients
-            ]
-
-        if self.preload:
-            cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad)
-        else:
-            cov_xx, cov_xy = None, None
-
-        splits = np.array_split(np.arange(n_trials), k)
-        n_splits = len(splits)
-        metric_test = np.zeros(n_splits)
-        best_regularization = []
-        for split_i in range(n_splits):
-            idx_test = splits[split_i]
-            idx_train_val = np.concatenate(splits[:split_i] + splits[split_i + 1 :])
-            if not np.isscalar(regularization):
-                metric = np.zeros(len(regularization))
-                for ir in _progressbar(
-                    range(len(regularization)),
-                    "Hyperparameter optimization",
-                    verbose=verbose,
-                ):
-                    if cov_xx is not None:
-                        cov_xx_train = cov_xx[idx_train_val, :, :]
-                        cov_xy_train = cov_xy[idx_train_val, :, :]
-                    else:
-                        cov_xx_train, cov_xy_train = None, None
-                    metric[ir] = _cross_validate(
-                        self.copy(),
-                        [x[i] for i in idx_train_val],
-                        [y[i] for i in idx_train_val],
-                        cov_xx_train,
-                        cov_xy_train,
-                        lags,
-                        fs,
-                        regularization[ir],
-                        k - 1,
-                        seed=seed,
-                        average=average,
-                        verbose=verbose,
-                    )
-                regularization_split_i = list(regularization)[np.argmax(metric)]
-            else:
-                regularization_split_i = regularization
-            self.train(
-                [stimulus[i] for i in idx_train_val],
-                [response[i] for i in idx_train_val],
-                fs,
-                tmin,
-                tmax,
-                regularization_split_i,
-            )
-            _, metric_test[split_i] = self.predict(
-                [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
-            )
-            best_regularization.append(regularization_split_i)
-        return metric_test, best_regularization
-
     def predict(
         self,
         stimulus=None,
@@ -457,7 +319,7 @@ class TRF:
             Predicted stimulus or response
         metric: float or numpy.ndarray
             If both stimulus and response are provided, metric is computed by the
-            metric function defined in the attribute `TRF.metric_function`.
+            metric function defined in the attribute `TRF.metric`.
             If average is False, an array containing the metric for each feature
             is returned.
         """
@@ -504,7 +366,7 @@ class TRF:
             if y_i is not None:
                 if self.zeropad is False:
                     y_i = truncate(y_i, lags[0], lags[-1])
-                metric.append(self.metric_function(y_i, y_pred))
+                metric.append(self.metric(y_i, y_pred))
             prediction[i][:] = y_pred
         if y[0] is not None:
             metric = np.mean(metric, axis=0)  # average across trials
