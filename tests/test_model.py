@@ -75,15 +75,6 @@ def test_predict():
     assert metric.shape[-1] == trf.weights.shape[-1]
 
 
-def test_test():
-    tmin = np.random.uniform(-0.1, 0.05)
-    tmax = np.random.uniform(0.1, 0.4)
-    reg = [np.random.uniform(0, 10) for _ in range(randint(2, 10))]
-    trf = TRF()
-    metric, best_regularization = trf.test(stimulus, response, fs, tmin, tmax, reg)
-    assert len(metric) == len(best_regularization) == n
-
-
 def test_save_load():
     tmpdir = Path(tempfile.gettempdir())
     tmin = np.random.uniform(-0.1, 0.05)

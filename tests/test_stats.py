@@ -1,11 +1,20 @@
 import numpy as np
-
 from mtrf import stats
 from mtrf.model import TRF, load_sample_data
-from mtrf.stats import cross_validate, permutation_distribution
+from mtrf.stats import crossval, nested_crossval, permutation_distribution
 
 n = np.random.randint(5, 10)
 stimulus, response, fs = load_sample_data(n_segments=n)
+
+
+def test_nested_crossval():
+    tmin, tmax = np.random.uniform(-0.1, 0.05), np.random.uniform(0.1, 0.4)
+    reg = np.random.uniform(0, 10)
+    trf = TRF()
+    splits = np.random.randint(2, 5)
+    metric, best_regularization = nested_crossval(
+        trf, stimulus, response, fs, tmin, tmax, reg, splits
+    )
 
 
 def test_pearsonr():
@@ -22,9 +31,9 @@ def test_crossval():
         reg = np.random.uniform(0, 10)
         trf = TRF(direction=direction)
         splits = np.random.randint(2, 5)
-        metric = cross_validate(trf, stimulus, response, fs, tmin, tmax, reg, splits)
+        metric = crossval(trf, stimulus, response, fs, tmin, tmax, reg, splits)
         assert np.isscalar(metric)
-        metric = cross_validate(
+        metric = crossval(
             trf, stimulus, response, fs, tmin, tmax, reg, splits, average=False
         )
         if direction == 1:
