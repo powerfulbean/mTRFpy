@@ -1,3 +1,4 @@
+
 Reference documentation
 =======================
 
@@ -6,14 +7,17 @@ Reference documentation
 
 TRF model
 ^^^^^^^^^
-.. autoclass:: mtrf.model.TRF
+.. autoclass:: mtrf.TRF
    :members:
    :member-order: bysource
-.. autofunction:: mtrf.model.load_sample_data
+.. autofunction:: mtrf.load_sample_data
 
 Cross-validation
 ^^^^^^^^^^^^^^^^
-.. autofunction:: mtrf.stats.cross_validate
+.. autofunction:: mtrf.stats.crossval
+.. autofunction:: mtrf.stats.nested_crossval
+.. autofunction:: mtrf.stats.neg_mse
+.. autofunction:: mtrf.stats.pearsonr
 
 Matrix operations
 ^^^^^^^^^^^^^^^^^

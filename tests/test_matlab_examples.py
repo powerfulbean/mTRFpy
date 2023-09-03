@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 from mtrf.model import TRF
-from mtrf.stats import neg_mean_squared_error, pearsonr
+from mtrf.stats import neg_mse, pearsonr
 
 root = Path(__file__).parent.absolute()
 
@@ -19,11 +19,11 @@ def test_encoding():
     prediction1 = encoder_results["prediction"]
     correlation1 = encoder_results["prediction_r"]
     error1 = encoder_results["prediction_err"]
-    trf_encoder = TRF(metric_function=pearsonr)
+    trf_encoder = TRF(metric=pearsonr)
     tmin, tmax = -0.1, 0.2
     trf_encoder.train(stimulus, response, fs, tmin, tmax, 100)
     prediction2, correlation2 = trf_encoder.predict(stimulus, response, average=False)
-    trf_encoder = TRF(metric_function=neg_mean_squared_error)
+    trf_encoder = TRF(metric=neg_mse)
     trf_encoder.train(stimulus, response, fs, tmin, tmax, 100)
     prediction2, error2 = trf_encoder.predict(stimulus, response, average=False)
     error2 = -error2
@@ -50,7 +50,7 @@ def test_decoding():
     tmin, tmax = -0.1, 0.2
     trf_decoder.train(stimulus, response, fs, tmin, tmax, 100)
     prediction2, correlation2 = trf_decoder.predict(stimulus, response, average=False)
-    trf_decoder = TRF(direction=-1, metric_function=neg_mean_squared_error)
+    trf_decoder = TRF(direction=-1, metric=neg_mse)
     trf_decoder.train(stimulus, response, fs, tmin, tmax, 100)
     prediction2, error2 = trf_decoder.predict(stimulus, response, average=False)
     error2 = -error2

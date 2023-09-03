@@ -8,15 +8,15 @@ n = np.random.randint(3, 10)
 stimulus, response, fs = load_sample_data(n_segments=n)
 
 
-def test_metric_function():
+def test_metric():
     def neg_mean_absolute_deviation(y, y_pred):
         return -np.abs(y - y_pred).mean()
 
     def neg_mean_difference(y, y_pred):
         return -np.mean(y - y_pred)
 
-    for metric_function in [neg_mean_absolute_deviation, neg_mean_difference]:
-        trf = TRF(metric_function=metric_function)
+    for metric in [neg_mean_absolute_deviation, neg_mean_difference]:
+        trf = TRF(metric=metric)
         regularization = [
             np.random.uniform(0, 1000) for _ in range(np.random.randint(2, 5))
         ]

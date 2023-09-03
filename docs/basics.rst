@@ -1,3 +1,5 @@
+.. currentmodule:: mtrf
+
 Basic usage
 ===========
 
@@ -36,15 +38,15 @@ The function can also divide the data into equally long segments and normalize t
 
     stimulus, response, fs = load_sample_data(n_segments=10, normalize=True)
 
-In the above example, :py:data:`stimulus` contains a 16-band spectrogram of the speech signal and :py:data:`response` contains the 128-channel EEG recording. 
-Both are resampled to 128 Hz and the sampling rate is stored in the variable :py:data:`fs`.
+In the above example, ``stimulus`` contains a 16-band spectrogram of the speech signal and ``response`` contains the 128-channel EEG recording. 
+Both are resampled to 128 Hz and the sampling rate is stored in the variable ``fs``.
 
 
 Forward model
 -------------
 
-To fit a forward model, create an instance of the TRF class, define the time interval (:py:const:`tmin` and :py:const:`tmax`) and use the :py:const:`TRF.train` method. 
-For now, we will simply set the `regularization` parameter :math:`\lambda` to 1000, but the next section goes into detail on how to select this parameter. ::
+To fit a forward model, create an instance of the TRF class, define the time interval (``tmin`` and ``tmax``) and use the :py:meth:`TRF.train` method. 
+For now, we will simply set the ``regularization`` parameter :math:`\lambda` to 1000, but the next section goes into detail on how to select this parameter.::
     
     from mtrf.model import TRF
 
@@ -54,7 +56,7 @@ For now, we will simply set the `regularization` parameter :math:`\lambda` to 10
     fwd_trf.train(stimulus, response, fs, tmin, tmax, regularization)
 
 Now, we can use the :py:meth:`TRF.predict` method to generate a prediction of the neural response based on the stimulus.
-When provided with both stimulus and response, `TRF.predict` will also evaluate the prediction's accuracy.
+When provided with both stimulus and response, :py:meth:`TRF.predict` will also evaluate the prediction's accuracy.
 Per default, it computes Pearson's correlation between the predicted and observed data as a metric for model accuracy but this can be changes as demonstrated in the next section.::
 
     prediction, r_fwd = fwd_trf.predict(stimulus, response)
@@ -66,12 +68,12 @@ Training the TRF means finding a set of weights that best fits a given data set.
 However, because that set is not a perfect representation of the general population, the accuracy for new, unseen, data is expected to be lower than the estimated one.
 This means we are overfitting our data and thus overestimate the model's accuracy.
 To circumvent this, we can withhold part of the data from training and use that data to validate the model.
-We are using k-fold cross-validation which splits the data into :py:const:`k` subsets and uses :py:const:`k`-1 sets to train the model and the remaining set to validate it. The data will be rotated so that each set is used for validation once.
+We are using k-fold cross-validation which splits the data into ``k`` subsets and uses ``k``-1 sets to train the model and the remaining set to validate it. The data will be rotated so that each set is used for validation once.
 
-This procedure is implemented in the :func:`crossval` function of the :py:module:`stats`, which takes a :py:class:`TRF` instance and the same input arguments as the :py:meth:`TRF.train` method and returns the accuracy metric for each split. 
-The number of splits is determined by the parameter :py:const:`k`, which defaults to -1, indicating leave-one-out cross-validation where the number of splits is equal to the number of trials. 
+This procedure is implemented in the function :py:func:`mtrf.stats.crossval` which takes a :py:class:`TRF` instance and the same input arguments as the :py:meth:`TRF.train` method and returns the accuracy metric for each split. 
+The number of splits is determined by the parameter ``k``, which defaults to -1, indicating leave-one-out cross-validation where the number of splits is equal to the number of trials. 
 In the below example, we are using leave-one-out cross-validation to estimate the true accuracy of the previously trained forward TRF. 
-Turns out the first estimate of the models accuracy was too high by a factor of 5! ::
+Turns out the initial result overestimated the model's accuracy by a factor of 5! ::
 
     from mtrf.stats import crossval
     r_fwd = crossval(fwd_trf, stimulus, response, fs, tmin, tmax, regularization)
@@ -79,6 +81,7 @@ Turns out the first estimate of the models accuracy was too high by a factor of 
 
 
 .. admonition:: How many folds should you use?
+
     It's hard to give definitive recommendations for the value of k because the effect of fold size depends on the dataset. 
     At its core, the choice of k involves a trade-off between bias and variance. 
     The larger k, the smaller the left out validation set and the larger the training set. 
@@ -89,7 +92,7 @@ Turns out the first estimate of the models accuracy was too high by a factor of 
 
 Backward model
 --------------
-To fit a backward model, just change the :py:const:`direction` parameter to -1. 
+To fit a backward model, just change the ``direction`` parameter to -1. 
 This will tell the TRF to use the response as predictor to estimate the stimulus. 
 In the example below we are using a backward TRF to predict the acoustic envelope from the neural response. 
 The envelope is the average across all spectral bands and represents slow amplitude fluctuations in the signal. 
@@ -106,7 +109,7 @@ This allows the model to exploit interactions between individual signals (and un
 
 Visualization
 -------------
-The TRF class has a :py:meth:`plot` method to quickly visualize weights of a trained TRF. 
+The :py:meth:`TRF.plot` method allows a quick visualization of the weights after training theTRF. 
 Because the weight matrix is three-dimensional (inputs-by-lags-by-outputs) visualization requires selecting from or averaging across one of the dimensions. 
 In the below example, we are plotting the TRFs weights over time for the 7 :sup:`th` feature (i.e. spectral band) for each channel as well as the global field power (i.e. standard deviation across all channels) for every feature. ::
 
@@ -136,7 +139,7 @@ However, we can transform backward to forward models [#f3]_ to allow a physiolog
 
 Finally, we provide a method to easily convert a TRF to the MNE-Python framework. 
 MNE is the most commonly used package for analyzing EEG and MEG data in Python and provides useful functions for visualization. 
-The :py:meth:`to_mne_evoked` requires information about channel locations (here, we use a standard montage for the biosemi system) and returns a list of :py:class:`mne.Evoked` instances - one for each feature in the TRF. 
+The :py:meth:`TRF.to_mne_evoked` requires information about channel locations (here, we use a standard montage for the biosemi system) and returns a list of :py:class:`mne.Evoked` instances - one for each feature in the TRF. 
 In the below example, we are converting and visualizing the TRF for the 7 :sup:`th` spectral band ::
 
     from mne.channels import make_standard_montage

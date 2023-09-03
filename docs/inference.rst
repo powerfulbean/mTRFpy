@@ -15,11 +15,11 @@ Thus, we obtain the permutation distribution which reflects the expected observa
 The p-value of the actual observation is given by the probability of obtaining a value as large or larger under the permutation distribution. 
 A low p means that it is unlikely to observe a given value if there were no relationship between the variables.
 
-Significance
-------------
+Significance testing
+--------------------
 
-In the below example, we are using the :py:func:`permutation_distribution` function from the :py:mod:`stats` module which randomly permutes the data and, for each permutation, estimates the accuracy of the TRF model using cross-validation. 
-The number of permutations is set by the :py:const:`n_permute` parameter (in this demo we use 100 but usually you would use more in an actual analysis) and the number of cross-validation folds :py:const:`k` should be the same that was used to estimate model accuracy for the actual data. 
+In the below example, we use the function :py:func:`mtrf.stats.permutation_distribution` which randomly permutes the data and, for each permutation, estimates the accuracy of the TRF model using cross-validation. 
+The number of permutations is set by the ``n_permute`` parameter (in this demo we use 100 but usually you would use more in an actual analysis) and the number of cross-validation folds ``k`` should be the same that was used to estimate model accuracy for the actual data. 
 Finally, we then compute the p-value of the observed correlation as the number of elements in the permuted distribution that are equal or higher divided by the number of permutations. ::
     
     import numpy as np

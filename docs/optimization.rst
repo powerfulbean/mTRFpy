@@ -1,3 +1,5 @@
+.. currentmodule:: mtrf
+
 Regularization
 ==============
 
@@ -23,10 +25,10 @@ Optimization
 
 We compute multiple models with different values for :math:`\lambda` and select the model that makes the best prediction. 
 This requires a metric for evaluating the model's prediction. 
-We estimate the models accuracy for each candidate value of :math:`lambda` using cross-validation, pick the one that maximizes our metric, and use it to fit a model on the whole data. 
-This whole procedure can be done by using the `TRF.train` function and passing a list instead of a single value for the :py:const"`regularization` parameter. 
-:py:meth:`TF.train` will return the evaluation metric for each candidate value of :math:`\lambda`. 
-In the below example we are optimizing lambda using Pearson's correlation as well as the (negative) mean squared error as metrics and visualize how they change as a function of :math:`lambda`.::
+We estimate the models accuracy for each candidate value of :math:`\lambda` using cross-validation, pick the one that maximizes our metric, and use it to fit a model on the whole data. 
+This whole procedure can be done by using the :py:meth:`TRF.train` function and passing a list instead of a single value for the ``regularization`` parameter. 
+:py:meth:`TRF.train` will return the evaluation metric for each candidate value of :math:`\lambda`. 
+In the below example we are optimizing lambda using Pearson's correlation as well as the (negative) mean squared error as metrics and visualize how they change as a function of :math:`\lambda`.::
 
     import numpy as np
     from matplotlib import pyplot as plt
@@ -73,14 +75,14 @@ On the other hand, picking a :math:`\lambda` value that is too low drastically r
 More overfitting
 ----------------
 In the previous section, we explained how cross-validation can be used to avoid overfitting. However, optimizing the value of :math:`\lambda` creates another source of overfitting. 
-This is because, while the weights are only optimized for the training split, selecting the best :math:`lambda` involves the whole data set. 
-Thus, optimizing :math:`lambda` on the same data used to validate the model inflates its accuracy estimate. To avoid this, we must use two nested cross-validation loops. 
+This is because, while the weights are only optimized for the training split, selecting the best :math:`\lambda` involves the whole data set. 
+Thus, optimizing :math:`\lambda` on the same data used to validate the model inflates its accuracy estimate. To avoid this, we must use two nested cross-validation loops. 
 The outer loop splits the data into a test and a train/validate set. 
-The latter is used to find the best value for :math"`\lambda` and the test set is used to evaluate the final model. This way, the data used to determine the model's accuracy is never part of the optimization process.
-The data are rotated in the outer loop, so that each segment is used for testing once and for each iteration of the outer loop, a full cross-validation loop is performed using the remaing :py:const:`k`-1 segments to find the best value for :math:`\lambda`.
+The latter is used to find the best value for :math:`\lambda` and the test set is used to evaluate the final model. This way, the data used to determine the model's accuracy is never part of the optimization process.
+The data are rotated in the outer loop, so that each segment is used for testing once and for each iteration of the outer loop, a full cross-validation loop is performed using the remaing ``k``-1 segments to find the best value for :math:`\lambda`.
 This makes the nested cross-validation time consuming but it will produce an unbiased estimate of the model's accuracy while optimizing :math:`\lambda`.
 
-This procedure is implemented in the :py:func:`nested_crossval` function which is part of the :py:module:`stats` module and returns the accuracy metric for each test set as well as the value of :math:`\lambda` selected from each train/validate set. In the examle below, we'll use it to compute and unbiased estimate of the models accuracy and compare it to the highest accuracy obtained during optimization in the previous section::
+This procedure is implemented in the function :py:func:`mtrf.stats.nested_crossval` function which returns the accuracy metric for each test set as well as the value of :math:`\lambda` selected from each train/validate set. In the examle below, we use it to compute and unbiased estimate of the models accuracy and compare it to the highest accuracy obtained during optimization in the previous section::
 
    from mtrf.stats import nested_crossval
     
@@ -97,13 +99,13 @@ Regularization Methods
 ----------------------
 All previous examples used the default ridge regularization which penalizes large model weights. 
 Another method is Tikhonov regularization which penalizes the first derivative (i.e. the change in) model weights, providing a temporally smoothed result [#f1]_. 
-The regularization method is determined by the :py:const:`method` parameter, when creating an instance of the :py:class:`TRF` class. 
+The regularization method is determined by the ``method`` parameter, when creating an instance of the :py:class:`TRF` class. 
 Yet another method is banded ridge regression which uses ridge regression but estimates :math:`\lambda` separately for different feature bands. 
 This can be useful in multivariate models which combine discrete and continuous features. 
-When using banded ridge you must provide the fit function with an additional :py:const:`bands` parameter denoting the size of the feature bands for which :math:`\lambda` is optimized. 
+When using banded ridge you must provide the fit function with an additional ``bands`` parameter denoting the size of the feature bands for which :math:`\lambda` is optimized. 
 In the example below, we are computing a multivariate TRF with a 16-band spectrogram and the acoustical onsets (i.e. the half-wave rectified derivative of the envelope). 
 We want to use the same :math:`\lambda` for all bands of the spectrogram and a separate :math:`\lambda` for the onsets so the band sizes are 16 and 1, respectively. 
-The optimal values for :math:`\lambda` can be found in the diagonal of the regularization matrix stored in the :py:attr:`TRF.regularization` parameter ::
+The optimal values for :math:`\lambda` can be found in the diagonal of the regularization matrix stored in the ``regularization`` attribute of the :py:class:`TRF` ::
     
     trf = TRF(method='banded')
     onsets = [np.diff(s.mean(axis=1), prepend=[0]) for s in stimulus]
