@@ -493,6 +493,10 @@ class TRF:
             fig, ax = None, axes  # dont create a new figure
         weights = self.weights
         # select channel and or feature
+        if weights.shape[0] == 1:
+            feature = 0
+        if weights.shape[-1] == 1:
+            channel = 0
         if channel is None and feature is None:
             raise ValueError("You must specify a subset of channels or features!")
         if feature is not None:
