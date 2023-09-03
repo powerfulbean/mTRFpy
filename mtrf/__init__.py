@@ -1,3 +1,3 @@
-__version__ = "1.2.3"
+__version__ = "2.0.0"
 
 from mtrf.model import TRF, load_sample_data
