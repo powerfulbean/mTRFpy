@@ -1,5 +1,6 @@
 import random
 import sys
+from itertools import product
 import numpy as np
 from mtrf.matrices import (
     regularization_matrix,
