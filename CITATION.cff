@@ -18,6 +18,11 @@ authors:
     email: jdou3@ur.rochester.edu
     affiliation: University of Rochester
     orcid: 'https://orcid.org/0009-0000-0539-5951'
+  - given-names: Edmund
+    family-names: Lalor
+    email: elalor@ur.rochester.edu
+    affiliation: University of Rochester
+    orcid: https://orcid.org/0000-0002-2498-6631
 repository-code: 'https://github.com/powerfulbean/mTRFpy'
 url: 'https://mtrfpy.readthedocs.io/en/latest/'
 abstract: >-
