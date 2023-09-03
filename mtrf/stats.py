@@ -5,6 +5,7 @@ import numpy as np
 from mtrf.matrices import (
     regularization_matrix,
     covariance_matrices,
+    banded_regularization,
     _check_data,
     _get_xy,
 )
