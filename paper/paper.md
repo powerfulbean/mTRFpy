@@ -44,7 +44,7 @@ To overcome this constraint, we present `mTRFpy`, a Python package which replica
 In a nutshell, the mTRF is a regularized linear regression between two continuous signals, computed across multiple time-delays or lags.
 This accounts for the fact that the relationship between stimulus and neural response is not instantaneous and that the signals are auto-correlated.
 
-mTRFs can be used as forward or encoding models to predict (multiple) univariate brain responses as the weighted sum of various acoustic and linguistic speech features while identifying their relative contributions [@diliberto2015, @broderick2018].
+mTRFs can be used as forward or encoding models to predict (multiple) univariate brain responses as the weighted sum of various acoustic and linguistic speech features while identifying their relative contributions [@diliberto2015; @broderick2018].
 In this case the model's weights have a clear physiological interpretation because they denote the expected change in neural response following a unit change in a given predictor [@haufe2014]. 
 Thus, they can be understood as a generalization of the event potential, obtained from averaging responses to repetitions of prototypical stimuli for continuous data.
 
