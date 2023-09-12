@@ -4,8 +4,7 @@
 ![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
 [![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
-[![DOI](https://zenodo.org/badge/277399725.svg)](https://zenodo.org/badge/latestdoi/277399725)
-
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.05657/status.svg)](https://doi.org/10.21105/joss.05657)
 # mTRFpy - multivariate linear modeling
 
 This is an adaptation of the matlab mTRF-toolbox using only basic Python and Numpy.
@@ -53,6 +52,21 @@ provide as much detail and context as possible.
 # Want to contribute to the project?
 
 Great! Please take a moment to read the ![contribution guidelines](https://github.com/powerfulbean/mTRFpy/blob/master/CONTRIBUTING.md) before you do.
+
+# Citing mTRFpy
+Bialas et al., (2023). mTRFpy: A Python package for temporal response function analysis. Journal of Open Source Software, 8(89), 5657, https://doi.org/10.21105/joss.05657
+```
+@article{Bialas2023,
+    doi = {10.21105/joss.05657},
+    url = {https://doi.org/10.21105/joss.05657},
+    year = {2023}, publisher = {The Open Journal},
+    volume = {8},
+    number = {89},
+    pages = {5657},
+    author = {Ole Bialas and Jin Dou and Edmund C. Lalor},
+    title = {mTRFpy: A Python package for temporal response function analysis},
+    journal = {Journal of Open Source Software} } 
+```
 
 
 
