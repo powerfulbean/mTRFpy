@@ -204,11 +204,7 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
-        if np.isscalar(regularization):
-            min_len = 1
-        else:  # optimizing lambda requires multiple trials
-            min_len = 2
-        stimulus, response, n_trials = _check_data(stimulus, response, min_len=min_len)
+        stimulus, response, n_trials = _check_data(stimulus, response)
         if not np.isscalar(regularization):
             k = _check_k(k, n_trials)
         x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)

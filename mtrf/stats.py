@@ -1,5 +1,6 @@
 import random
 import sys
+from collections.abc import Iterable
 from itertools import product
 import numpy as np
 from mtrf.matrices import (
@@ -109,6 +110,13 @@ def crossval(
     metric: float or numpy.ndarray
         Metric as computed by the metric function in the attribute `model.metric`.
     """
+    if isinstance(regularization, Iterable):
+        raise ValueError(
+            "Crossval only accepts a single scalar for regularization! "
+            "For cross-validation with multiple regularization values use `nested_crossval`!"
+        )
+    if len(stimulus) < 2:
+        raise ValueError("Cross-validation requires at least two trials!")
     trf = model.copy()
     if seed is not None:
         random.seed(seed)
@@ -205,7 +213,9 @@ def nested_crossval(
     """
     if average is False and not np.isscalar(regularization):
         raise ValueError("Average must be True or a list of indices!")
-    stimulus, response, n_trials = _check_data(stimulus, response, min_len=3)
+    stimulus, response, n_trials = _check_data(stimulus, response)
+    if len(stimulus) < 3:
+        raise ValueError("Nested cross-validation requires at least three trials!")
     k = _check_k(k, n_trials)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
