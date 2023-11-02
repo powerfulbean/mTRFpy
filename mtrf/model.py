@@ -479,7 +479,7 @@ class TRF:
         if plt is None:
             raise ModuleNotFoundError("Need matplotlib to plot TRF!")
         if self.direction == -1:
-            weights = self.weight.T
+            weights = self.weights.T
             print(
                 "WARNING: decoder weights are hard to interpret, consider using the `to_forward()` method"
             )
