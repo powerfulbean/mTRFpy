@@ -184,8 +184,7 @@ class TRF:
             appear in the stimulus matrix. For example, when the stimulus consists of
             an envelope vector and a 16-band spectrogram, bands would be [1, 16].
         k: int
-            Number of data splits for cross validation, defaults to 5.
-            If -1, do leave-one-out cross-validation.
+            Number of data splits for cross validation, defaults to -1 (leave-one-out).
         average: bool or list or numpy.ndarray
             If True (default), average metric cross all predictions (e.g. channels in the
             case of forward modelling). If `average` is an array of indices only average
