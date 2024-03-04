@@ -173,7 +173,7 @@ def lag_matrix(x, lags, zeropad=True, bias=True):
     n_lags = len(lags)
     n_samples, n_variables = x.shape
     if max(lags) > n_samples:
-        raise ValueError("The maximum lag can't be longer than the signal!")
+        raise ValueError(f"The maximum lag ({max(lags)}) can't be longer than the signal ({n_samples})!")
     lag_matrix = np.zeros((n_samples, n_variables * n_lags))
 
     for idx, lag in enumerate(lags):
