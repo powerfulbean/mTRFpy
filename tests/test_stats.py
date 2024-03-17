@@ -13,7 +13,7 @@ def test_nested_crossval():
     reg = np.random.uniform(0, 10)
     trf = TRF()
     splits = np.random.randint(2, 5)
-    metric, best_regularization = nested_crossval(
+    model, metric, best_regularization = nested_crossval(
         trf, stimulus, response, fs, tmin, tmax, reg, splits
     )
 
