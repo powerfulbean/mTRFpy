@@ -55,6 +55,104 @@ def pearsonr(y, y_pred):
     )
     return r
 
+def multicrossval(
+    model,
+    stimulus,
+    response,
+    unisensory_responses,
+    fs,
+    tmin,
+    tmax,
+    regularization,
+    k=-1,
+    seed=None,
+    average=True,
+    verbose=True,
+):
+    """
+    Test model metric using k-fold cross-validation.
+
+    Input data is randomly shuffled and separated into k parts of with approximately
+    the same number of trials. The first k-1 parts are used for training and the kth
+    part for testing the model.
+
+    Parameters
+    ----------
+    model: model.TRF
+        Base model used for cross-validation.
+    stimulus: list
+        Each element must contain one trial's stimulus in a two-dimensional
+        samples-by-features array (second dimension can be omitted if there is
+        only a single feature.
+    response: list
+        Each element must contain one trial's response in a two-dimensional
+        samples-by-channels array.
+    unisensory_responses: list of list
+        Each element is a unisensory response variable with its structure being 
+        the same as a normal response.
+    fs: int
+        Sample rate of stimulus and response in hertz.
+    tmin: float
+        Minimum time lag in seconds.
+    tmax: float
+        Maximum time lag in seconds.
+    regularizations: list of scalar
+        Values for the lambda parameter regularizing the regression.
+    k: int
+        Number of data splits, if -1, do leave-one-out cross-validation.
+    seed: int
+        Seed for the random number generator.
+    average: bool or list or numpy.ndarray
+        If True (default), average correlation and mean squared error across all
+        predictions (e.g. channels in the case of forward modelling). If `average`
+        is an array of integers only average the predicted features at those indices.
+        If `False`, return each predicted feature's metric.
+
+    Returns
+    -------
+    metric: float or numpy.ndarray
+        Metric as computed by the metric function in the attribute `model.metric`.
+    """
+    if seed is not None:
+        random.seed(seed)
+    stimulus, response, _ = _check_data(stimulus, response, min_len=2)
+    x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
+    
+    uni_xys = [
+        _get_xy(stimulus, t_response, direction = model.direction) 
+            for t_response in unisensory_responses
+    ]
+    
+    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+    uni_covs = [
+        covariance_matrices(uni_xy[0], uni_xy[1], lags, model.zeropad, True) 
+            for uni_xy in uni_xys
+    ]
+    
+    uni_covs_xx, uni_covs_xy = list(zip(*uni_covs))
+    
+    cov_xx = np.stack(uni_covs_xx).sum(0)
+    cov_xy = np.stack(uni_covs_xy).sum(0)
+    # print(cov_xx.shape)
+    
+    metrics = []
+    for idx,reg in enumerate(regularization):
+        # print('regIdx: ', idx)
+        metric = _crossval(
+            model,
+            x,
+            y,
+            cov_xx,
+            cov_xy,
+            lags,
+            fs,
+            reg,
+            k,
+            average,
+            verbose,
+        )
+        metrics.append(metric)
+    return metrics
 
 def crossval(
     model,
