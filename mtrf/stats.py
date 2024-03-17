@@ -211,8 +211,8 @@ def nested_crossval(
     best_regularization: numpy.ndarray
         Optimal regularization values for all k training sets.
     """
-    if average is False and not np.isscalar(regularization):
-        raise ValueError("Average must be True or a list of indices!")
+    # if average is False and not np.isscalar(regularization):
+        # raise ValueError("Average must be True or a list of indices!")
     stimulus, response, n_trials = _check_data(stimulus, response)
     if len(stimulus) < 3:
         raise ValueError("Nested cross-validation requires at least three trials!")
@@ -232,7 +232,9 @@ def nested_crossval(
 
     splits = np.array_split(np.arange(n_trials), k)
     n_splits = len(splits)
-    metric_test = np.zeros(n_splits)
+    # metric_test = np.zeros(n_splits)
+    metric_test = []
+    models = []
     best_regularization = []
     for split_i in range(n_splits):
         idx_test = splits[split_i]
@@ -260,7 +262,7 @@ def nested_crossval(
                     regularization[ir],
                     k - 1,
                     seed=seed,
-                    average=average,
+                    average=True,
                     verbose=verbose,
                 )
             regularization_split_i = list(regularization)[np.argmax(metric)]
@@ -274,11 +276,16 @@ def nested_crossval(
             tmax,
             regularization_split_i,
         )
-        _, metric_test[split_i] = model.predict(
-            [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
+        _, t_metric_test = model.predict(
+            [stimulus[i] for i in idx_test], 
+            [response[i] for i in idx_test],
+            average = average
         )
         best_regularization.append(regularization_split_i)
-    return metric_test, best_regularization
+        metric_test.append(t_metric_test)
+        models.append(model)
+    metric_test = np.stack(metric_test, axis = 0)
+    return models, metric_test, best_regularization
 
 
 def _crossval(
