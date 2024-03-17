@@ -51,6 +51,8 @@ def _check_data(stimulus=None, response=None, min_len=1, crop=False):
         if (not len(stimulus) == len(response)) or (
             not all([s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)])
         ):
+            print(len(stimulus),len(response))
+            print([(s.shape[0], r.shape[0]) for s, r in zip(stimulus, response)])
             raise ValueError(
                 "Stimulus and response must have the same number of trials and the same number of samples in each trial!"
             )
