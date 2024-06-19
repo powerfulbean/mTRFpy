@@ -275,11 +275,11 @@ def nested_crossval(
         #     regularization_split_i,
         # )
         model._train(
-            [x[i] for i in idx_train_val], 
-            [y[i] for i in idx_train_val], 
-            fs, 
-            tmin, 
-            tmax, 
+            [x[i] for i in idx_train_val],
+            [y[i] for i in idx_train_val],
+            fs,
+            tmin,
+            tmax,
             regularization_split_i,
         )
         _, metric_test[split_i] = model.predict(
