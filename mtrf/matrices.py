@@ -100,6 +100,28 @@ def truncate(x, min_idx, max_idx):
     return x_truncated
 
 
+def auto_covariance(x, lags, zeropad = True):
+    cov_xx = 0
+    for i, x_i in enumerate(x):
+        x_lag = lag_matrix(x_i, lags, zeropad)
+        cov_xx += x_lag.T @ x_lag
+    cov_xx = cov_xx / len(x)
+    return cov_xx
+
+def cross_covariance(x, y, lags, zeropad = True):
+    if zeropad is False:
+        y = truncate(y, lags[0], lags[-1])
+    cov_xy = 0
+    for i, (x_i, y_i) in enumerate(zip(x, y)):
+        x_lag = lag_matrix(x_i, lags, zeropad)
+        cov_xy += x_lag.T @ y_i
+    cov_xy = cov_xy / len(x)
+    return cov_xy
+
+def reduce_cov(*covss):
+    return [np.mean(covs, axis = 0) for covs in covss]
+
+
 def covariance_matrices(x, y, lags, zeropad=True, preload=True):
     """
     Compute (auto-)covariance of x and y.

@@ -220,6 +220,7 @@ class TRF:
             # pre-compute covariance matrices
             cov_xx, cov_xy = None, None
             if self.preload:
+                print('start calculating covaraicne')
                 cov_xx, cov_xy = covariance_matrices(
                     x, y, lags, self.zeropad, self.preload
                 )
@@ -271,6 +272,34 @@ class TRF:
             self.bias = np.expand_dims(self.bias, axis=0)
         self.weights = weight_matrix[1:].reshape(
             (x[0].shape[1], len(lags), y[0].shape[1]), order="F"
+        )
+        self.times = np.array(lags) / fs
+        self.fs = fs
+
+    def train_with_cov(self, cov_xx, cov_xy, fs, tmin, tmax, regularization):
+        '''
+        experimental feature
+        '''
+        if isinstance(regularization, np.ndarray):  # check if matrix is diagonal
+            if (
+                np.count_nonzero(regularization - np.diag(np.diagonal(regularization)))
+                > 0
+            ):
+                raise ValueError(
+                    "Regularization parameter must be a single number or a diagonal matrix!"
+                )
+        self.fs, self.regularization = fs, regularization
+        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+        regmat = regularization_matrix(cov_xx.shape[1], self.method)
+        regmat *= regularization / (1 / self.fs)
+        weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat), cov_xy) / (
+            1 / self.fs
+        )
+        self.bias = weight_matrix[0:1]
+        if self.bias.ndim == 1:  # add empty dimension for single feature models
+            self.bias = np.expand_dims(self.bias, axis=0)
+        self.weights = weight_matrix[1:].reshape(
+            (cov_xx.shape[1]//len(lags), len(lags), cov_xy.shape[1]), order="F"
         )
         self.times = np.array(lags) / fs
         self.fs = fs
