@@ -492,6 +492,36 @@ def fitval_cov(
         _, metric_test = trf.predict(y_test, x_test, None, average)
     return metric_test
 
+def fitval_invcov(
+    model,
+    x_test,
+    y_test,
+    covxx_inv,
+    cov_xy,
+    lags,
+    fs,
+    average=True,
+):
+    '''
+    cov_xx cov_xy should be size (nSplits, nTrials, *CovMatSize)
+    '''
+    cov_xy_hat = cov_xy#[isplit].mean(axis=0)
+    w = np.matmul(covxx_inv, cov_xy_hat) / (1 / fs)
+    trf = model.copy()
+    trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs
+    if trf.bias.ndim == 1:
+        trf.bias = np.expand_dims(trf.bias, 1)
+    trf.weights = w[1:].reshape(
+        (x_test[0].shape[-1], len(lags), y_test[0].shape[-1]), order="F"
+    )
+    # because we are working with covariance matrices, we have to check direction
+    # to pass the right variable as stimulus and response to TRF.predict
+    if model.direction == 1:
+        _, metric_test = trf.predict(x_test, y_test, None, average)
+    elif model.direction == -1:
+        _, metric_test = trf.predict(y_test, x_test, None, average)
+    return metric_test
+
 def permutation_distribution(
     model,
     stimulus,

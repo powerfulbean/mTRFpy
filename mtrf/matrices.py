@@ -118,6 +118,12 @@ def cross_covariance(x, y, lags, zeropad = True):
     cov_xy = cov_xy / len(x)
     return cov_xy
 
+def auto_cov_reg_inv(cov_xx, fs, reg_mat_size, regularization, reg_method = "ridge"):
+    regmat = regularization_matrix(reg_mat_size, reg_method)
+    regmat *= regularization / (1 / fs)
+    covxx_inv = np.linalg.inv(cov_xx + regmat)
+    return covxx_inv
+
 def reduce_cov(*covss):
     return [np.mean(covs, axis = 0) for covs in covss]
 
