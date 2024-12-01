@@ -50,9 +50,13 @@ def pearsonr(y, y_pred):
     r: np.ndarray
         Pearsons r for each feature in y.
     """
-    r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
-        y.std(0) * y_pred.std(0)
-    )
+    try:
+        r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+            y.std(0) * y_pred.std(0)
+        )
+    except:
+        print(np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0), y.std(0) * y_pred.std(0))
+        raise ValueError
     return r
 
 def multicrossval(
@@ -491,6 +495,27 @@ def fitval_cov(
     elif model.direction == -1:
         _, metric_test = trf.predict(y_test, x_test, None, average)
     return metric_test
+
+
+def fit_invcov(
+    model,
+    covxx_inv,
+    cov_xy,
+    lags,
+    fs
+):
+    '''
+    cov_xx cov_xy should be size (nSplits, nTrials, *CovMatSize)
+    '''
+    w = np.matmul(covxx_inv, cov_xy) / (1 / fs)
+    trf = model.copy()
+    trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs
+    if trf.bias.ndim == 1:
+        trf.bias = np.expand_dims(trf.bias, 0)
+    trf.weights = w[1:].reshape(
+        (-1, len(lags), cov_xy.shape[-1]), order="F"
+    )
+    return trf
 
 def fitval_invcov(
     model,
