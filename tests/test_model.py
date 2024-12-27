@@ -57,7 +57,7 @@ def test_CVtrain_reg_per_chan():
             tmax,
             regularization,
             average=False,
-            reg_per_output_chan=True
+            reg_per_output_chan=True,
         )
         if direction == 1:
             assert trf.weights.shape[0] == stimulus[0].shape[-1]
