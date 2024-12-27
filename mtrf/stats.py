@@ -403,6 +403,7 @@ def _crossval(
     average=True,
     verbose=True,
     seed=None,
+    if_shuffle_splits = False
 ):
     if seed is not None:
         random.seed(seed)
@@ -414,7 +415,8 @@ def _crossval(
     n_trials = len(x)
     k = _check_k(k, n_trials)
     splits = np.arange(n_trials)
-    random.shuffle(splits)
+    if if_shuffle_splits:
+        random.shuffle(splits)
     splits = np.array_split(splits, k)
 
     if average is True:
