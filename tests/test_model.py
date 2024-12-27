@@ -50,12 +50,12 @@ def test_CVtrain_reg_per_chan():
     for direction in [1, -1]:
         trf = TRF(direction=direction)
         metric = trf.train(
-            stimulus, 
-            response, 
-            fs, 
-            tmin, 
-            tmax, 
-            regularization, 
+            stimulus,
+            response,
+            fs,
+            tmin,
+            tmax,
+            regularization,
             average=False,
             reg_per_output_chan=True
         )
