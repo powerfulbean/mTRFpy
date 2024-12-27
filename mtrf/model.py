@@ -147,7 +147,7 @@ class TRF:
         average=True,
         seed=None,
         verbose=True,
-        reg_per_output_chan = False
+        reg_per_output_chan=False,
     ):
         """
         Optimize the regularization parameter.
@@ -195,7 +195,7 @@ class TRF:
             Seed for the random number generator.
         verbose: bool
             If True (default), show a progress bar during fitting.
-        reg_per_output_chan: bool 
+        reg_per_output_chan: bool
             If Fause (default), not find a optimized regularization for each output channel
         Returns
         -------
@@ -210,7 +210,9 @@ class TRF:
         else:
             if reg_per_output_chan:
                 if average:
-                    raise ValueError("Average must be False if enable !reg_per_output_chan")
+                    raise ValueError(
+                        "Average must be False if enable !reg_per_output_chan"
+                    )
         stimulus, response, n_trials = _check_data(stimulus, response)
         if not np.isscalar(regularization):
             k = _check_k(k, n_trials)
@@ -238,7 +240,7 @@ class TRF:
                 metric = np.zeros(len(regularization))
             else:
                 metric = np.zeros((len(regularization), y[0].shape[-1]))
-            
+
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -259,23 +261,24 @@ class TRF:
                     verbose=verbose,
                 )
             if reg_per_output_chan:
-                best_reg_idx = np.argmax(metric, axis = 0)
+                best_reg_idx = np.argmax(metric, axis=0)
                 best_regularization = np.array(regularization)[best_reg_idx]
                 # print(best_regularization)
-                weight_matrix = np.zeros((
-                    x[0].shape[1] * len(lags) + 1,
-                    y[0].shape[1]
-                ))
-                lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
-                cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
+                weight_matrix = np.zeros((x[0].shape[1] * len(lags) + 1, y[0].shape[1]))
+                lags = list(
+                    range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1)
+                )
+                cov_xx, cov_xy = covariance_matrices(
+                    x, y, lags, self.zeropad, preload=False
+                )
                 regmat = regularization_matrix(cov_xx.shape[1], self.method)
                 for iChan in range(y[0].shape[1]):
-                    weight_matrix[:, iChan:iChan+1] = fit_weights_by_cov(
+                    weight_matrix[:, iChan : iChan + 1] = fit_weights_by_cov(
                         fs,
                         cov_xx,
-                        cov_xy[:,iChan:iChan+1],
+                        cov_xy[:, iChan : iChan + 1],
                         regmat,
-                        best_regularization[iChan]
+                        best_regularization[iChan],
                     )
                 self.fs, self.regularization = fs, best_regularization
                 self.bias = weight_matrix[0:1]

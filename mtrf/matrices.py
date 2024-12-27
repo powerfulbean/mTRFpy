@@ -256,9 +256,8 @@ def banded_regularization(n_lags, coefficients, bands):
     diagonal = np.concatenate([[0], diagonal])
     return np.diag(diagonal)
 
+
 def fit_weights_by_cov(fs, cov_xx, cov_xy, regmat, regularization):
     regmat_m = regmat * regularization / (1 / fs)
-    weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat_m), cov_xy) / (
-        1 /fs
-    )
+    weight_matrix = np.matmul(np.linalg.inv(cov_xx + regmat_m), cov_xy) / (1 / fs)
     return weight_matrix

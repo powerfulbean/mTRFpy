@@ -40,6 +40,7 @@ def test_train():
             assert trf.weights.shape[-1] == stimulus[0].shape[-1]
             assert trf.weights.shape[0] == response[0].shape[-1]
 
+
 def test_CVtrain_reg_per_chan():
     tmin = -0.1
     tmax = 0.2
@@ -55,8 +56,9 @@ def test_CVtrain_reg_per_chan():
             tmin, 
             tmax, 
             regularization, 
-            average = False,
-            reg_per_output_chan=True)
+            average=False,
+            reg_per_output_chan=True
+        )
         if direction == 1:
             assert trf.weights.shape[0] == stimulus[0].shape[-1]
             assert trf.weights.shape[-1] == response[0].shape[-1]
@@ -65,7 +67,6 @@ def test_CVtrain_reg_per_chan():
             assert trf.weights.shape[0] == response[0].shape[-1]
         trfs.append(trf)
     return trfs
-
 
 
 def test_optimize():
