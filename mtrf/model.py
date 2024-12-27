@@ -16,6 +16,7 @@ from mtrf.matrices import (
     regularization_matrix,
     lag_matrix,
     truncate,
+    fit_weights_by_cov,
     _check_data,
     _get_xy,
 )
@@ -146,6 +147,7 @@ class TRF:
         average=True,
         seed=None,
         verbose=True,
+        reg_per_output_chan = False
     ):
         """
         Optimize the regularization parameter.
@@ -193,7 +195,8 @@ class TRF:
             Seed for the random number generator.
         verbose: bool
             If True (default), show a progress bar during fitting.
-
+        reg_per_output_chan: bool 
+            If Fause (default), not find a optimized regularization for each output channel
         Returns
         -------
         metric : list
@@ -202,7 +205,12 @@ class TRF:
             for every regularization value.
         """
         if average is False:
-            raise ValueError("Average must be True or a list of indices!")
+            if not reg_per_output_chan:
+                raise ValueError("Average must be True or a list of indices!")
+        else:
+            if reg_per_output_chan:
+                if average:
+                    raise ValueError("Average must be False if enable !reg_per_output_chan")
         stimulus, response, n_trials = _check_data(stimulus, response)
         if not np.isscalar(regularization):
             k = _check_k(k, n_trials)
@@ -225,7 +233,12 @@ class TRF:
                 )
             else:
                 cov_xx, cov_xy = None, None
-            metric = np.zeros(len(regularization))
+
+            if average is True:
+                metric = np.zeros(len(regularization))
+            else:
+                metric = np.zeros((len(regularization), y[0].shape[-1]))
+            
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -245,8 +258,36 @@ class TRF:
                     average=average,
                     verbose=verbose,
                 )
-            best_regularization = list(regularization)[np.argmax(metric)]
-            self._train(x, y, fs, tmin, tmax, best_regularization)
+            if reg_per_output_chan:
+                best_reg_idx = np.argmax(metric, axis = 0)
+                best_regularization = np.array(regularization)[best_reg_idx]
+                # print(best_regularization)
+                weight_matrix = np.zeros((
+                    x[0].shape[1] * len(lags) + 1,
+                    y[0].shape[1]
+                ))
+                lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+                cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
+                regmat = regularization_matrix(cov_xx.shape[1], self.method)
+                for iChan in range(y[0].shape[1]):
+                    weight_matrix[:, iChan:iChan+1] = fit_weights_by_cov(
+                        fs,
+                        cov_xx,
+                        cov_xy[:,iChan:iChan+1],
+                        regmat,
+                        best_regularization[iChan]
+                    )
+                self.fs, self.regularization = fs, best_regularization
+                self.bias = weight_matrix[0:1]
+                if self.bias.ndim == 1:  # add empty dimension for single feature models
+                    self.bias = np.expand_dims(self.bias, axis=0)
+                self.weights = weight_matrix[1:].reshape(
+                    (x[0].shape[1], len(lags), y[0].shape[1]), order="F"
+                )
+                self.times = np.array(lags) / fs
+            else:
+                best_regularization = list(regularization)[np.argmax(metric)]
+                self._train(x, y, fs, tmin, tmax, best_regularization)
             return metric
 
     def _train(self, x, y, fs, tmin, tmax, regularization):

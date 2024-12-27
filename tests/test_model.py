@@ -40,6 +40,33 @@ def test_train():
             assert trf.weights.shape[-1] == stimulus[0].shape[-1]
             assert trf.weights.shape[0] == response[0].shape[-1]
 
+def test_CVtrain_reg_per_chan():
+    tmin = -0.1
+    tmax = 0.2
+    stimulus, response, fs = load_sample_data(n_segments=3)
+    regularization = [np.random.uniform(0, 10) for _ in range(5)]
+    trfs = []
+    for direction in [1, -1]:
+        trf = TRF(direction=direction)
+        metric = trf.train(
+            stimulus, 
+            response, 
+            fs, 
+            tmin, 
+            tmax, 
+            regularization, 
+            average = False,
+            reg_per_output_chan=True)
+        if direction == 1:
+            assert trf.weights.shape[0] == stimulus[0].shape[-1]
+            assert trf.weights.shape[-1] == response[0].shape[-1]
+        if direction == -1:
+            assert trf.weights.shape[-1] == stimulus[0].shape[-1]
+            assert trf.weights.shape[0] == response[0].shape[-1]
+        trfs.append(trf)
+    return trfs
+
+
 
 def test_optimize():
     for direction in [1, -1]:
