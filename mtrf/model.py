@@ -220,7 +220,8 @@ class TRF:
             # pre-compute covariance matrices
             cov_xx, cov_xy = None, None
             if self.preload:
-                print('start calculating covaraicne')
+                if verbose:
+                    print('start calculating covariance')
                 cov_xx, cov_xy = covariance_matrices(
                     x, y, lags, self.zeropad, self.preload
                 )

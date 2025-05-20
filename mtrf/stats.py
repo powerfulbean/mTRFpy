@@ -370,7 +370,8 @@ def nested_crossval(
             regularization_split_i = list(regularization)[np.argmax(metric)]
         else:
             regularization_split_i = regularization
-        model._train(
+        final_model = model.copy()
+        final_model._train(
             [x[i] for i in idx_train_val],
             [y[i] for i in idx_train_val],
             fs,
@@ -378,14 +379,14 @@ def nested_crossval(
             tmax,
             regularization_split_i,
         )
-        _, t_metric_test = model.predict(
+        _, t_metric_test = final_model.predict(
             [stimulus[i] for i in idx_test], 
             [response[i] for i in idx_test],
             average = average
         )
         best_regularization.append(regularization_split_i)
         metric_test.append(t_metric_test)
-        models.append(model)
+        models.append(final_model)
     metric_test = np.stack(metric_test, axis = 0)
     return models, metric_test, best_regularization
 
