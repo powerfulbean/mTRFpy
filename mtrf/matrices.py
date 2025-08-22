@@ -49,7 +49,7 @@ def _check_data(
     return data, xp
 
 
-def _check_length(stimulus, response, min_trials) -> int:
+def _check_length(stimulus, response) -> int:
     """
     Assert stimulus and response have the same number of trials with the same length.
 
@@ -59,8 +59,6 @@ def _check_length(stimulus, response, min_trials) -> int:
             List of stimulus trials.
         response: list of array-like
             List of response trials.
-        min_trals:int
-            Minimum required number of trials.
 
     Returns
     -------
@@ -80,8 +78,6 @@ def _check_length(stimulus, response, min_trials) -> int:
     assert all(
         [s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)]
     ), "stimulus and response trials must have the same length!"
-    n_trials = len(stimulus)
-    assert n_trials < min_trials, "Too few trials!"
     return len(stimulus)
 
 
