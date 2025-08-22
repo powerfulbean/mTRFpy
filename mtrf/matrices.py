@@ -255,10 +255,10 @@ def lag_matrix(
             x_lag[:, col_slice] = x
 
     if zeropad is False:
-        x_lag = truncate(lag_matrix, lags[0], lags[-1])
+        x_lag = truncate(x_lag, lags[0], lags[-1])
 
     if bias is not False:
-        x_lag = xp.concatenate([xp.ones((x_lag.shape[0], 1)), lag_matrix], 1)
+        x_lag = xp.concatenate([xp.ones((x_lag.shape[0], 1)), x_lag], 1)
 
     return x_lag
 
