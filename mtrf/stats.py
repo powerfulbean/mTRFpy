@@ -118,7 +118,7 @@ def crossval(
     """
     stimulus, xps = _check_data(stimulus)
     response, xpr = _check_data(response)
-    n_trials = _check_length(stimulus, response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
     assert n_trials >= k, f"Not enough trials for {k}-fold cross-validation"
     if not xps == xpr:
         raise TypeError("stimulus and response trials must be of the same type!")
@@ -227,10 +227,11 @@ def nested_crossval(
     """
     stimulus, xps = _check_data(stimulus)
     response, xpr = _check_data(response)
-    n_trials = _check_length(stimulus, response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
     assert (
         n_trials >= k + 1 and n_trials >= 3
     ), f"Not enough trials for {k}-fold nested cross-validation!"
+    k = _check_k(k, n_trials)
     if not xps == xpr:
         raise TypeError("stimulus and response trials must be of the same type!")
     else:
@@ -294,6 +295,7 @@ def nested_crossval(
             tmin,
             tmax,
             regularization_split_i,
+            xp,
         )
         _, metric_test[split_i] = model.predict(
             [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
@@ -427,7 +429,7 @@ def permutation_distribution(
     """
     stimulus, xps = _check_data(stimulus)
     response, xpr = _check_data(response)
-    n_trials = _check_length(stimulus, response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
     assert n_trials >= k, f"Not enough trials for {k}-fold cross-validation"
     if not xps == xpr:
         raise TypeError("stimulus and response trials must be of the same type!")
