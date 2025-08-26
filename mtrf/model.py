@@ -253,6 +253,7 @@ class TRF:
                     fs,
                     regularization[ir],
                     k,
+                    xp,
                     seed=seed,
                     average=average,
                     verbose=verbose,
