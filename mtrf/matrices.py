@@ -7,9 +7,7 @@ Array = TypeVar("Array")
 ArrayList = List[Array]
 
 
-def _check_data(
-    data: Union[ArrayList, Array], crop: bool = False
-) -> Tuple[ArrayList, ModuleType]:
+def _check_data(data: Union[ArrayList, Array]) -> Tuple[ArrayList, ModuleType]:
     """
     Ensure correct data formatting
 
@@ -23,6 +21,8 @@ def _check_data(
         list of array-like
             Data in a list of arrays with added singelton dimension if the arrays
             were 1-dimensional.
+        module
+            The namespace for the array implementation of `data`.
     Raises
     ------
     ValueError
@@ -40,16 +40,13 @@ def _check_data(
             data = [data]
     if not all([is_array_api_obj(d) for d in data]):
         raise TypeError("Trials must be arrays!")
-    min_n = min([len(d) for d in data])
     for i, d in enumerate(data):
         if d.ndim == 1:
             data[i] = xp.expand_dims(d, axis=1)
-        if crop is True:
-            data[i] = d[:min_n, :]
     return data, xp
 
 
-def _check_length(stimulus, response) -> int:
+def _check_length(stimulus, response, crop=True) -> Tuple[ArrayList, ArrayList, int]:
     """
     Assert stimulus and response have the same number of trials with the same length.
 
@@ -59,9 +56,16 @@ def _check_length(stimulus, response) -> int:
             List of stimulus trials.
         response: list of array-like
             List of response trials.
+        crop: bool
+            If True (default) crop each trial so that stimulus and response
+            have the same length.
 
     Returns
     -------
+        list of array-like
+            Trial list of stimulus features
+        list of array-like
+            Trial list of response features
         int
             The number of trials for stimulus and response
 
@@ -78,7 +82,12 @@ def _check_length(stimulus, response) -> int:
     assert all(
         [s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)]
     ), "stimulus and response trials must have the same length!"
-    return len(stimulus)
+    if crop is True:
+        min_n = [min(len(r), len(s)) for r, s in zip(response, stimulus)]
+        for i, (r, s, n) in enumerate(zip(response, stimulus, min_n)):
+            stimulus[i] = s[i][:n, :]
+            response[i] = r[i][:n, :]
+    return stimulus, response, len(stimulus)
 
 
 def _get_xy(
