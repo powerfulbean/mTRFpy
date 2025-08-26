@@ -638,7 +638,9 @@ class TRF:
         return evokeds
 
 
-def load_sample_data(path=None, n_segments=1, normalize=True):
+def load_sample_data(
+    path: Union[None, str, Path] = None, n_segments: int = 1, normalize: bool = True
+) -> Tuple[ArrayList, ArrayList, int]:
     """
     Load sample of brain responses to naturalistic speech.
 
@@ -654,6 +656,12 @@ def load_sample_data(path=None, n_segments=1, normalize=True):
         Destination where the sample data is stored or will be downloaded to. If None
         (default), a folder called mtrf_data in the users home directory is assumed
         and created if it does not exist.
+
+    n_segments: int
+        Number of segments (i.e. trials) the data are divided into.
+
+    normalize: bool
+        If True (default) subtract the mean and divide by the standard deviation.
 
     Returns
     -------
