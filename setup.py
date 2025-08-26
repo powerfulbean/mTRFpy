@@ -22,7 +22,7 @@ setup(
     author="powerfulbean",
     license="MIT",
     python_requires=">=3.8",
-    install_requires=["numpy, array-api-compat"],
+    install_requires=["numpy", "array-api-compat"],
     extras_require={
         "testing": [
             "requests",
