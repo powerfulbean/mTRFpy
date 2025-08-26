@@ -28,6 +28,8 @@ setup(
             "requests",
             "flake8",
             "black",
+            "dask",
+            "array-api-strict",
             "pytest",
             "tqdm",
             "matplotlib",
