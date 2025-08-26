@@ -321,7 +321,7 @@ def _crossval(
         random.seed(seed)
 
     reg_mat_size = x[0].shape[-1] * len(lags) + 1
-    regmat = regularization_matrix(reg_mat_size, model.method)
+    regmat = regularization_matrix(reg_mat_size, xp, model.method)
     regmat *= regularization / (1 / fs)
 
     n_trials = len(x)

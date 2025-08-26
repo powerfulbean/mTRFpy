@@ -85,7 +85,6 @@ def _check_length(stimulus, response, crop=True) -> Tuple[ArrayList, ArrayList, 
     if crop is True:
         min_n = [min(len(r), len(s)) for r, s in zip(response, stimulus)]
         for i, (r, s, n) in enumerate(zip(response, stimulus, min_n)):
-            print(s[i].shape, r[i].shape)
             stimulus[i] = s[:n, :]
             response[i] = r[:n, :]
     return stimulus, response, len(stimulus)
