@@ -211,7 +211,7 @@ class TRF:
             raise ValueError("Average must be True or a list of indices!")
         stimulus, xps = _check_data(stimulus)
         response, xpr = _check_data(response)
-        n_trials = _check_length(stimulus, response)
+        stimulus, response, n_trials = _check_length(stimulus, response)
         if not xps == xpr:
             raise TypeError("stimulus and response trials must be of the same type!")
         else:
@@ -346,18 +346,22 @@ class TRF:
             raise ValueError("Need stimulus to predict with a forward model!")
         elif self.direction == -1 and response is None:
             raise ValueError("Need response to predict with a backward model!")
-        stimulus, xps = _check_data(stimulus)
-        response, xpr = _check_data(response)
-        n_trials = _check_length(stimulus, response)
-        if not xps == xpr:
-            raise TypeError("stimulus and response trials must be of the same type!")
-        else:
-            xp = xps
         if stimulus is None:
-            stimulus = [None for _ in range(n_trials)]
+            stimulus = [None for _ in range(len(response))]
+        else:
+            stimulus, xps = _check_data(stimulus)
+            xp = xps
         if response is None:
-            response = [None for _ in range(n_trials)]
-
+            response = [None for _ in range(len(stimulus))]
+        else:
+            response, xpr = _check_data(response)
+            xp = xpr
+        if stimulus[0] is not None and response[0] is not None:
+            stimulus, response, _ = _check_length(stimulus, response)
+            if not xps == xpr:
+                raise TypeError(
+                    "stimulus and response trials must be of the same type!"
+                )
         x, y, _, _ = _get_xy(
             stimulus,
             response,
