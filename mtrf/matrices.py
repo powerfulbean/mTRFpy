@@ -1,87 +1,147 @@
-import numpy as np
+from typing import TypeVar, List, Union, Tuple, Literal
+from types import ModuleType
+import array_api_compat
+from array_api_compat import is_array_api_obj
+
+Array = TypeVar("Array")
+ArrayList = List[Array]
 
 
-def _check_data(stimulus=None, response=None, min_len=1, crop=False):
+def _check_data(data: Union[ArrayList, Array]) -> Tuple[ArrayList, ModuleType]:
     """
-    Check wheter data (stimulus or response) are formatted correctly.
+    Ensure correct data formatting
+
     Parameters
     ----------
-        data: list or numpy.ndarray
-            Either a two-dimensional samples-by-features array
-            or a list of such arrays. If the arrays are only one-dimensional, it is
-            assumed that they contain only one feature and a singleton dimension added.
-        assert_list: bool
-            If True raise an error if `data` is not a list
-        assert_len: bool or int
-            If an integer, raise an error if the length of `data` does not
-            equal that value.
-        unisize: bool
-            If True, crop all trials to the length of the shortest one to enforce
-            equal size.
+        data: array-like or list of array-like
+            Either a two-dimensional samples-by-features array or a list of such arrays.
+            If the arrays are one-dimensional a singleton dimension added.
     Returns
     -------
-        data (list): Data in a list of arrays with added singelton dimension if the arrays
+        list of array-like
+            Data in a list of arrays with added singelton dimension if the arrays
             were 1-dimensional.
+        module
+            The namespace for the array implementation of `data`.
+    Raises
+    ------
+    ValueError
+        When arrays have more than 2 dimensions or the list of arrays is
+        shorter than min_len.
+    TypeError
+        When trials are not all arrays.
+
     """
-    for i, data in enumerate([stimulus, response]):
-        if isinstance(data, tuple):
-            data = list(data)
-        elif isinstance(data, np.ndarray):  # convert array to list
-            if data.ndim > 2:
-                raise ValueError("Array can't have more that three dimensions!")
-            else:
-                data = [data]
-        if data is not None:
-            if not all([isinstance(d, np.ndarray) for d in data]):
-                raise ValueError("Trials must be arrays!")
-            n_trials = len(data)
-            if n_trials < min_len:  # check length
-                raise ValueError("Data list is too short!")
-            min_n = min([len(d) for d in data])
-            for j in range(len(data)):
-                if data[j].ndim == 1:
-                    data[j] = np.expand_dims(data[j], axis=1)
-                if crop is True:  # crop all trials to same number of samples
-                    data[j] = data[j][:min_n, :]
-        if i == 0:
-            stimulus = data
+    xp = array_api_compat.array_namespace(*data)
+    if is_array_api_obj(data):
+        if data.ndim > 2:
+            raise ValueError("Array can't have more that three dimensions!")
         else:
-            response = data
-    if (stimulus is not None) and (response is not None):
-        if (not len(stimulus) == len(response)) or (
-            not all([s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)])
-        ):
-            raise ValueError(
-                "Stimulus and response must have the same number of trials and the same number of samples in each trial!"
-            )
-    return stimulus, response, n_trials
+            data = [data]
+    if not all([is_array_api_obj(d) for d in data]):
+        raise TypeError("Trials must be arrays!")
+    for i, d in enumerate(data):
+        if d.ndim == 1:
+            data[i] = xp.expand_dims(d, axis=1)
+    return data, xp
 
 
-def _get_xy(stimulus, response, tmin=None, tmax=None, direction=1):
+def _check_length(stimulus, response, crop=True) -> Tuple[ArrayList, ArrayList, int]:
+    """
+    Assert stimulus and response have the same number of trials with the same length.
+
+    Parameters
+    ----------
+        stimulus: list of array-like
+            List of stimulus trials.
+        response: list of array-like
+            List of response trials.
+        crop: bool
+            If True (default) crop each trial so that stimulus and response
+            have the same length.
+
+    Returns
+    -------
+        list of array-like
+            Trial list of stimulus features
+        list of array-like
+            Trial list of response features
+        int
+            The number of trials for stimulus and response
+
+    Raises
+    ------
+        AssertionError
+            If stimulus and response don't have the same number of trials
+            of the trials don't have the same length.
+    """
+
+    assert len(stimulus) == len(
+        response
+    ), "stimulus and response must have the same number of trials!"
+    assert all(
+        [s.shape[0] == r.shape[0] for s, r in zip(stimulus, response)]
+    ), "stimulus and response trials must have the same length!"
+    if crop is True:
+        min_n = [min(len(r), len(s)) for r, s in zip(response, stimulus)]
+        for i, (r, s, n) in enumerate(zip(response, stimulus, min_n)):
+            stimulus[i] = s[:n, :]
+            response[i] = r[:n, :]
+    return stimulus, response, len(stimulus)
+
+
+def _get_xy(
+    stimulus: ArrayList,
+    response: ArrayList,
+    tmin: float,
+    tmax: float,
+    direction: Literal[1, -1],
+) -> Tuple[ArrayList, ArrayList, float, float]:
+    """
+    Assign `stimulus` and `response` to `x` and `y` depending on the `direction`.
+
+    Parameters
+    ----------
+        stimulus: list of array-like
+            List of stimulus trials.
+        response: list of array-like
+            List of response trials.
+        tmin: float
+            Minimum time lag in seconds.
+        tmax: float
+            Maximum time lag in seconds.
+        direction: int
+            Direction of the model. If ``direction == -1``,
+            `tmin` and `tmax` are inverted
+
+    Returns
+    -------
+        list of array-like:
+            List of Features (i.e. x)
+        list of array-like
+            List of Estimands(i.e. y)
+        tmin: float
+            Minimum time lag.
+        tmax: float
+            Maximum time lag.
+    """
     if direction == 1:
         x, y = stimulus, response
     elif direction == -1:
         x, y = response, stimulus
-        if tmin is not None and tmax is not None:
-            tmin, tmax = -1 * tmax, -1 * tmin
+        tmin, tmax = -1 * tmax, -1 * tmin
     else:
         raise ValueError("Direction must be 1 or -1.")
-
-    if tmin is not None and tmax is not None:
-        return x, y, tmin, tmax
-    else:
-        return x, y
+    return x, y, tmin, tmax
 
 
-def truncate(x, min_idx, max_idx):
+def truncate(x: Array, min_idx: int, max_idx: int) -> Array:
     """
-    Truncate matrix.
-
-    Input matrix is truncated by rows (i.e. the time dimension in a TRF).
+    Truncate matrix by rows (i.e. the time dimension in a TRF).
 
     Parameters
     ----------
-    x: numpy.ndarray
+    x: array-like
         Matrix to truncate.
     min_idx: int
         Smallest (time) index to include.
@@ -90,46 +150,56 @@ def truncate(x, min_idx, max_idx):
 
     Returns
     -------
-        x_truncated: numpy.ndarray
+        array-like
             Truncated version of ``x``.
     """
-    rowSlice = slice(max(0, max_idx), min(0, min_idx) + len(x))
-    x_truncated = x[rowSlice]
+    row_slice = slice(max(0, max_idx), min(0, min_idx) + len(x))
+    x_truncated = x[row_slice]
     return x_truncated
 
 
-def covariance_matrices(x, y, lags, zeropad=True, preload=True):
+def covariance_matrices(
+    x: Union[Array, ArrayList],
+    y: Union[Array, ArrayList],
+    lags: List,
+    zeropad: bool = True,
+    preload: bool = True,
+) -> Tuple[Array, Array]:
     """
-    Compute (auto-)covariance of x and y.
+    Compute the covariance of x and y and the autocovariance of x
 
-    Compute the autocovariance of the time-lagged input x and the covariance of
-    x and the output y. When passed a list of trials for x, and y, covariance
-    matrices will be computed for each trial.
+    When passed a list of trials for x, and y, covariance
+    matrices will be computed per trial and summed.
 
     Parameters
     ----------
-    x: numpy.ndarray or list
+    x: array-like or list of array-like
         Input data in samples-by-features array or list of such arrays.
-    y: numpy.ndarray or list
+    y: array-like or list of array-like
         Output data in samples-by-features array or list of such arrays.
-    lags: list or numpy.ndarray
+    lags: list
         Time lags in samples.
     zeropad: bool
         If True (default), pad the input with zeros, if false, truncate the output.
 
     Returns
     -------
-    cov_xx: numpy.ndarray
+    array-like
         Three dimensional autocovariance matrix. 1st dimension's size is the number
         of trials, 2nd and 3rd dimensions' size is lags times features in x.
         If x contains only one trial, the first dimension is empty and will be removed.
-    cov_xy: numpy.ndarray
+    array-like
         Three dimensional x-y-covariance matrix. 1st dimension's size is the number
         of trials, 2nd dimension's size is lags times features in x and 3rd dimension's
         size is features in y. If y contains only one trial, the first dimension is
         empty and will be removed.
     """
-    x, y, _ = _check_data(x, y)
+    x, xpx = _check_data(x)
+    y, xpy = _check_data(y)
+    if not xpx == xpy:
+        raise TypeError("x and y trials must be of the same type!")
+    else:
+        xp = xpx
     if zeropad is False:
         y = truncate(y, lags[0], lags[-1])
     cov_xx, cov_xy = 0, 0
@@ -137,8 +207,8 @@ def covariance_matrices(x, y, lags, zeropad=True, preload=True):
         x_lag = lag_matrix(x_i, lags, zeropad)
         if preload is True:
             if i == 0:
-                cov_xx = np.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
-                cov_xy = np.zeros((len(y), x_lag.shape[-1], y_i.shape[-1]))
+                cov_xx = xp.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
+                cov_xy = xp.zeros((len(y), x_lag.shape[-1], y_i.shape[-1]))
             cov_xx[i] = x_lag.T @ x_lag
             cov_xy[i] = x_lag.T @ y_i
         else:
@@ -150,51 +220,61 @@ def covariance_matrices(x, y, lags, zeropad=True, preload=True):
     return cov_xx, cov_xy
 
 
-def lag_matrix(x, lags, zeropad=True, bias=True):
+def lag_matrix(
+    x: Array, lags: List[int], zeropad: bool = True, bias: bool = True
+) -> Array:
     """
     Construct a matrix with time lagged input features.
     See also 'lagGen' in mTRF-Toolbox github.com/mickcrosse/mTRF-Toolbox.
-    Arguments:
-        x (np.ndarray): Input data matrix of shape time x features
-        lags (list): Time lags in samples
-    lags: a list (or list like supporting len() method) of integers,
-         each of them should indicate the time lag in samples.
-    zeropad (bool): If True (default) apply zero paddinf to the colums
-        with non-zero time lags to ensure causality. Otherwise,
-        truncate the matrix.
-    bias (bool): If True (default), concatenate an array of ones to
-        the left of the array to include a constant bias term in the
-        regression.
-    Returns:
-        lag_matrix (np.ndarray): Matrix of time lagged inputs with shape
-            times x number of lags * number of features (+1 if bias==True).
+
+    Parameters
+    ----------
+        x: array-like
+            Input data matrix of shape time x features
+        lags: list
+            List of time lags in samples
+        zeropad: bool
+            If True (default) apply zero paddinf to the colums with non-zero
+            time lags to ensure causality. Otherwise, truncate the matrix.
+        bias: bool
+            If True (default), concatenate an array of ones to the left
+            of the array to include a constant bias term in the regression.
+
+    Returns
+    -------
+        array-like
+            Matrix of time lagged inputs with shape times x number of lags * number
+            of features (+1 if bias==True).
             If zeropad is False, the first dimension is truncated.
     """
+    xp = array_api_compat.array_namespace(x)
     n_lags = len(lags)
     n_samples, n_variables = x.shape
     if max(lags) > n_samples:
         raise ValueError("The maximum lag can't be longer than the signal!")
-    lag_matrix = np.zeros((n_samples, n_variables * n_lags))
+    x_lag = xp.zeros((n_samples, n_variables * n_lags))
 
     for idx, lag in enumerate(lags):
         col_slice = slice(idx * n_variables, (idx + 1) * n_variables)
         if lag < 0:
-            lag_matrix[0 : n_samples + lag, col_slice] = x[-lag:, :]
+            x_lag[0 : n_samples + lag, col_slice] = x[-lag:, :]
         elif lag > 0:
-            lag_matrix[lag:n_samples, col_slice] = x[0 : n_samples - lag, :]
+            x_lag[lag:n_samples, col_slice] = x[0 : n_samples - lag, :]
         else:
-            lag_matrix[:, col_slice] = x
+            x_lag[:, col_slice] = x
 
     if zeropad is False:
-        lag_matrix = truncate(lag_matrix, lags[0], lags[-1])
+        x_lag = truncate(x_lag, lags[0], lags[-1])
 
     if bias is not False:
-        lag_matrix = np.concatenate([np.ones((lag_matrix.shape[0], 1)), lag_matrix], 1)
+        x_lag = xp.concatenate([xp.ones((x_lag.shape[0], 1)), x_lag], 1)
 
-    return lag_matrix
+    return x_lag
 
 
-def regularization_matrix(size, method="ridge"):
+def regularization_matrix(
+    size: int, xp: ModuleType, method: Literal["ridge", "banded", "tikhonov"] = "ridge"
+) -> Array:
     """
     Generates a sparse regularization matrix for the specified method.
 
@@ -202,31 +282,35 @@ def regularization_matrix(size, method="ridge"):
     ----------
     size: int
         Size of the regularization matrix.
+    xp: module
+        The array API namespace for generating the output matrix
     method: str
         Regularization method. Can be 'ridge', 'banded' or 'tikhonov'.
 
     Returns
     -------
-    regmat: numpy.ndarray
+    array-like
         regularization matrix for specified ``size`` and ``method``.
     """
     if method in ["ridge", "banded"]:
-        regmat = np.identity(size)
+        regmat = xp.identity(size)
         regmat[0, 0] = 0
     elif method == "tikhonov":
-        regmat = np.identity(size)
-        regmat -= 0.5 * (np.diag(np.ones(size - 1), 1) + np.diag(np.ones(size - 1), -1))
+        regmat = xp.identity(size)
+        regmat -= 0.5 * (xp.diag(xp.ones(size - 1), 1) + xp.diag(xp.ones(size - 1), -1))
         regmat[1, 1] = 0.5
         regmat[size - 1, size - 1] = 0.5
         regmat[0, 0] = 0
         regmat[0, 1] = 0
         regmat[1, 0] = 0
     else:
-        regmat = np.zeros((size, size))
+        regmat = xp.zeros((size, size))
     return regmat
 
 
-def banded_regularization(n_lags, coefficients, bands):
+def banded_regularization(
+    n_lags: int, coefficients: list, bands: List[int], xp: ModuleType
+) -> Array:
     """
     Create regularization matrix for banded ridge regression.
 
@@ -240,8 +324,14 @@ def banded_regularization(n_lags, coefficients, bands):
         Size of the feature bands for which a regularization parameter is fitted, in
         the order they appear in the stimulus matrix. For example, when the stimulus
         is an envelope vector and a 16-band spectrogram, `bands` would be [1, 16].
-    """
+    xp: module
+        The array API namespace for generating the output matrix
 
+    Returns
+    -------
+    array-like
+        The banded regularization matrix.
+    """
     if bands is None:
         raise ValueError("Must provide band sizes when using banded ridge regression!")
     if not len(bands) == len(coefficients):
@@ -249,9 +339,9 @@ def banded_regularization(n_lags, coefficients, bands):
     lag_coefs = []
     # repeat the coefficient for each occurence of the corresponding band
     for c, f in zip(coefficients, bands):
-        lag_coefs.append(np.repeat(c, f))
-    lag_coefs = np.concatenate(lag_coefs)
+        lag_coefs.append(xp.repeat(c, f))
+    lag_coefs = xp.concatenate(lag_coefs)
     # repeat that sequence for each lag
-    diagonal = np.concatenate([lag_coefs for i in range(n_lags)])
-    diagonal = np.concatenate([[0], diagonal])
-    return np.diag(diagonal)
+    diagonal = xp.concatenate([lag_coefs for i in range(n_lags)])
+    diagonal = xp.concatenate([[0], diagonal])
+    return xp.diag(diagonal)

@@ -2,38 +2,43 @@ import random
 import sys
 from collections.abc import Iterable
 from itertools import product
-import numpy as np
+from typing import List, Union
+import array_api_compat
 from mtrf.matrices import (
     regularization_matrix,
     covariance_matrices,
     banded_regularization,
     _check_data,
+    _check_length,
     _get_xy,
+    Array,
+    ArrayList,
 )
 
 
-def neg_mse(y, y_pred):
+def neg_mse(y: Array, y_pred: Array) -> Array:
     """
     Compute negative mean suqare error (mse) between predicted
     and observed data
 
     Parameters
     ----------
-    y: np.ndarray
+    y: Array
         samples-by-features matrix of observed data.
-    y_pred: np.ndarray
+    y_pred: Array
         samples-by-features matrix of predicted data.
 
     Returns
     -------
-    neg_mse: np.ndarray
+    neg_mse: Array
         Negative mse (-mse) for each feature in y.
     """
-    mse = np.mean((y - y_pred) ** 2, axis=0)
+    xp = array_api_compat.array_namespace(y)
+    mse = xp.mean((y - y_pred) ** 2, axis=0)
     return -mse
 
 
-def pearsonr(y, y_pred):
+def pearsonr(y: Array, y_pred: Array) -> Array:
     """
     Compute Pearson's correlation coefficient between predicted
     and observed data
@@ -50,7 +55,8 @@ def pearsonr(y, y_pred):
     r: np.ndarray
         Pearsons r for each feature in y.
     """
-    r = np.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+    xp = array_api_compat.array_namespace(y)
+    r = xp.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
         y.std(0) * y_pred.std(0)
     )
     return r
@@ -58,17 +64,17 @@ def pearsonr(y, y_pred):
 
 def crossval(
     model,
-    stimulus,
-    response,
-    fs,
-    tmin,
-    tmax,
-    regularization,
-    k=-1,
-    seed=None,
-    average=True,
-    verbose=True,
-):
+    stimulus: ArrayList,
+    response: ArrayList,
+    fs: int,
+    tmin: float,
+    tmax: float,
+    regularization: Union[int, float],
+    k: int = -1,
+    seed: Union[int, None] = None,
+    average: Union[bool, List[int]] = True,
+    verbose: bool = True,
+) -> Union[float, Array]:
     """
     Test model metric using k-fold cross-validation.
 
@@ -78,13 +84,13 @@ def crossval(
 
     Parameters
     ----------
-    model: model.TRF
+    model: TRF
         Base model used for cross-validation.
-    stimulus: list
+    stimulus: list of array-like
         Each element must contain one trial's stimulus in a two-dimensional
         samples-by-features array (second dimension can be omitted if there is
         only a single feature.
-    response: list
+    respnse: list of array-like
         Each element must contain one trial's response in a two-dimensional
         samples-by-channels array.
     fs: int
@@ -107,9 +113,17 @@ def crossval(
 
     Returns
     -------
-    metric: float or numpy.ndarray
+    metric: float or array-like
         Metric as computed by the metric function in the attribute `model.metric`.
     """
+    stimulus, xps = _check_data(stimulus)
+    response, xpr = _check_data(response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
+    assert n_trials >= k, f"Not enough trials for {k}-fold cross-validation"
+    if not xps == xpr:
+        raise TypeError("stimulus and response trials must be of the same type!")
+    else:
+        xp = xps
     if isinstance(regularization, Iterable):
         raise ValueError(
             "Crossval only accepts a single scalar for regularization! "
@@ -120,9 +134,8 @@ def crossval(
     trf = model.copy()
     if seed is not None:
         random.seed(seed)
-    stimulus, response, _ = _check_data(stimulus, response, min_len=2)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
-    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+    lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
     metric = _crossval(
         model,
@@ -134,6 +147,7 @@ def crossval(
         fs,
         regularization,
         k,
+        xp,
         average,
         verbose,
     )
@@ -211,18 +225,25 @@ def nested_crossval(
     best_regularization: numpy.ndarray
         Optimal regularization values for all k training sets.
     """
-    if average is False and not np.isscalar(regularization):
-        raise ValueError("Average must be True or a list of indices!")
-    stimulus, response, n_trials = _check_data(stimulus, response)
-    if len(stimulus) < 3:
-        raise ValueError("Nested cross-validation requires at least three trials!")
+    stimulus, xps = _check_data(stimulus)
+    response, xpr = _check_data(response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
+    assert (
+        n_trials >= k + 1 and n_trials >= 3
+    ), f"Not enough trials for {k}-fold nested cross-validation!"
     k = _check_k(k, n_trials)
+    if not xps == xpr:
+        raise TypeError("stimulus and response trials must be of the same type!")
+    else:
+        xp = xps
+    if average is False and not xp.isscalar(regularization):
+        raise ValueError("Average must be True or a list of indices!")
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
-    lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+    lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
     if model.method == "banded":
         coefficients = list(product(regularization, repeat=2))
         regularization = [
-            banded_regularization(len(lags), c, bands) for c in coefficients
+            banded_regularization(len(lags), c, bands, xp) for c in coefficients
         ]
 
     if model.preload:
@@ -230,15 +251,15 @@ def nested_crossval(
     else:
         cov_xx, cov_xy = None, None
 
-    splits = np.array_split(np.arange(n_trials), k)
+    splits = xp.array_split(xp.arange(n_trials), k)
     n_splits = len(splits)
-    metric_test = np.zeros(n_splits)
+    metric_test = xp.zeros(n_splits)
     best_regularization = []
     for split_i in range(n_splits):
         idx_test = splits[split_i]
-        idx_train_val = np.concatenate(splits[:split_i] + splits[split_i + 1 :])
-        if not np.isscalar(regularization):
-            metric = np.zeros(len(regularization))
+        idx_train_val = xp.concatenate(splits[:split_i] + splits[split_i + 1 :])
+        if not xp.isscalar(regularization):
+            metric = xp.zeros(len(regularization))
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -259,11 +280,12 @@ def nested_crossval(
                     fs,
                     regularization[ir],
                     k - 1,
+                    xp,
                     seed=seed,
                     average=average,
                     verbose=verbose,
                 )
-            regularization_split_i = list(regularization)[np.argmax(metric)]
+            regularization_split_i = list(regularization)[xp.argmax(metric)]
         else:
             regularization_split_i = regularization
         model._train(
@@ -273,6 +295,7 @@ def nested_crossval(
             tmin,
             tmax,
             regularization_split_i,
+            xp,
         )
         _, metric_test[split_i] = model.predict(
             [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
@@ -291,6 +314,7 @@ def _crossval(
     fs,
     regularization,
     k,
+    xp,
     average=True,
     verbose=True,
     seed=None,
@@ -299,23 +323,23 @@ def _crossval(
         random.seed(seed)
 
     reg_mat_size = x[0].shape[-1] * len(lags) + 1
-    regmat = regularization_matrix(reg_mat_size, model.method)
+    regmat = regularization_matrix(reg_mat_size, xp, model.method)
     regmat *= regularization / (1 / fs)
 
     n_trials = len(x)
     k = _check_k(k, n_trials)
-    splits = np.arange(n_trials)
+    splits = xp.arange(n_trials)
     random.shuffle(splits)
-    splits = np.array_split(splits, k)
+    splits = xp.array_split(splits, k)
 
     if average is True:
-        metric = np.zeros(k)
+        metric = xp.zeros(k)
     else:
-        metric = np.zeros((k, y[0].shape[-1]))
+        metric = xp.zeros((k, y[0].shape[-1]))
 
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_val = splits[isplit]
-        idx_train = np.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
+        idx_train = xp.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
         if cov_xx is None:
             x_train = [x[i] for i in idx_train]
             y_train = [y[i] for i in idx_train]
@@ -325,11 +349,11 @@ def _crossval(
         else:
             cov_xx_hat = cov_xx[idx_train].mean(axis=0)
             cov_xy_hat = cov_xy[idx_train].mean(axis=0)
-        w = np.matmul(np.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
+        w = xp.matmul(xp.linalg.inv(cov_xx_hat + regmat), cov_xy_hat) / (1 / fs)
         trf = model.copy()
-        trf.times, trf.bias, trf.fs = np.array(lags) / fs, w[0:1], fs
+        trf.times, trf.bias, trf.fs = xp.array(lags) / fs, w[0:1], fs
         if trf.bias.ndim == 1:
-            trf.bias = np.expand_dims(trf.bias, 1)
+            trf.bias = xp.expand_dims(trf.bias, 1)
         trf.weights = w[1:].reshape(
             (x[0].shape[-1], len(lags), y[0].shape[-1]), order="F"
         )
@@ -338,7 +362,7 @@ def _crossval(
         # to pass the right variable as stimulus and response to TRF.predict
         if model.direction == 1:
             _, metric_test = trf.predict(x_test, y_test, None, average)
-        elif model.direction == -1:
+        else:
             _, metric_test = trf.predict(y_test, x_test, None, average)
         metric[isplit] = metric_test
     return metric.mean(axis=0)
@@ -403,40 +427,47 @@ def permutation_distribution(
         Metric as computed by the metric function in  the attribute `model.metric`
         for each permutation.
     """
+    stimulus, xps = _check_data(stimulus)
+    response, xpr = _check_data(response)
+    stimulus, response, n_trials = _check_length(stimulus, response)
+    assert n_trials >= k, f"Not enough trials for {k}-fold cross-validation"
+    if not xps == xpr:
+        raise TypeError("stimulus and response trials must be of the same type!")
+    else:
+        xp = xps
     if seed:
-        np.random.seed(seed)
-    stimulus, response, n_trials = _check_data(stimulus, response, min_len=2, crop=True)
+        xp.random.seed(seed)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     min_len = min([len(x_i) for x_i in x])
-    for i in range(len(x)):
-        x[i], y[i] = x[i][:min_len], y[i][:min_len]
+    for i, x_i in enumerate(x):
+        x[i], y[i] = x_i[:min_len], y[i][:min_len]
     k = _check_k(k, n_trials)
-    idx = np.arange(n_trials)
-    combinations = np.transpose(np.meshgrid(idx, idx)).reshape(-1, 2)
+    idx = xp.arange(n_trials)
+    combinations = xp.transpose(xp.meshgrid(idx, idx)).reshape(-1, 2)
     models = []
     for c in _progressbar(combinations, "Preparing models", verbose=verbose):
         trf = model.copy()
         trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
         models.append(trf)
-    metric = np.zeros(n_permute)
+    metric = xp.zeros(n_permute)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
         for i in range(len(x)):  # make sure each x only appears once
-            idx.append(random.choice(np.where(combinations[:, 0] == i)[0]))
+            idx.append(random.choice(xp.where(combinations[:, 0] == i)[0]))
         random.shuffle(idx)
-        idx = np.array_split(idx, k)
+        idx = xp.array_split(idx, k)
         perm_metric = []
-        for isplit in range(len(idx)):
+        for isplit in range(k):
             idx_val = idx[isplit]
-            idx_train = np.concatenate(idx[:isplit] + idx[isplit + 1 :])
-            perm_model = np.mean([models[i] for i in idx_train])
+            idx_train = xp.concatenate(idx[:isplit] + idx[isplit + 1 :])
+            perm_model = xp.mean([models[i] for i in idx_train])
             stimulus_val = [stimulus[combinations[i][0]] for i in idx_val]
             response_val = [response[combinations[i][1]] for i in idx_val]
             _, fold_metric = perm_model.predict(
                 stimulus_val, response_val, None, average
             )
             perm_metric.append(fold_metric)
-        metric[iperm] = np.mean(perm_metric)
+        metric[iperm] = xp.mean(perm_metric)
 
     return metric
 
