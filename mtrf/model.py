@@ -282,9 +282,7 @@ class TRF:
         cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
         regmat = regularization_matrix(cov_xx.shape[1], xp, self.method)
         regmat *= regularization / (1 / self.fs)
-        weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (
-            1 / self.fs
-        )
+        weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / self.fs)
         self.bias = weight_matrix[0:1]
         if self.bias.ndim == 1:  # add empty dimension for single feature models
             self.bias = xp.expand_dims(self.bias, axis=0)
