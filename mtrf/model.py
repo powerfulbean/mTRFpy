@@ -91,7 +91,7 @@ class TRF:
         self.bias: Array = None
         self.times: Array = None
         self.fs: int = None
-        self.regularization: Union[int, float] = None
+        self.regularization: Union[int, float, Array] = None
         if not callable(metric):
             raise ValueError("Metric function must be callable")
         else:
