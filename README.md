@@ -1,7 +1,7 @@
 ![Package](https://github.com/powerfulbean/mTRFpy/workflows/Python%20package/badge.svg)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-brightgreen.svg)](https://github.com/powefulbean/mTRFpy/graphs/commit-activity)
 [![Documentation Status](https://readthedocs.org/projects/mtrfpy/badge/?version=latest)](https://mtrfpy.readthedocs.io/en/latest/?badge=latest)
-![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.8-blue)
+![PyPI pyversions](https://img.shields.io/badge/python-%3E%3D3.9-blue)
 ![PyPI license](https://img.shields.io/badge/license-MIT-brightgreen)
 [![PyPI version](https://badge.fury.io/py/mtrf.svg)](https://badge.fury.io/py/mtrf)
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.05657/status.svg)](https://doi.org/10.21105/joss.05657)
