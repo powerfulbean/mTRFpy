@@ -108,3 +108,71 @@ def test_no_preload(decimal=10):
         for pred1, pred2 in zip(prediction1, prediction2):
             np.testing.assert_almost_equal(pred1, pred2, decimal=decimal)
         np.testing.assert_almost_equal(metric1, metric2, decimal=decimal)
+
+
+def test_reg_per_y_channel():
+    tmin = -0.1
+    tmax = 0.2
+    k = 2
+    stimulus, response, fs = load_sample_data(n_segments=3)
+    regularization = [np.random.uniform(0, 10) for _ in range(5)]
+    trfs = []
+    for direction in [1, -1]:
+        trf = TRF(direction=direction)
+        trf.train(
+            stimulus,
+            response,
+            fs,
+            tmin,
+            tmax,
+            regularization,
+            k=k,
+            reg_per_y_channel=True,
+            verbose=False,
+            seed=42,
+        )
+        best_reg_1 = trf.regularization
+        if direction == 1:
+            assert trf.weights.shape[0] == stimulus[0].shape[-1]
+            assert trf.weights.shape[-1] == response[0].shape[-1]
+        if direction == -1:
+            assert trf.weights.shape[-1] == stimulus[0].shape[-1]
+            assert trf.weights.shape[0] == response[0].shape[-1]
+
+        if direction == 1:
+            n_y_chans = response[0].shape[-1]
+            best_reg_2 = np.zeros(n_y_chans)
+            for i_chan in range(n_y_chans):
+                trf = TRF(direction=direction)
+                trf.train(
+                    stimulus,
+                    [resp[:, i_chan : i_chan + 1] for resp in response],
+                    fs,
+                    tmin,
+                    tmax,
+                    regularization,
+                    k=k,
+                    verbose=False,
+                    seed=42,
+                )
+                best_reg_2[i_chan] = trf.regularization
+        else:
+            n_y_chans = stimulus[0].shape[-1]
+            best_reg_2 = np.zeros(n_y_chans)
+            for i_chan in range(n_y_chans):
+                trf = TRF(direction=direction)
+                trf.train(
+                    [stim[:, i_chan : i_chan + 1] for stim in stimulus],
+                    response,
+                    fs,
+                    tmin,
+                    tmax,
+                    regularization,
+                    k=k,
+                    verbose=False,
+                    seed=42,
+                )
+                best_reg_2[i_chan] = trf.regularization
+
+        # print(best_reg_1, best_reg_2)
+        assert np.array_equal(best_reg_1, best_reg_2)

@@ -132,8 +132,8 @@ def crossval(
     if len(stimulus) < 2:
         raise ValueError("Cross-validation requires at least two trials!")
     trf = model.copy()
-    if seed is not None:
-        random.seed(seed)
+    # if seed is not None:
+    #     random.seed(seed)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
@@ -150,6 +150,7 @@ def crossval(
         xp,
         average,
         verbose,
+        seed=seed,
     )
     return metric
 

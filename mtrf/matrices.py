@@ -1,7 +1,7 @@
 from typing import TypeVar, List, Union, Tuple, Literal
 from types import ModuleType
 import array_api_compat
-from array_api_compat import is_array_api_obj
+from array_api_compat import is_array_api_obj, get_namespace
 
 Array = TypeVar("Array")
 ArrayList = List[Array]
@@ -181,18 +181,19 @@ def covariance_matrices(
         Time lags in samples.
     zeropad: bool
         If True (default), pad the input with zeros, if false, truncate the output.
+    preload: bool
+        If True (default), the covariance matrices returned will be three dimensional.
 
     Returns
     -------
     array-like
-        Three dimensional autocovariance matrix. 1st dimension's size is the number
-        of trials, 2nd and 3rd dimensions' size is lags times features in x.
-        If x contains only one trial, the first dimension is empty and will be removed.
+        If preload=True, three dimensional autocovariance matrix. 1st dimension's size is the number
+        of trials, 2nd and 3rd dimensions' size is lags times features in x (+1 if bias==True).
+        If preload=False, the first dimension will be reduced by averaging.
     array-like
-        Three dimensional x-y-covariance matrix. 1st dimension's size is the number
+        If preload=True, three dimensional x-y-covariance matrix. 1st dimension's size is the number
         of trials, 2nd dimension's size is lags times features in x and 3rd dimension's
-        size is features in y. If y contains only one trial, the first dimension is
-        empty and will be removed.
+        size is features in y. If preload=False, the first dimension will be reduced by averaging.
     """
     x, xpx = _check_data(x)
     y, xpy = _check_data(y)
@@ -345,3 +346,41 @@ def banded_regularization(
     diagonal = xp.concatenate([lag_coefs for i in range(n_lags)])
     diagonal = xp.concatenate([[0], diagonal])
     return xp.diag(diagonal)
+
+
+def fit_weights_with_covariance_matrices(
+    cov_xx: Array,
+    cov_xy: Array,
+    fs: int,
+    regularization: Union[float, Array],
+    reg_method: Literal["ridge", "tikhonov", "banded"] = "ridge",
+) -> Array:
+    """
+    Compute the weights using covariance of x and y, the autocovariance of x,
+    regularization parameter and sampling rate
+
+    Parameters
+    ----------
+    cov_xx: array-like
+        Two dimensional autocovariance matrix. 1st and 2nd dimensions' size is lags times features in x (+ 1 if bias is included).
+    cov_xy: array-like
+        Two dimensional x-y-covariance matrix. 1st dimension's size is lags times features in x (+ 1 if bias is included) and 2nd dimension's
+        size is number of features of y.
+    fs: int
+        sampling rate of x and y
+    regularization: scalar or array-like
+            Values for the regularization parameter lambda. The model is fitted
+            separately for each value and the one yielding the highest accuracy
+            is chosen (correlation and mean squared error of each model are returned).
+        If True (default), pad the input with zeros, if false, truncate the output.
+
+    Returns
+    -------
+    array-like
+        the weight matrix
+    """
+    xp = get_namespace(cov_xx)
+    regmat = regularization_matrix(cov_xx.shape[1], xp, reg_method)
+    regmat *= regularization / (1 / fs)
+    weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / fs)
+    return weight_matrix

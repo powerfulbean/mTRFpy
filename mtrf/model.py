@@ -16,6 +16,7 @@ from mtrf.matrices import (
     covariance_matrices,
     banded_regularization,
     regularization_matrix,
+    fit_weights_with_covariance_matrices,
     lag_matrix,
     truncate,
     _check_data,
@@ -152,6 +153,7 @@ class TRF:
         average: Union[bool, List[int]] = True,
         seed: Union[None, int] = None,
         verbose: bool = True,
+        reg_per_y_channel: bool = False,
     ):
         """
         Optimize the regularization parameter.
@@ -191,7 +193,7 @@ class TRF:
             an envelope vector and a 16-band spectrogram, bands would be [1, 16].
         k: int
             Number of data splits for cross validation, defaults to -1 (leave-one-out).
-        average: bool or list or numpy.ndarray
+        average: True or list or numpy.ndarray
             If True (default), average metric cross all predictions (e.g. channels in the
             case of forward modelling). If `average` is an array of indices only average
             those features.
@@ -199,7 +201,9 @@ class TRF:
             Seed for the random number generator.
         verbose: bool
             If True (default), show a progress bar during fitting.
-
+        reg_per_y_channel: bool
+            If True, fit the best regularization parameter for each channel of y.
+            In this case, average will be forced to be False.
         Returns
         -------
         list
@@ -209,6 +213,8 @@ class TRF:
         """
         if average is False:
             raise ValueError("Average must be True or a list of indices!")
+        if reg_per_y_channel:
+            average = False
         stimulus, xps = _check_data(stimulus)
         response, xpr = _check_data(response)
         stimulus, response, n_trials = _check_length(stimulus, response)
@@ -222,14 +228,16 @@ class TRF:
         lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
         if self.method == "banded":
             coefficients = list(product(regularization, repeat=len(bands)))
-            regularization = [
-                banded_regularization(len(lags), c, bands, xp) for c in coefficients
-            ]
+            regularization = xp.stack(
+                [banded_regularization(len(lags), c, bands, xp) for c in coefficients],
+                axis=0,
+            )
         if xp.isscalar(regularization):
-            self._train(x, y, fs, tmin, tmax, regularization, xp)
+            self._train(x, y, fs, tmin, tmax, regularization)
             return
         else:  # run cross-validation once per regularization parameter
             # pre-compute covariance matrices
+            regularization = xp.asarray(regularization)
             cov_xx, cov_xy = None, None
             if self.preload:
                 cov_xx, cov_xy = covariance_matrices(
@@ -237,7 +245,10 @@ class TRF:
                 )
             else:
                 cov_xx, cov_xy = None, None
-            metric = xp.zeros(len(regularization))
+            if reg_per_y_channel:
+                metric = xp.zeros((len(regularization), y[0].shape[-1]))
+            else:
+                metric = xp.zeros(len(regularization))
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -258,8 +269,8 @@ class TRF:
                     average=average,
                     verbose=verbose,
                 )
-            best_regularization = list(regularization)[xp.argmax(metric)]
-            self._train(x, y, fs, tmin, tmax, best_regularization, xp)
+            best_regularization = regularization[xp.argmax(metric, axis=0)]
+            self._train(x, y, fs, tmin, tmax, best_regularization)
             return metric
 
     def _train(
@@ -270,19 +281,57 @@ class TRF:
         tmin: float,
         tmax: float,
         regularization: Union[int, float, Array],
-        xp: ModuleType,
     ):
+        reg_per_y_channel = False
+        xp = array_api_compat.array_namespace(x[0])
         if isinstance(regularization, xp.ndarray):  # check if matrix is diagonal
-            assert (
-                xp.count_nonzero(regularization - xp.diag(xp.diagonal(regularization)))
-                == 0
-            ), "Regularization matrix is not diagonal!"
+            if regularization.ndim == 2:
+                assert (
+                    xp.count_nonzero(
+                        regularization - xp.diag(xp.diagonal(regularization))
+                    )
+                    == 0
+                ), "Regularization matrix is not diagonal!"
+            elif regularization.ndim == 1:
+                # length of regularization should equals number of channels of y
+                assert (
+                    len(regularization) == y[0].shape[-1]
+                ), "length of regularization should equals number of channels of y"
+                reg_per_y_channel = True
+            else:
+                raise ValueError(
+                    "if is an array, the regularization should be 1D or 2D only"
+                )
         self.fs, self.regularization = fs, regularization
         lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
         cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
-        regmat = regularization_matrix(cov_xx.shape[1], xp, self.method)
-        regmat *= regularization / (1 / self.fs)
-        weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / self.fs)
+        # regmat = regularization_matrix(cov_xx.shape[1], xp, self.method)
+        # regmat *= regularization / (1 / self.fs)
+        # weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / self.fs)
+        weight_matrix = xp.zeros(cov_xy.shape)
+        if reg_per_y_channel:
+            unique_reg_values = xp.unique(regularization)
+            reg_y_chan_dict = {
+                val.item(): (regularization == val).nonzero()[0]
+                for val in unique_reg_values
+            }
+            for t_reg in unique_reg_values:
+                t_chan_idx = reg_y_chan_dict[t_reg.item()]
+                weight_matrix[:, t_chan_idx] = fit_weights_with_covariance_matrices(
+                    cov_xx=cov_xx,
+                    cov_xy=cov_xy[:, t_chan_idx],
+                    fs=self.fs,
+                    regularization=t_reg,
+                    reg_method=self.method,
+                )
+        else:
+            weight_matrix[:] = fit_weights_with_covariance_matrices(
+                cov_xx=cov_xx,
+                cov_xy=cov_xy,
+                fs=self.fs,
+                regularization=regularization,
+                reg_method=self.method,
+            )
         self.bias = weight_matrix[0:1]
         if self.bias.ndim == 1:  # add empty dimension for single feature models
             self.bias = xp.expand_dims(self.bias, axis=0)
@@ -368,7 +417,8 @@ class TRF:
             direction=self.direction,
         )
         prediction = [xp.zeros((x_i.shape[0], self.weights.shape[-1])) for x_i in x]
-        metric = []
+        if y[0] is not None:
+            metric = xp.zeros((len(x), self.weights.shape[-1]))
         for i, (x_i, y_i) in enumerate(zip(x, y)):
             lags = list(
                 range(
@@ -395,7 +445,7 @@ class TRF:
             if y_i is not None:
                 if self.zeropad is False:
                     y_i = truncate(y_i, lags[0], lags[-1])
-                metric.append(self.metric(y_i, y_pred))
+                metric[i, :] = self.metric(y_i, y_pred)
             prediction[i][:] = y_pred
         if y[0] is not None:
             metric = xp.mean(metric, axis=0)  # average across trials
