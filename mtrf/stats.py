@@ -296,7 +296,7 @@ def nested_crossval(
             tmin,
             tmax,
             regularization_split_i,
-            xp,
+            # xp,
         )
         _, metric_test[split_i] = model.predict(
             [stimulus[i] for i in idx_test], [response[i] for i in idx_test]
