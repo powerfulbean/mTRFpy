@@ -6,6 +6,7 @@ from mtrf.model import TRF, load_sample_data
 
 n = np.random.randint(3, 10)
 stimulus, response, fs = load_sample_data(n_segments=n)
+fs = int(fs)
 
 
 def test_metric():
@@ -116,7 +117,6 @@ def test_reg_per_y_channel():
     k = 2
     stimulus, response, fs = load_sample_data(n_segments=3)
     regularization = [np.random.uniform(0, 10) for _ in range(5)]
-    trfs = []
     for direction in [1, -1]:
         trf = TRF(direction=direction)
         trf.train(
@@ -174,5 +174,4 @@ def test_reg_per_y_channel():
                 )
                 best_reg_2[i_chan] = trf.regularization
 
-        # print(best_reg_1, best_reg_2)
         assert np.array_equal(best_reg_1, best_reg_2)

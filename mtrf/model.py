@@ -24,6 +24,7 @@ from mtrf.matrices import (
     _get_xy,
     Array,
     ArrayList,
+    lags_idx,
 )
 import array_api_compat
 
@@ -225,7 +226,7 @@ class TRF:
         if not xp.isscalar(regularization):
             k = _check_k(k, n_trials)
         x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
-        lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
+        lags = lags_idx(xp, tmin, tmax, fs)
         if self.method == "banded":
             coefficients = list(product(regularization, repeat=len(bands)))
             regularization = xp.stack(
@@ -303,7 +304,7 @@ class TRF:
                     "if is an array, the regularization should be 1D or 2D only"
                 )
         self.fs, self.regularization = fs, regularization
-        lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
+        lags = lags_idx(xp, tmin, tmax, fs)
         cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
         # regmat = regularization_matrix(cov_xx.shape[1], xp, self.method)
         # regmat *= regularization / (1 / self.fs)
@@ -420,12 +421,7 @@ class TRF:
         if y[0] is not None:
             metric = xp.zeros((len(x), self.weights.shape[-1]))
         for i, (x_i, y_i) in enumerate(zip(x, y)):
-            lags = list(
-                range(
-                    int(xp.floor(self.times[0] * self.fs)),
-                    int(xp.ceil(self.times[-1] * self.fs)) + 1,
-                )
-            )
+            lags = lags_idx(xp, self.times[0], self.times[-1], self.fs)
             w = self.weights.copy()
             if lag is not None:  # select lag and corresponding weights
                 if not isinstance(lag, Iterable):

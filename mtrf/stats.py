@@ -13,6 +13,7 @@ from mtrf.matrices import (
     _get_xy,
     Array,
     ArrayList,
+    lags_idx,
 )
 
 
@@ -135,7 +136,7 @@ def crossval(
     # if seed is not None:
     #     random.seed(seed)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
-    lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
+    lags = lags_idx(xp, tmin, tmax, fs)
     cov_xx, cov_xy = covariance_matrices(x, y, lags, model.zeropad, trf.preload)
     metric = _crossval(
         model,
@@ -240,7 +241,7 @@ def nested_crossval(
     if average is False and not xp.isscalar(regularization):
         raise ValueError("Average must be True or a list of indices!")
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
-    lags = list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
+    lags = lags_idx(xp, tmin, tmax, fs)
     if model.method == "banded":
         coefficients = list(product(regularization, repeat=2))
         regularization = [

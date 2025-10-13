@@ -135,6 +135,17 @@ def _get_xy(
     return x, y, tmin, tmax
 
 
+def lags_idx(xp: ModuleType, tmin: float, tmax: float, fs: int):
+    """
+    get the index of lags
+    """
+    if isinstance(fs, (int, float)):
+        ### xp.floor and xp.ceil can't handle scalar when fs is not an 0-dim array type
+        # error example: 'float' don't have 'dtype' attribute
+        fs = xp.asarray(fs)
+    return list(range(int(xp.floor(tmin * fs)), int(xp.ceil(tmax * fs)) + 1))
+
+
 def truncate(x: Array, min_idx: int, max_idx: int) -> Array:
     """
     Truncate matrix by rows (i.e. the time dimension in a TRF).

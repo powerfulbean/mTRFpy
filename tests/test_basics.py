@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import dask.array as da
 import array_api_strict
-from mtrf.matrices import _check_data
+from mtrf.matrices import _check_data, lags_idx
 from mtrf.model import lag_matrix, TRF, load_sample_data
 
 
@@ -49,7 +49,7 @@ def test_lag_matrix_size():
     for _ in range(10):
         tmin = np.random.randint(-200, -100) / 1e3
         tmax = np.random.randint(150, 500) / 1e3
-        lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
+        lags = lags_idx(np, tmin, tmax, fs)
         lag_mat = lag_matrix(stimulus, lags, True, True)
         assert lag_mat.shape[0] == stimulus.shape[0]
         assert lag_mat.shape[1] == len(lags) * stimulus.shape[1] + 1

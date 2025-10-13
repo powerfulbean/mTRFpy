@@ -12,6 +12,7 @@ It aims to implement the same methods as the original toolbox and advance them.
 This documentation provides tutorial-like demonstrations of the core functionalities like model fitting, visualization and optimization as well as a comprehensive reference documentation.
 
 # News
+- [2025.10.13] 🔧 Version 2.1.1 has been released for fixing the bug when fs is provided as a native int. A native int causes the array-api-compat.floor/ceil throw the error that fs doesn't have the attribute 'dtype'.
 - [2025.10.11] 🚀 Version 2.1.0 has been released! mTRFpy is now compatible with the Array API standard through [array-api-compat](https://github.com/data-apis/array-api-compat). ✨ **New feature**: Support for fitting a separate regularization parameter for each output channel.
 
 # Installation
