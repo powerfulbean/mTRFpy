@@ -1,11 +1,13 @@
 from __future__ import annotations
+import pickle
 from pathlib import Path
-from typing import Literal, Union, List, Tuple
 from types import ModuleType
 from itertools import product
-import pickle
 from collections.abc import Iterable
+from typing import Literal, Union, List, Tuple
+
 import numpy as np
+
 from mtrf.stats import (
     _crossval,
     _progressbar,
@@ -25,6 +27,8 @@ from mtrf.matrices import (
     Array,
     ArrayList,
     lags_idx,
+    is_scalar,
+    is_torch_namespace,
 )
 import array_api_compat
 
@@ -223,7 +227,7 @@ class TRF:
             raise TypeError("stimulus and response trials must be of the same type!")
         else:
             xp = xps
-        if not xp.isscalar(regularization):
+        if not is_scalar(regularization):
             k = _check_k(k, n_trials)
         x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, self.direction)
         lags = lags_idx(xp, tmin, tmax, fs)
@@ -233,7 +237,7 @@ class TRF:
                 [banded_regularization(len(lags), c, bands, xp) for c in coefficients],
                 axis=0,
             )
-        if xp.isscalar(regularization):
+        if is_scalar(regularization):
             self._train(x, y, fs, tmin, tmax, regularization)
             return
         else:  # run cross-validation once per regularization parameter
@@ -247,9 +251,11 @@ class TRF:
             else:
                 cov_xx, cov_xy = None, None
             if reg_per_y_channel:
-                metric = xp.zeros((len(regularization), y[0].shape[-1]))
+                metric = xp.zeros(
+                    (len(regularization), y[0].shape[-1]), dtype=x[0].dtype
+                )
             else:
-                metric = xp.zeros(len(regularization))
+                metric = xp.zeros(len(regularization), dtype=x[0].dtype)
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -285,7 +291,7 @@ class TRF:
     ):
         reg_per_y_channel = False
         xp = array_api_compat.array_namespace(x[0])
-        if isinstance(regularization, xp.ndarray):  # check if matrix is diagonal
+        if not is_scalar(regularization):  # check if matrix is diagonal
             if regularization.ndim == 2:
                 assert (
                     xp.count_nonzero(
@@ -309,7 +315,7 @@ class TRF:
         # regmat = regularization_matrix(cov_xx.shape[1], xp, self.method)
         # regmat *= regularization / (1 / self.fs)
         # weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / self.fs)
-        weight_matrix = xp.zeros(cov_xy.shape)
+        weight_matrix = xp.zeros(cov_xy.shape, dtype=x[0].dtype)
         if reg_per_y_channel:
             unique_reg_values = xp.unique(regularization)
             reg_y_chan_dict = {
@@ -333,13 +339,16 @@ class TRF:
                 regularization=regularization,
                 reg_method=self.method,
             )
+
+        if is_torch_namespace(weight_matrix):
+            weight_matrix = weight_matrix.cpu().numpy()
         self.bias = weight_matrix[0:1]
         if self.bias.ndim == 1:  # add empty dimension for single feature models
             self.bias = xp.expand_dims(self.bias, axis=0)
         self.weights = weight_matrix[1:].reshape(
             (x[0].shape[1], len(lags), y[0].shape[1]), order="F"
         )
-        self.times = xp.array(lags) / fs
+        self.times = xp.asarray(lags) / fs
         self.fs = fs
 
     def predict(
@@ -417,18 +426,23 @@ class TRF:
             tmax=self.times[-1],
             direction=self.direction,
         )
-        prediction = [xp.zeros((x_i.shape[0], self.weights.shape[-1])) for x_i in x]
+        prediction = [
+            xp.zeros((x_i.shape[0], self.weights.shape[-1]), dtype=x_i.dtype)
+            for x_i in x
+        ]
         if y[0] is not None:
-            metric = xp.zeros((len(x), self.weights.shape[-1]))
+            metric = xp.zeros((len(x), self.weights.shape[-1]), dtype=x[0].dtype)
         for i, (x_i, y_i) in enumerate(zip(x, y)):
-            lags = lags_idx(xp, self.times[0], self.times[-1], self.fs)
+            times = xp.asarray(self.times)
+            lags = lags_idx(xp, times[0], times[-1], self.fs)
             w = self.weights.copy()
+            xp_w = array_api_compat.get_namespace(w)
             if lag is not None:  # select lag and corresponding weights
                 if not isinstance(lag, Iterable):
                     lag = [lag]
                 lags = list(xp.array(lags)[lag])
                 w = w[:, lag, :]
-            w = xp.concatenate(
+            w = xp_w.concat(
                 [
                     self.bias,
                     w.reshape(
@@ -436,6 +450,7 @@ class TRF:
                     ),
                 ]
             ) * (1 / self.fs)
+            w = xp.asarray(w)
             x_lag = lag_matrix(x_i, lags, self.zeropad)
             y_pred = x_lag @ w
             if y_i is not None:
@@ -490,7 +505,7 @@ class TRF:
             trf.weights[..., i] = cov_xx @ self.weights[..., i] / cov_yy[i, i]
 
         trf.weights = xp.flip(trf.weights.T, axis=1)
-        trf.bias = xp.zeros(trf.weights.shape[-1])
+        trf.bias = xp.zeros(trf.weights.shape[-1], dtype=trf.weights.dtype)
         return trf
 
     def save(self, path):

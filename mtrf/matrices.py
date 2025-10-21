@@ -1,5 +1,8 @@
+import numbers
+from collections.abc import Iterable
 from typing import TypeVar, List, Union, Tuple, Literal
 from types import ModuleType
+
 import array_api_compat
 from array_api_compat import is_array_api_obj, get_namespace
 
@@ -219,8 +222,12 @@ def covariance_matrices(
         x_lag = lag_matrix(x_i, lags, zeropad)
         if preload is True:
             if i == 0:
-                cov_xx = xp.zeros((len(x), x_lag.shape[-1], x_lag.shape[-1]))
-                cov_xy = xp.zeros((len(y), x_lag.shape[-1], y_i.shape[-1]))
+                cov_xx = xp.zeros(
+                    (len(x), x_lag.shape[-1], x_lag.shape[-1]), dtype=x_lag.dtype
+                )
+                cov_xy = xp.zeros(
+                    (len(y), x_lag.shape[-1], y_i.shape[-1]), dtype=x_lag.dtype
+                )
             cov_xx[i] = x_lag.T @ x_lag
             cov_xy[i] = x_lag.T @ y_i
         else:
@@ -264,7 +271,7 @@ def lag_matrix(
     n_samples, n_variables = x.shape
     if max(lags) > n_samples:
         raise ValueError("The maximum lag can't be longer than the signal!")
-    x_lag = xp.zeros((n_samples, n_variables * n_lags))
+    x_lag = xp.zeros((n_samples, n_variables * n_lags), dtype=x.dtype)
 
     for idx, lag in enumerate(lags):
         col_slice = slice(idx * n_variables, (idx + 1) * n_variables)
@@ -279,13 +286,16 @@ def lag_matrix(
         x_lag = truncate(x_lag, lags[0], lags[-1])
 
     if bias is not False:
-        x_lag = xp.concatenate([xp.ones((x_lag.shape[0], 1)), x_lag], 1)
+        x_lag = xp.concatenate([xp.ones((x_lag.shape[0], 1), dtype=x.dtype), x_lag], 1)
 
     return x_lag
 
 
 def regularization_matrix(
-    size: int, xp: ModuleType, method: Literal["ridge", "banded", "tikhonov"] = "ridge"
+    size: int,
+    xp: ModuleType,
+    method: Literal["ridge", "banded", "tikhonov"] = "ridge",
+    dtype=None,
 ) -> Array:
     """
     Generates a sparse regularization matrix for the specified method.
@@ -304,19 +314,24 @@ def regularization_matrix(
     array-like
         regularization matrix for specified ``size`` and ``method``.
     """
+    if dtype is None:
+        dtype = xp.float64
     if method in ["ridge", "banded"]:
-        regmat = xp.identity(size)
+        regmat = xp.eye(size, dtype=dtype)
         regmat[0, 0] = 0
     elif method == "tikhonov":
-        regmat = xp.identity(size)
-        regmat -= 0.5 * (xp.diag(xp.ones(size - 1), 1) + xp.diag(xp.ones(size - 1), -1))
+        regmat = xp.eye(size, dtype=dtype)
+        regmat -= 0.5 * (
+            xp.diag(xp.ones(size - 1, dtype=dtype), 1)
+            + xp.diag(xp.ones(size - 1, dtype=dtype), -1)
+        )
         regmat[1, 1] = 0.5
         regmat[size - 1, size - 1] = 0.5
         regmat[0, 0] = 0
         regmat[0, 1] = 0
         regmat[1, 0] = 0
     else:
-        regmat = xp.zeros((size, size))
+        regmat = xp.zeros((size, size), dtype=dtype)
     return regmat
 
 
@@ -391,7 +406,32 @@ def fit_weights_with_covariance_matrices(
         the weight matrix
     """
     xp = get_namespace(cov_xx)
-    regmat = regularization_matrix(cov_xx.shape[1], xp, reg_method)
+    regmat = regularization_matrix(cov_xx.shape[1], xp, reg_method, dtype=cov_xx.dtype)
     regmat *= regularization / (1 / fs)
     weight_matrix = xp.linalg.solve((cov_xx + regmat), cov_xy) / (1 / fs)
     return weight_matrix
+
+
+def is_scalar(x):
+    if isinstance(x, numbers.Number):
+        return True
+    elif isinstance(x, list) or isinstance(x, tuple):
+        return False
+    else:
+        try:
+            get_namespace(x)
+        except:
+            raise TypeError(
+                f"{x} is neither a native number, list, tuple, or an array type"
+            )
+
+        if x.ndim == 0:
+            return True
+        else:
+            return False
+
+
+def is_torch_namespace(x):
+    # `xp` is a module, so you can check its name or type
+    xp = get_namespace(x)
+    return xp.__name__.endswith("torch")

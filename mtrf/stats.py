@@ -1,9 +1,11 @@
-import random
 import sys
-from collections.abc import Iterable
+import random
 from itertools import product
 from typing import List, Union
+from collections.abc import Iterable
+
 import array_api_compat
+
 from mtrf.matrices import (
     regularization_matrix,
     covariance_matrices,
@@ -14,6 +16,7 @@ from mtrf.matrices import (
     Array,
     ArrayList,
     lags_idx,
+    is_scalar,
 )
 
 
@@ -57,7 +60,7 @@ def pearsonr(y: Array, y_pred: Array) -> Array:
         Pearsons r for each feature in y.
     """
     xp = array_api_compat.array_namespace(y)
-    r = xp.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), 0) / (
+    r = xp.mean((y - y.mean(0)) * (y_pred - y_pred.mean(0)), axis=0) / (
         y.std(0) * y_pred.std(0)
     )
     return r
@@ -238,7 +241,7 @@ def nested_crossval(
         raise TypeError("stimulus and response trials must be of the same type!")
     else:
         xp = xps
-    if average is False and not xp.isscalar(regularization):
+    if average is False and not is_scalar(regularization):
         raise ValueError("Average must be True or a list of indices!")
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     lags = lags_idx(xp, tmin, tmax, fs)
@@ -255,13 +258,13 @@ def nested_crossval(
 
     splits = xp.array_split(xp.arange(n_trials), k)
     n_splits = len(splits)
-    metric_test = xp.zeros(n_splits)
+    metric_test = xp.zeros(n_splits, dtype=x[0].dtype)
     best_regularization = []
     for split_i in range(n_splits):
         idx_test = splits[split_i]
         idx_train_val = xp.concatenate(splits[:split_i] + splits[split_i + 1 :])
-        if not xp.isscalar(regularization):
-            metric = xp.zeros(len(regularization))
+        if not is_scalar(regularization):
+            metric = xp.zeros(len(regularization), dtype=x[0].dtype)
             for ir in _progressbar(
                 range(len(regularization)),
                 "Hyperparameter optimization",
@@ -325,7 +328,7 @@ def _crossval(
         random.seed(seed)
 
     reg_mat_size = x[0].shape[-1] * len(lags) + 1
-    regmat = regularization_matrix(reg_mat_size, xp, model.method)
+    regmat = regularization_matrix(reg_mat_size, xp, model.method, dtype=x[0].dtype)
     regmat *= regularization / (1 / fs)
 
     n_trials = len(x)
@@ -335,13 +338,13 @@ def _crossval(
     splits = xp.array_split(splits, k)
 
     if average is True:
-        metric = xp.zeros(k)
+        metric = xp.zeros(k, dtype=x[0].dtype)
     else:
-        metric = xp.zeros((k, y[0].shape[-1]))
+        metric = xp.zeros((k, y[0].shape[-1]), dtype=x[0].dtype)
 
     for isplit in _progressbar(range(len(splits)), "Cross-validating", verbose=verbose):
         idx_val = splits[isplit]
-        idx_train = xp.concatenate(splits[:isplit] + splits[isplit + 1 :])  # flatten
+        idx_train = xp.concat(splits[:isplit] + splits[isplit + 1 :])  # flatten
         if cov_xx is None:
             x_train = [x[i] for i in idx_train]
             y_train = [y[i] for i in idx_train]
@@ -451,7 +454,7 @@ def permutation_distribution(
         trf = model.copy()
         trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
         models.append(trf)
-    metric = xp.zeros(n_permute)
+    metric = xp.zeros(n_permute, dtype=x[0].dtype)
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
         for i in range(len(x)):  # make sure each x only appears once
