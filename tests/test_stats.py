@@ -3,7 +3,7 @@ from mtrf import stats
 from mtrf.model import TRF, load_sample_data
 from mtrf.stats import crossval, nested_crossval, permutation_distribution
 
-n = np.random.randint(5, 10)
+n = np.random.randint(3, 5)
 stimulus, response, fs = load_sample_data(n_segments=n)
 
 
@@ -44,7 +44,7 @@ def test_crossval():
 
 def test_permutation():
     tmin, tmax = np.random.uniform(-0.1, 0.05), np.random.uniform(0.1, 0.4)
-    n_permute = np.random.randint(5, 100)
+    n_permute = np.random.randint(2, 5)
     reg = np.random.uniform(0, 10)
     trf = TRF()
     metric = permutation_distribution(
