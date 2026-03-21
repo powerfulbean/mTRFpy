@@ -81,7 +81,13 @@ def test_permutation_too_many():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         permutation_distribution(
-            trf, stimulus, response, fs, tmin=0, tmax=0.1, regularization=1,
+            trf,
+            stimulus,
+            response,
+            fs,
+            tmin=0,
+            tmax=0.1,
+            regularization=1,
             n_permute=n_permute,
         )
     assert len(w) == 1
