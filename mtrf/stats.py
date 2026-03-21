@@ -1,5 +1,7 @@
 import sys
 import random
+import math
+import warnings
 from itertools import product
 from typing import List, Union
 from collections.abc import Iterable
@@ -447,6 +449,12 @@ def permutation_distribution(
     stimulus = [s[:min_len] for s in stimulus]
     response = [r[:min_len] for r in response]
     k = _check_k(k, n_trials)
+    if n_permute > math.factorial(n_trials):
+        warnings.warn(
+            f"n_permute ({n_permute}) exceeds the number of unique permutations "
+            f"({math.factorial(n_trials)}) for {n_trials} trials. "
+            "Some permutations will be repeated."
+        )
     idx = xp.arange(n_trials)
     combinations = xp.transpose(xp.meshgrid(idx, idx)).reshape(-1, 2)
     models = []

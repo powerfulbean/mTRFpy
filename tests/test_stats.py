@@ -1,3 +1,5 @@
+import math
+import warnings
 import numpy as np
 from mtrf import stats
 from mtrf.model import TRF, load_sample_data
@@ -71,3 +73,16 @@ def test_permutation_average_false():
         trf, stimulus, response, fs, tmin, tmax, reg, n_permute, average=False
     )
     assert metric.shape == (n_permute, n_channels)
+
+
+def test_permutation_too_many():
+    trf = TRF()
+    n_permute = math.factorial(n) + 1
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        permutation_distribution(
+            trf, stimulus, response, fs, tmin=0, tmax=0.1, regularization=1,
+            n_permute=n_permute,
+        )
+    assert len(w) == 1
+    assert "will be repeated" in str(w[0].message)
