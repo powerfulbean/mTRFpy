@@ -454,7 +454,7 @@ def permutation_distribution(
         trf = model.copy()
         trf.train(stimulus[c[0]], response[c[1]], fs, tmin, tmax, regularization)
         models.append(trf)
-    metric = xp.zeros(n_permute, dtype=x[0].dtype)
+    metric = []
     for iperm in _progressbar(range(n_permute), "Permuting", verbose=verbose):
         idx = []
         for i in range(len(x)):  # make sure each x only appears once
@@ -472,9 +472,9 @@ def permutation_distribution(
                 stimulus_val, response_val, None, average
             )
             perm_metric.append(fold_metric)
-        metric[iperm] = xp.mean(perm_metric)
+        metric.append(xp.mean(xp.stack(perm_metric), axis=0))
 
-    return metric
+    return xp.stack(metric)
 
 
 def _progressbar(it, prefix="", size=50, out=sys.stdout, verbose=True):

@@ -57,6 +57,17 @@ def test_permutation():
         reg,
         n_permute,
         k=-1,
-        average=[1, 2, 3],
     )
     assert len(metric) == n_permute
+
+
+def test_permutation_average_false():
+    tmin, tmax = np.random.uniform(-0.1, 0.05), np.random.uniform(0.1, 0.4)
+    n_permute = np.random.randint(5, 10)
+    reg = np.random.uniform(0, 10)
+    trf = TRF()
+    n_channels = response[0].shape[-1]
+    metric = permutation_distribution(
+        trf, stimulus, response, fs, tmin, tmax, reg, n_permute, average=False
+    )
+    assert metric.shape == (n_permute, n_channels)
