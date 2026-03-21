@@ -5,7 +5,6 @@ import array_api_strict
 from mtrf.matrices import _check_data, lags_idx
 from mtrf.model import lag_matrix, TRF, load_sample_data
 
-
 root = Path(__file__).parent.absolute()
 
 
