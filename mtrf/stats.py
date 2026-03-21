@@ -444,8 +444,8 @@ def permutation_distribution(
         xp.random.seed(seed)
     x, y, tmin, tmax = _get_xy(stimulus, response, tmin, tmax, model.direction)
     min_len = min([len(x_i) for x_i in x])
-    x = [x_i[:min_len] for x_i in x]
-    y = [y_i[:min_len] for y_i in y]
+    stimulus = [s[:min_len] for s in stimulus]
+    response = [r[:min_len] for r in response]
     k = _check_k(k, n_trials)
     idx = xp.arange(n_trials)
     combinations = xp.transpose(xp.meshgrid(idx, idx)).reshape(-1, 2)
