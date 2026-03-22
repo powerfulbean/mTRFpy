@@ -32,7 +32,7 @@ def test_crossval():
         tmin, tmax = np.random.uniform(-0.1, 0.05), np.random.uniform(0.1, 0.4)
         reg = np.random.uniform(0, 10)
         trf = TRF(direction=direction)
-        splits = np.random.randint(2, 5)
+        splits = np.random.randint(2, n + 1)
         metric = crossval(trf, stimulus, response, fs, tmin, tmax, reg, splits)
         assert np.isscalar(metric)
         metric = crossval(
