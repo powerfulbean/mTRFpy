@@ -114,7 +114,9 @@ def crossValPerLambda(stim:ds.CDataList,resp:ds.CDataList,
             oTRF = CTRF()
             stimTrain = stim.selectByIndices(trainIdx)
             respTrain = resp.selectByIndices(trainIdx)
+            # print(fs, tmin_ms, tmax_ms)
             oTRF.train(stimTrain, respTrain, Dir, fs, tmin_ms, tmax_ms, Lambda, **kwargs)
+            # print(oTRF.t[0],oTRF.t[-1])
             
             stimTest = stim.selectByIndices(testIdx)
             respTest = resp.selectByIndices(testIdx)

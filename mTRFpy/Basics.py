@@ -120,6 +120,7 @@ def predict(model,x:CDataList,y=0,windowSize_ms:int = 0,zeropad:bool = True,dim 
             w = np.concatenate([model.b,w.reshape(((nXVar-nNoLag)*len(lags),nYVar),order = 'F')])*delta
         else:
             w = np.concatenate([model.b,w.reshape((nXVar*len(lags),nYVar),order = 'F')])*delta
+       
     else:
         w = 1
     

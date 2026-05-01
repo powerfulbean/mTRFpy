@@ -112,7 +112,7 @@ def buildListFromSRFDataset(dataset:CDataSet,zscore = True):
         keys = [k for k in s]
         newS = []
         for k in s:
-            if k == 'vector':
+            if k == 'vector' or k == 'timeShiftCE':
                 timeInfo = s['tIntvl']
                 nchan = s[k].shape[0]
                 vecImpulse = np.zeros((nchan,int(np.ceil(srate * timeInfo[-1,-1]))))
